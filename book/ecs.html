@@ -1,0 +1,397 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Entity Component System - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="entity-component-system"><a class="header" href="#entity-component-system">Entity Component System</a></h1>
+<p>Nightshade uses <code>freecs</code>, a code-generated ECS with struct-of-arrays storage for cache-friendly access patterns.</p>
+<h2 id="ecs-concepts"><a class="header" href="#ecs-concepts">ECS Concepts</a></h2>
+<h3 id="entities"><a class="header" href="#entities">Entities</a></h3>
+<p>Entities are unique identifiers (IDs) that group components together. An entity is just a number - it has no data of its own.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let entity: Entity = world.spawn_entities(LOCAL_TRANSFORM, 1)[0];
+<span class="boring">}</span></code></pre></pre>
+<h3 id="components"><a class="header" href="#components">Components</a></h3>
+<p>Components are plain data structs attached to entities:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LocalTransform {
+    pub translation: Vec3,
+    pub rotation: UnitQuaternion&lt;f32&gt;,
+    pub scale: Vec3,
+}
+
+pub struct Health {
+    pub current: f32,
+    pub maximum: f32,
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="systems"><a class="header" href="#systems">Systems</a></h3>
+<p>Systems are functions that process entities with specific components:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn damage_system(world: &amp;mut World) {
+    for entity in world.query(HEALTH | DAMAGE_OVER_TIME) {
+        let dot = world.get_damage_over_time(entity).unwrap();
+        if let Some(health) = world.get_health_mut(entity) {
+            health.current -= dot.damage_per_second * world.resources.time.delta_seconds;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="component-flags"><a class="header" href="#component-flags">Component Flags</a></h2>
+<p>Each component type has a corresponding bitflag for efficient queries:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub const LOCAL_TRANSFORM: ComponentFlags = 1 &lt;&lt; 0;
+pub const GLOBAL_TRANSFORM: ComponentFlags = 1 &lt;&lt; 1;
+pub const RENDER_MESH: ComponentFlags = 1 &lt;&lt; 2;
+pub const MATERIAL_REF: ComponentFlags = 1 &lt;&lt; 3;
+pub const CAMERA: ComponentFlags = 1 &lt;&lt; 4;
+pub const LIGHT: ComponentFlags = 1 &lt;&lt; 5;
+// ... and so on
+<span class="boring">}</span></code></pre></pre>
+<p>Combine flags with bitwise OR:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const RENDERABLE: ComponentFlags = LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH | MATERIAL_REF;
+
+let entity = world.spawn_entities(RENDERABLE, 1)[0];
+<span class="boring">}</span></code></pre></pre>
+<h2 id="working-with-components"><a class="header" href="#working-with-components">Working with Components</a></h2>
+<h3 id="setting-components"><a class="header" href="#setting-components">Setting Components</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_local_transform(entity, LocalTransform {
+    translation: Vec3::new(0.0, 5.0, 0.0),
+    rotation: UnitQuaternion::identity(),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+});
+
+world.set_render_mesh(entity, RenderMesh {
+    mesh_name: "cube".to_string(),
+    gpu_mesh_id: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="getting-components-immutable"><a class="header" href="#getting-components-immutable">Getting Components (Immutable)</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(transform) = world.get_local_transform(entity) {
+    println!("Position: {:?}", transform.translation);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="getting-components-mutable"><a class="header" href="#getting-components-mutable">Getting Components (Mutable)</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(transform) = world.get_local_transform_mut(entity) {
+    transform.translation.y += 1.0;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="checking-component-presence"><a class="header" href="#checking-component-presence">Checking Component Presence</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if world.has_component(entity, RENDER_MESH) {
+    // Entity has a render mesh
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="entity-hierarchy"><a class="header" href="#entity-hierarchy">Entity Hierarchy</a></h2>
+<p>Entities can form parent-child relationships:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::transform::components::Parent;
+
+// Set parent
+world.update_parent(child_entity, Some(Parent(Some(parent_entity))));
+
+// Clear parent
+world.update_parent(child_entity, Some(Parent(None)));
+
+// Get children
+if let Some(children) = world.children_cache.get(&amp;parent_entity) {
+    for child in children {
+        // Process child
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Child transforms are relative to their parent. The engine automatically propagates transforms through the hierarchy.</p>
+<h2 id="custom-game-ecs"><a class="header" href="#custom-game-ecs">Custom Game ECS</a></h2>
+<p>For complex games, define a separate ECS for game-specific data:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use freecs::ecs;
+
+ecs! {
+    GameWorld {
+        components {
+            player_state: PlayerState,
+            inventory: Inventory,
+            health: Health,
+            enemy_ai: EnemyAI,
+        },
+        resources {
+            game_time: GameTime,
+            score: u32,
+            level: u32,
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Then use both worlds together:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct MyGame {
+    game: GameWorld,
+}
+
+impl State for MyGame {
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        // Update game ECS
+        update_player(&amp;mut self.game);
+
+        // Sync with engine world
+        sync_positions(&amp;self.game, world);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="world-resources.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="components.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="world-resources.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="components.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

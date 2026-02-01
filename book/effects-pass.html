@@ -1,0 +1,679 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Effects Pass - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="effects-pass"><a class="header" href="#effects-pass">Effects Pass</a></h1>
+<p>The EffectsPass is a configurable post-processing system with 38 shader parameters for visual effects. It includes distortions, color grading, raymarched overlays, retro effects, and more.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The EffectsPass operates as a render graph node that processes the rendered scene through a fullscreen shader. Effects can be combined and animated for music visualizers, stylized games, or creative applications.</p>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<p>Create and configure the effects state, then add the pass to your render graph:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::render::wgpu::passes::postprocess::effects::*;
+
+fn configure_render_graph(
+    &amp;mut self,
+    graph: &amp;mut RenderGraph&lt;World&gt;,
+    device: &amp;wgpu::Device,
+    surface_format: wgpu::TextureFormat,
+    resources: RenderResources,
+) {
+    // Create shared state handle
+    let effects_state = create_effects_state();
+    self.effects_state = Some(effects_state.clone());
+
+    // Create and add the pass
+    let effects_pass = EffectsPass::new(device, surface_format, effects_state);
+    graph.add_pass(Box::new(effects_pass));
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="modifying-effects"><a class="header" href="#modifying-effects">Modifying Effects</a></h2>
+<p>Access the state handle to modify effect parameters:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    if let Some(state_handle) = &amp;self.effects_state {
+        if let Ok(mut state) = state_handle.write() {
+            // Modify uniforms
+            state.uniforms.chromatic_aberration = 0.02;
+            state.uniforms.vignette = 0.3;
+
+            // Enable/disable the entire pass
+            state.enabled = true;
+
+            // Auto-animate hue rotation
+            state.animate_hue = false;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="effect-parameters"><a class="header" href="#effect-parameters">Effect Parameters</a></h2>
+<h3 id="distortion-effects"><a class="header" href="#distortion-effects">Distortion Effects</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Chromatic aberration: RGB channel separation (0.0-0.1 typical)
+uniforms.chromatic_aberration = 0.02;
+
+// Wave distortion: sinusoidal screen warping
+uniforms.wave_distortion = 0.5;
+
+// Glitch intensity: digital glitch artifacts
+uniforms.glitch_intensity = 0.3;
+
+// VHS distortion: analog tape wobble and noise
+uniforms.vhs_distortion = 0.4;
+
+// Heat distortion: rising heat shimmer effect
+uniforms.heat_distortion = 0.2;
+
+// Screen shake: camera shake offset
+uniforms.screen_shake = 0.1;
+
+// Warp speed: hyperspace stretch effect
+uniforms.warp_speed = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="color-effects"><a class="header" href="#color-effects">Color Effects</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Hue rotation: shift all colors around the wheel (0.0-1.0)
+uniforms.hue_rotation = 0.5;
+
+// Saturation: color intensity (0.0=grayscale, 1.0=normal, 2.0=oversaturated)
+uniforms.saturation = 1.0;
+
+// Color shift: global color offset
+uniforms.color_shift = 0.1;
+
+// Invert: color inversion (0.0=normal, 1.0=inverted)
+uniforms.invert = 1.0;
+
+// Color posterize: reduce color depth (0.0=off, higher=fewer colors)
+uniforms.color_posterize = 4.0;
+
+// Color cycle speed: rate of automatic color animation
+uniforms.color_cycle_speed = 1.0;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="color-grading"><a class="header" href="#color-grading">Color Grading</a></h3>
+<p>Apply preset color grades:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>uniforms.color_grade_mode = ColorGradeMode::Cyberpunk as f32;
+<span class="boring">}</span></code></pre></pre>
+<p>Available modes:</p>
+<div class="table-wrapper"><table><thead><tr><th>Mode</th><th>Value</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>None</code></td><td>0</td><td>No color grading</td></tr>
+<tr><td><code>Cyberpunk</code></td><td>1</td><td>Teal and magenta, high contrast</td></tr>
+<tr><td><code>Sunset</code></td><td>2</td><td>Warm orange and purple tones</td></tr>
+<tr><td><code>Grayscale</code></td><td>3</td><td>Black and white</td></tr>
+<tr><td><code>Sepia</code></td><td>4</td><td>Vintage brown tones</td></tr>
+<tr><td><code>Matrix</code></td><td>5</td><td>Green tinted, digital look</td></tr>
+<tr><td><code>HotMetal</code></td><td>6</td><td>Heat map colors</td></tr>
+</tbody></table>
+</div>
+<h3 id="geometric-effects"><a class="header" href="#geometric-effects">Geometric Effects</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Kaleidoscope: mirror segments (0=off, 6-12 typical)
+uniforms.kaleidoscope_segments = 6.0;
+
+// Mirror mode: horizontal/vertical mirroring
+uniforms.mirror_mode = 1.0;
+
+// Zoom pulse: rhythmic zoom in/out
+uniforms.zoom_pulse = 0.5;
+
+// Radial blur: motion blur from center
+uniforms.radial_blur = 0.2;
+
+// Pixelate: reduce resolution (0=off, higher=larger pixels)
+uniforms.pixelate = 8.0;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="raymarched-overlays"><a class="header" href="#raymarched-overlays">Raymarched Overlays</a></h3>
+<p>Blend raymarched 3D effects over the scene:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>uniforms.raymarch_mode = RaymarchMode::Tunnel as f32;
+uniforms.raymarch_blend = 0.5; // 0.0-1.0 blend with scene
+uniforms.tunnel_speed = 1.0;   // Animation speed
+uniforms.fractal_iterations = 4.0;
+<span class="boring">}</span></code></pre></pre>
+<p>Available raymarch modes:</p>
+<div class="table-wrapper"><table><thead><tr><th>Mode</th><th>Value</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>Off</code></td><td>0</td><td>No raymarching</td></tr>
+<tr><td><code>Tunnel</code></td><td>1</td><td>Infinite tunnel flythrough</td></tr>
+<tr><td><code>Fractal</code></td><td>2</td><td>2D fractal pattern</td></tr>
+<tr><td><code>Mandelbulb</code></td><td>3</td><td>3D mandelbulb fractal</td></tr>
+<tr><td><code>PlasmaVortex</code></td><td>4</td><td>Swirling plasma effect</td></tr>
+<tr><td><code>Geometric</code></td><td>5</td><td>Repeating geometric shapes</td></tr>
+</tbody></table>
+</div>
+<h3 id="retro-effects"><a class="header" href="#retro-effects">Retro Effects</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// CRT scanlines: horizontal line overlay
+uniforms.crt_scanlines = 0.5;
+
+// Film grain: random noise overlay
+uniforms.film_grain = 0.1;
+
+// ASCII mode: convert to ASCII art characters
+uniforms.ascii_mode = 1.0;
+
+// Digital rain: Matrix-style falling characters
+uniforms.digital_rain = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="glow-and-light-effects"><a class="header" href="#glow-and-light-effects">Glow and Light Effects</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Vignette: darken screen edges (0.0-1.0)
+uniforms.vignette = 0.3;
+
+// Glow intensity: bloom-like glow
+uniforms.glow_intensity = 0.5;
+
+// Lens flare: bright light artifacts
+uniforms.lens_flare = 0.3;
+
+// Edge glow: outline bright edges
+uniforms.edge_glow = 0.2;
+
+// Strobe: flashing white overlay
+uniforms.strobe = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="plasma-and-patterns"><a class="header" href="#plasma-and-patterns">Plasma and Patterns</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Plasma intensity: colorful plasma overlay
+uniforms.plasma_intensity = 0.5;
+
+// Pulse rings: expanding circular rings
+uniforms.pulse_rings = 0.3;
+
+// Speed lines: motion/action lines
+uniforms.speed_lines = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="image-processing"><a class="header" href="#image-processing">Image Processing</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Sharpen: edge enhancement (0.0-1.0)
+uniforms.sharpen = 0.5;
+
+// Feedback amount: recursive frame blending
+uniforms.feedback_amount = 0.3;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="combining-effects"><a class="header" href="#combining-effects">Combining Effects</a></h2>
+<p>Effects can be layered for complex looks:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Cyberpunk aesthetic
+state.uniforms.chromatic_aberration = 0.015;
+state.uniforms.crt_scanlines = 0.2;
+state.uniforms.vignette = 0.4;
+state.uniforms.color_grade_mode = ColorGradeMode::Cyberpunk as f32;
+state.uniforms.glow_intensity = 0.3;
+
+// VHS tape look
+state.uniforms.vhs_distortion = 0.4;
+state.uniforms.crt_scanlines = 0.3;
+state.uniforms.film_grain = 0.15;
+state.uniforms.chromatic_aberration = 0.01;
+state.uniforms.saturation = 0.8;
+
+// Psychedelic visualizer
+state.uniforms.kaleidoscope_segments = 8.0;
+state.uniforms.plasma_intensity = 0.3;
+state.uniforms.hue_rotation = time * 0.1;
+state.uniforms.wave_distortion = 0.2;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="music-reactive-effects"><a class="header" href="#music-reactive-effects">Music-Reactive Effects</a></h2>
+<p>Combine with AudioAnalyzer for reactive visuals:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    self.analyzer.analyze_at_time(self.time);
+
+    if let Some(state_handle) = &amp;self.effects_state {
+        if let Ok(mut state) = state_handle.write() {
+            // Chromatic aberration on bass
+            state.uniforms.chromatic_aberration =
+                self.analyzer.smoothed_bass * 0.05;
+
+            // Glitch on snare hits
+            state.uniforms.glitch_intensity =
+                self.analyzer.snare_decay * 0.5;
+
+            // Zoom pulse on kick
+            state.uniforms.zoom_pulse =
+                self.analyzer.kick_decay * 0.3;
+
+            // Color cycling based on energy
+            state.uniforms.hue_rotation =
+                self.time * self.analyzer.intensity * 0.2;
+
+            // Screen shake on drops
+            if self.analyzer.is_dropping {
+                state.uniforms.screen_shake =
+                    self.analyzer.drop_intensity * 0.1;
+            } else {
+                state.uniforms.screen_shake *= 0.9;
+            }
+
+            // Switch to tunnel during breakdown
+            if self.analyzer.is_breakdown {
+                state.uniforms.raymarch_mode = RaymarchMode::Tunnel as f32;
+                state.uniforms.raymarch_blend =
+                    self.analyzer.breakdown_intensity * 0.5;
+            } else {
+                state.uniforms.raymarch_blend *= 0.95;
+            }
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="custom-inputoutput-slots"><a class="header" href="#custom-inputoutput-slots">Custom Input/Output Slots</a></h2>
+<p>By default, the EffectsPass reads from "input" and writes to "output". Configure custom slots:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let effects_pass = EffectsPass::with_slots(
+    device,
+    surface_format,
+    effects_state,
+    "post_bloom",    // Input slot name
+    "final_output"   // Output slot name
+);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="disabling-the-pass"><a class="header" href="#disabling-the-pass">Disabling the Pass</a></h2>
+<p>Temporarily bypass all effects:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Ok(mut state) = state_handle.write() {
+    state.enabled = false; // Pass through without processing
+}
+<span class="boring">}</span></code></pre></pre>
+<p>When disabled, the pass performs a simple blit operation with no effects applied.</p>
+<h2 id="auto-animate-hue"><a class="header" href="#auto-animate-hue">Auto-Animate Hue</a></h2>
+<p>Enable automatic hue rotation:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Ok(mut state) = state_handle.write() {
+    state.animate_hue = true; // Continuously rotate hue based on time
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
+use nightshade::render::wgpu::passes::postprocess::effects::*;
+
+struct VisualDemo {
+    effects_state: Option&lt;EffectsStateHandle&gt;,
+    analyzer: AudioAnalyzer,
+    time: f32,
+}
+
+impl Default for VisualDemo {
+    fn default() -&gt; Self {
+        Self {
+            effects_state: None,
+            analyzer: AudioAnalyzer::new(),
+            time: 0.0,
+        }
+    }
+}
+
+impl State for VisualDemo {
+    fn initialize(&amp;mut self, world: &amp;mut World) {
+        spawn_fly_camera(world);
+        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+
+        // Load some geometry
+        load_gltf(world, "assets/models/scene.glb");
+
+        // Load audio for reactive effects
+        let (samples, sample_rate) = load_audio_file("assets/audio/music.wav");
+        self.analyzer.load_samples(samples, sample_rate);
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        let dt = world.resources.timing.delta_time;
+        self.time += dt;
+
+        // Analyze audio
+        self.analyzer.analyze_at_time(self.time);
+
+        // Update effects based on audio
+        if let Some(state_handle) = &amp;self.effects_state {
+            if let Ok(mut state) = state_handle.write() {
+                // Base effects
+                state.uniforms.vignette = 0.3;
+                state.uniforms.crt_scanlines = 0.15;
+
+                // Audio-reactive
+                state.uniforms.chromatic_aberration =
+                    self.analyzer.smoothed_bass * 0.04;
+                state.uniforms.glow_intensity =
+                    self.analyzer.intensity * 0.5;
+                state.uniforms.zoom_pulse =
+                    self.analyzer.kick_decay * 0.2;
+
+                // Structure-based
+                if self.analyzer.is_dropping {
+                    state.uniforms.color_grade_mode =
+                        ColorGradeMode::Cyberpunk as f32;
+                    state.uniforms.strobe =
+                        self.analyzer.drop_intensity * 0.3;
+                } else if self.analyzer.is_breakdown {
+                    state.uniforms.color_grade_mode =
+                        ColorGradeMode::Grayscale as f32;
+                } else {
+                    state.uniforms.color_grade_mode =
+                        ColorGradeMode::None as f32;
+                    state.uniforms.strobe = 0.0;
+                }
+            }
+        }
+    }
+
+    fn configure_render_graph(
+        &amp;mut self,
+        graph: &amp;mut RenderGraph&lt;World&gt;,
+        device: &amp;wgpu::Device,
+        surface_format: wgpu::TextureFormat,
+        resources: RenderResources,
+    ) {
+        // Add standard passes first...
+
+        // Create effects pass
+        let effects_state = create_effects_state();
+        self.effects_state = Some(effects_state.clone());
+
+        let effects_pass = EffectsPass::new(device, surface_format, effects_state);
+        graph.add_pass(Box::new(effects_pass));
+    }
+}
+
+fn main() {
+    nightshade::run(VisualDemo::default());
+}</code></pre></pre>
+<h2 id="parameter-reference"><a class="header" href="#parameter-reference">Parameter Reference</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>time</code></td><td>0.0+</td><td>0.0</td><td>Elapsed time (auto-updated)</td></tr>
+<tr><td><code>chromatic_aberration</code></td><td>0.0-0.1</td><td>0.0</td><td>RGB channel offset</td></tr>
+<tr><td><code>wave_distortion</code></td><td>0.0-1.0</td><td>0.0</td><td>Sinusoidal screen warp</td></tr>
+<tr><td><code>color_shift</code></td><td>0.0-1.0</td><td>0.0</td><td>Global color offset</td></tr>
+<tr><td><code>kaleidoscope_segments</code></td><td>0-16</td><td>0.0</td><td>Mirror segment count</td></tr>
+<tr><td><code>crt_scanlines</code></td><td>0.0-1.0</td><td>0.0</td><td>Scanline intensity</td></tr>
+<tr><td><code>vignette</code></td><td>0.0-1.0</td><td>0.0</td><td>Edge darkening</td></tr>
+<tr><td><code>plasma_intensity</code></td><td>0.0-1.0</td><td>0.0</td><td>Plasma overlay strength</td></tr>
+<tr><td><code>glitch_intensity</code></td><td>0.0-1.0</td><td>0.0</td><td>Digital glitch amount</td></tr>
+<tr><td><code>mirror_mode</code></td><td>0.0-1.0</td><td>0.0</td><td>Screen mirroring</td></tr>
+<tr><td><code>invert</code></td><td>0.0-1.0</td><td>0.0</td><td>Color inversion</td></tr>
+<tr><td><code>hue_rotation</code></td><td>0.0-1.0</td><td>0.0</td><td>Hue shift amount</td></tr>
+<tr><td><code>raymarch_mode</code></td><td>0-5</td><td>0.0</td><td>Raymarch effect type</td></tr>
+<tr><td><code>raymarch_blend</code></td><td>0.0-1.0</td><td>0.0</td><td>Raymarch overlay blend</td></tr>
+<tr><td><code>film_grain</code></td><td>0.0-1.0</td><td>0.0</td><td>Noise grain intensity</td></tr>
+<tr><td><code>sharpen</code></td><td>0.0-1.0</td><td>0.0</td><td>Edge sharpening</td></tr>
+<tr><td><code>pixelate</code></td><td>0-64</td><td>0.0</td><td>Pixel size (0=off)</td></tr>
+<tr><td><code>color_posterize</code></td><td>0-16</td><td>0.0</td><td>Color quantization</td></tr>
+<tr><td><code>radial_blur</code></td><td>0.0-1.0</td><td>0.0</td><td>Center blur amount</td></tr>
+<tr><td><code>tunnel_speed</code></td><td>0.0-5.0</td><td>1.0</td><td>Tunnel animation speed</td></tr>
+<tr><td><code>fractal_iterations</code></td><td>1-8</td><td>4.0</td><td>Fractal detail level</td></tr>
+<tr><td><code>glow_intensity</code></td><td>0.0-1.0</td><td>0.0</td><td>Bloom-like glow</td></tr>
+<tr><td><code>screen_shake</code></td><td>0.0-0.5</td><td>0.0</td><td>Camera shake offset</td></tr>
+<tr><td><code>zoom_pulse</code></td><td>0.0-1.0</td><td>0.0</td><td>Rhythmic zoom amount</td></tr>
+<tr><td><code>speed_lines</code></td><td>0.0-1.0</td><td>0.0</td><td>Motion line intensity</td></tr>
+<tr><td><code>color_grade_mode</code></td><td>0-6</td><td>0.0</td><td>Color grading preset</td></tr>
+<tr><td><code>vhs_distortion</code></td><td>0.0-1.0</td><td>0.0</td><td>VHS tape wobble</td></tr>
+<tr><td><code>lens_flare</code></td><td>0.0-1.0</td><td>0.0</td><td>Light flare intensity</td></tr>
+<tr><td><code>edge_glow</code></td><td>0.0-1.0</td><td>0.0</td><td>Edge highlight amount</td></tr>
+<tr><td><code>saturation</code></td><td>0.0-2.0</td><td>1.0</td><td>Color saturation</td></tr>
+<tr><td><code>warp_speed</code></td><td>0.0-1.0</td><td>0.0</td><td>Hyperspace stretch</td></tr>
+<tr><td><code>pulse_rings</code></td><td>0.0-1.0</td><td>0.0</td><td>Expanding ring effect</td></tr>
+<tr><td><code>heat_distortion</code></td><td>0.0-1.0</td><td>0.0</td><td>Heat shimmer amount</td></tr>
+<tr><td><code>digital_rain</code></td><td>0.0-1.0</td><td>0.0</td><td>Matrix rain effect</td></tr>
+<tr><td><code>strobe</code></td><td>0.0-1.0</td><td>0.0</td><td>Flash intensity</td></tr>
+<tr><td><code>color_cycle_speed</code></td><td>0.0-5.0</td><td>1.0</td><td>Auto color animation rate</td></tr>
+<tr><td><code>feedback_amount</code></td><td>0.0-1.0</td><td>0.0</td><td>Frame feedback blend</td></tr>
+<tr><td><code>ascii_mode</code></td><td>0.0-1.0</td><td>0.0</td><td>ASCII art conversion</td></tr>
+</tbody></table>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="audio-analyzer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="example-minimal.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="audio-analyzer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="example-minimal.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

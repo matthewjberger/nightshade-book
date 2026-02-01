@@ -1,0 +1,436 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Blending &amp; Transitions - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="blending--transitions"><a class="header" href="#blending--transitions">Blending &amp; Transitions</a></h1>
+<p>Smooth transitions between animations using cross-fading.</p>
+<h2 id="cross-fade-transition"><a class="header" href="#cross-fade-transition">Cross-Fade Transition</a></h2>
+<p>The <code>blend_to</code> method smoothly transitions between animations:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(player) = world.get_animation_player_mut(entity) {
+    player.blend_to(new_animation_index, 0.2);  // 0.2 second transition
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="blend-duration"><a class="header" href="#blend-duration">Blend Duration</a></h2>
+<p>Choose appropriate durations:</p>
+<div class="table-wrapper"><table><thead><tr><th>Transition</th><th>Duration</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Idle → Walk</td><td>0.2s</td><td>Natural start</td></tr>
+<tr><td>Walk → Run</td><td>0.15s</td><td>Quick acceleration</td></tr>
+<tr><td>Run → Idle</td><td>0.3s</td><td>Gradual stop</td></tr>
+<tr><td>Any → Jump</td><td>0.1s</td><td>Responsive</td></tr>
+<tr><td>Attack</td><td>0.05s</td><td>Immediate</td></tr>
+</tbody></table>
+</div>
+<h2 id="movement-state-machine"><a class="header" href="#movement-state-machine">Movement State Machine</a></h2>
+<p>Manage animation states cleanly:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Clone, Copy, PartialEq, Eq)]
+enum CharacterState {
+    Idle,
+    Walking,
+    Running,
+    Jumping,
+    Falling,
+    Landing,
+}
+
+struct AnimationController {
+    state: CharacterState,
+    current_animation: Option&lt;usize&gt;,
+    indices: AnimationIndices,
+}
+
+impl AnimationController {
+    fn update(&amp;mut self, world: &amp;mut World, entity: Entity, new_state: CharacterState) {
+        if self.state == new_state {
+            return;
+        }
+
+        let blend_time = self.get_blend_time(self.state, new_state);
+        let target_anim = self.get_animation_for_state(new_state);
+
+        if let Some(index) = target_anim {
+            if let Some(player) = world.get_animation_player_mut(entity) {
+                player.blend_to(index, blend_time);
+                self.current_animation = Some(index);
+            }
+        }
+
+        self.state = new_state;
+    }
+
+    fn get_blend_time(&amp;self, from: CharacterState, to: CharacterState) -&gt; f32 {
+        match (from, to) {
+            (CharacterState::Idle, CharacterState::Walking) =&gt; 0.2,
+            (CharacterState::Walking, CharacterState::Running) =&gt; 0.15,
+            (CharacterState::Running, CharacterState::Idle) =&gt; 0.3,
+            (_, CharacterState::Jumping) =&gt; 0.1,
+            _ =&gt; 0.2,
+        }
+    }
+
+    fn get_animation_for_state(&amp;self, state: CharacterState) -&gt; Option&lt;usize&gt; {
+        match state {
+            CharacterState::Idle =&gt; self.indices.idle,
+            CharacterState::Walking =&gt; self.indices.walk,
+            CharacterState::Running =&gt; self.indices.run,
+            CharacterState::Jumping =&gt; self.indices.jump,
+            CharacterState::Falling =&gt; self.indices.jump,  // Reuse jump
+            CharacterState::Landing =&gt; self.indices.idle,   // Brief idle
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="speed-based-blending"><a class="header" href="#speed-based-blending">Speed-Based Blending</a></h2>
+<p>Blend between walk and run based on speed:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_locomotion(world: &amp;mut World, entity: Entity, speed: f32, indices: &amp;AnimationIndices) {
+    let walk_threshold = 2.0;
+    let run_threshold = 5.0;
+
+    let state = if speed &lt; 0.1 {
+        MovementState::Idle
+    } else if speed &lt; walk_threshold {
+        MovementState::Walking
+    } else {
+        MovementState::Running
+    };
+
+    let target_anim = match state {
+        MovementState::Idle =&gt; indices.idle,
+        MovementState::Walking =&gt; indices.walk,
+        MovementState::Running =&gt; indices.run,
+    };
+
+    if let Some(index) = target_anim {
+        if let Some(player) = world.get_animation_player_mut(entity) {
+            if player.current_clip != index {
+                player.blend_to(index, 0.2);
+            }
+
+            // Adjust playback speed
+            player.speed = match state {
+                MovementState::Idle =&gt; 1.0,
+                MovementState::Walking =&gt; speed / walk_threshold,
+                MovementState::Running =&gt; speed / run_threshold,
+            };
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="interrupt-handling"><a class="header" href="#interrupt-handling">Interrupt Handling</a></h2>
+<p>Handle animation interrupts gracefully:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn try_attack(world: &amp;mut World, entity: Entity, attack_anim: usize, current_state: &amp;mut CharacterState) -&gt; bool {
+    if let Some(player) = world.get_animation_player_mut(entity) {
+        // Quick blend to attack
+        player.blend_to(attack_anim, 0.05);
+        player.looping = false;
+        *current_state = CharacterState::Attacking;
+        return true;
+    }
+    false
+}
+
+fn check_attack_finished(world: &amp;World, entity: Entity) -&gt; bool {
+    if let Some(player) = world.get_animation_player(entity) {
+        if !player.looping {
+            let clip = &amp;player.clips[player.current_clip];
+            return player.time &gt;= clip.duration * 0.9;  // 90% complete
+        }
+    }
+    false
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="additive-blending"><a class="header" href="#additive-blending">Additive Blending</a></h2>
+<p>Layer animations (e.g., breathing on top of idle):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Note: This is a conceptual example - actual implementation depends on engine support
+struct LayeredAnimation {
+    base_animation: usize,
+    additive_animations: Vec&lt;(usize, f32)&gt;,  // (index, weight)
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="root-motion"><a class="header" href="#root-motion">Root Motion</a></h2>
+<p>When animations include movement:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn apply_root_motion(world: &amp;mut World, entity: Entity) {
+    let Some(player) = world.get_animation_player(entity) else { return };
+
+    let clip = &amp;player.clips[player.current_clip];
+    // Extract root bone translation from animation
+    // Apply to character controller
+
+    // Note: Often you'll want to remove root motion from animations
+    // and drive movement from game code instead
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="transition-rules"><a class="header" href="#transition-rules">Transition Rules</a></h2>
+<p>Define clear rules for when transitions can occur:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn can_transition(from: CharacterState, to: CharacterState) -&gt; bool {
+    match (from, to) {
+        // Can always go to these states
+        (_, CharacterState::Idle) =&gt; true,
+        (_, CharacterState::Falling) =&gt; true,
+
+        // Can't interrupt attacks
+        (CharacterState::Attacking, _) =&gt; false,
+
+        // Can only jump from ground
+        (CharacterState::Falling, CharacterState::Jumping) =&gt; false,
+        (CharacterState::Jumping, CharacterState::Jumping) =&gt; false,
+
+        _ =&gt; true,
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="animation-playback.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="audio-system.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="animation-playback.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="audio-system.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

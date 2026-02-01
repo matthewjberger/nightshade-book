@@ -1,0 +1,456 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Materials - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="materials"><a class="header" href="#materials">Materials</a></h1>
+<p>Materials define the visual appearance of meshes using PBR (Physically Based Rendering).</p>
+<h2 id="material-structure"><a class="header" href="#material-structure">Material Structure</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Material {
+    pub base_color: [f32; 4],
+    pub base_color_texture: Option&lt;String&gt;,
+    pub metallic: f32,
+    pub roughness: f32,
+    pub metallic_roughness_texture: Option&lt;String&gt;,
+    pub normal_texture: Option&lt;String&gt;,
+    pub normal_scale: f32,
+    pub occlusion_texture: Option&lt;String&gt;,
+    pub occlusion_strength: f32,
+    pub emissive_factor: [f32; 3],
+    pub emissive_texture: Option&lt;String&gt;,
+    pub alpha_mode: AlphaMode,
+    pub alpha_cutoff: f32,
+    pub double_sided: bool,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="creating-materials"><a class="header" href="#creating-materials">Creating Materials</a></h2>
+<h3 id="basic-colored-material"><a class="header" href="#basic-colored-material">Basic Colored Material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::material::*;
+
+let red_material = Material {
+    base_color: [1.0, 0.0, 0.0, 1.0],
+    roughness: 0.5,
+    metallic: 0.0,
+    ..Default::default()
+};
+
+material_registry_insert(
+    &amp;mut world.resources.material_registry,
+    "red".to_string(),
+    red_material,
+);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="metallic-material"><a class="header" href="#metallic-material">Metallic Material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let gold_material = Material {
+    base_color: [1.0, 0.84, 0.0, 1.0],
+    roughness: 0.3,
+    metallic: 1.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="emissive-material"><a class="header" href="#emissive-material">Emissive Material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let glowing_material = Material {
+    base_color: [0.2, 0.8, 1.0, 1.0],
+    emissive_factor: [2.0, 8.0, 10.0],
+    roughness: 0.8,
+    metallic: 0.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="transparent-material"><a class="header" href="#transparent-material">Transparent Material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let glass_material = Material {
+    base_color: [0.9, 0.95, 1.0, 0.3],
+    alpha_mode: AlphaMode::Blend,
+    roughness: 0.1,
+    metallic: 0.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h2 id="alpha-modes"><a class="header" href="#alpha-modes">Alpha Modes</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum AlphaMode {
+    Opaque,       // Fully opaque, alpha ignored
+    Mask,         // Binary transparency using alpha_cutoff
+    Blend,        // Full alpha blending
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="alpha-cutoff-mask-mode"><a class="header" href="#alpha-cutoff-mask-mode">Alpha Cutoff (Mask Mode)</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let foliage_material = Material {
+    base_color: [0.2, 0.8, 0.2, 1.0],
+    alpha_mode: AlphaMode::Mask,
+    alpha_cutoff: 0.5,  // Pixels with alpha &lt; 0.5 are discarded
+    double_sided: true,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h2 id="textured-materials"><a class="header" href="#textured-materials">Textured Materials</a></h2>
+<h3 id="loading-textures"><a class="header" href="#loading-textures">Loading Textures</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// From embedded bytes
+let texture_bytes = include_bytes!("../assets/wood.png");
+let image = image::load_from_memory(texture_bytes).unwrap().to_rgba8();
+
+world.queue_command(WorldCommand::LoadTexture {
+    name: "wood".to_string(),
+    rgba_data: image.to_vec(),
+    width: image.width(),
+    height: image.height(),
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="applying-textures"><a class="header" href="#applying-textures">Applying Textures</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let wood_material = Material {
+    base_color: [1.0, 1.0, 1.0, 1.0],
+    base_color_texture: Some("wood".to_string()),
+    roughness: 0.8,
+    metallic: 0.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="with-normal-map"><a class="header" href="#with-normal-map">With Normal Map</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let brick_material = Material {
+    base_color: [1.0, 1.0, 1.0, 1.0],
+    base_color_texture: Some("brick_color".to_string()),
+    normal_texture: Some("brick_normal".to_string()),
+    normal_scale: 1.0,
+    roughness: 0.9,
+    metallic: 0.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h2 id="assigning-materials-to-entities"><a class="header" href="#assigning-materials-to-entities">Assigning Materials to Entities</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Register material
+material_registry_insert(
+    &amp;mut world.resources.material_registry,
+    "my_material".to_string(),
+    my_material,
+);
+
+// Add reference
+if let Some(&amp;index) = world.resources.material_registry.registry.name_to_index.get("my_material") {
+    world.resources.material_registry.registry.add_reference(index);
+}
+
+// Assign to entity
+world.set_material_ref(entity, MaterialRef::new("my_material".to_string()));
+<span class="boring">}</span></code></pre></pre>
+<h2 id="procedural-textures"><a class="header" href="#procedural-textures">Procedural Textures</a></h2>
+<p>Generate textures at runtime:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn create_checkerboard(size: usize) -&gt; Vec&lt;u8&gt; {
+    let mut data = vec![0u8; size * size * 4];
+
+    for y in 0..size {
+        for x in 0..size {
+            let idx = (y * size + x) * 4;
+            let checker = ((x / 32) + (y / 32)) % 2 == 0;
+            let value = if checker { 255 } else { 64 };
+            data[idx] = value;
+            data[idx + 1] = value;
+            data[idx + 2] = value;
+            data[idx + 3] = 255;
+        }
+    }
+
+    data
+}
+
+let checkerboard = create_checkerboard(256);
+world.queue_command(WorldCommand::LoadTexture {
+    name: "checkerboard".to_string(),
+    rgba_data: checkerboard,
+    width: 256,
+    height: 256,
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="common-material-presets"><a class="header" href="#common-material-presets">Common Material Presets</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn create_plastic(color: Vec3) -&gt; Material {
+    Material {
+        base_color: [color.x, color.y, color.z, 1.0],
+        roughness: 0.4,
+        metallic: 0.0,
+        ..Default::default()
+    }
+}
+
+fn create_metal(color: Vec3) -&gt; Material {
+    Material {
+        base_color: [color.x, color.y, color.z, 1.0],
+        roughness: 0.2,
+        metallic: 1.0,
+        ..Default::default()
+    }
+}
+
+fn create_rough(color: Vec3) -&gt; Material {
+    Material {
+        base_color: [color.x, color.y, color.z, 1.0],
+        roughness: 0.95,
+        metallic: 0.0,
+        ..Default::default()
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="meshes-models.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="lighting.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="meshes-models.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="lighting.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

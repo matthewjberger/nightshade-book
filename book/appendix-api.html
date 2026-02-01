@@ -1,0 +1,614 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>API Quick Reference - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="api-quick-reference"><a class="header" href="#api-quick-reference">API Quick Reference</a></h1>
+<p>Quick lookup for common Nightshade API functions and types.</p>
+<h2 id="world"><a class="header" href="#world">World</a></h2>
+<h3 id="entity-management"><a class="header" href="#entity-management">Entity Management</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Spawn entities with components
+let entities = world.spawn_entities(flags, count);
+let entity = world.spawn_entities(LOCAL_TRANSFORM | MESH_COMPONENT, 1)[0];
+
+// Despawn entity
+world.despawn(entity);
+
+// Query entities by components
+for entity in world.query(LOCAL_TRANSFORM | MESH_COMPONENT) {
+    // Process entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="component-access"><a class="header" href="#component-access">Component Access</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Get component (immutable)
+world.get_local_transform(entity) -&gt; Option&lt;&amp;LocalTransform&gt;
+world.get_global_transform(entity) -&gt; Option&lt;&amp;GlobalTransform&gt;
+world.get_mesh(entity) -&gt; Option&lt;&amp;MeshComponent&gt;
+world.get_material(entity) -&gt; Option&lt;&amp;Material&gt;
+world.get_camera(entity) -&gt; Option&lt;&amp;Camera&gt;
+world.get_rigid_body(entity) -&gt; Option&lt;&amp;RigidBodyComponent&gt;
+world.get_collider(entity) -&gt; Option&lt;&amp;ColliderComponent&gt;
+world.get_animation_player(entity) -&gt; Option&lt;&amp;AnimationPlayer&gt;
+world.get_parent(entity) -&gt; Option&lt;&amp;Parent&gt;
+world.get_children(entity) -&gt; &amp;[Entity]
+world.get_visible(entity) -&gt; Option&lt;&amp;Visible&gt;
+
+// Get component (mutable)
+world.get_local_transform_mut(entity) -&gt; Option&lt;&amp;mut LocalTransform&gt;
+world.get_rigid_body_mut(entity) -&gt; Option&lt;&amp;mut RigidBodyComponent&gt;
+// ... same pattern for all components
+
+// Set component
+world.set_local_transform(entity, LocalTransform { ... })
+world.set_material(entity, Material { ... })
+// ... same pattern for all components
+<span class="boring">}</span></code></pre></pre>
+<h3 id="resources"><a class="header" href="#resources">Resources</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.timing.delta_time        // Frame time in seconds
+world.resources.timing.total_time        // Total elapsed time
+world.resources.input.keyboard           // Keyboard state
+world.resources.input.mouse              // Mouse state
+world.resources.input.cursor_locked      // Lock cursor to window
+world.resources.input.cursor_visible     // Show/hide cursor
+world.resources.active_camera            // Current active camera entity
+world.resources.graphics.ambient_intensity
+world.resources.physics.gravity
+<span class="boring">}</span></code></pre></pre>
+<h2 id="component-flags"><a class="header" href="#component-flags">Component Flags</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>LOCAL_TRANSFORM         // Position, rotation, scale
+GLOBAL_TRANSFORM        // World-space transform
+MESH_COMPONENT          // Renderable mesh
+MATERIAL_COMPONENT      // PBR material
+CAMERA                  // Camera component
+RIGID_BODY_COMPONENT    // Physics rigid body
+COLLIDER_COMPONENT      // Physics collider
+CHARACTER_CONTROLLER    // Character movement
+ANIMATION_PLAYER        // Skeletal animation
+PARENT                  // Parent entity reference
+CHILDREN                // Child entities
+VISIBLE                 // Visibility flag
+DIRECTIONAL_LIGHT       // Directional light
+POINT_LIGHT             // Point light
+SPOT_LIGHT              // Spot light
+AUDIO_SOURCE            // Sound emitter
+AUDIO_LISTENER          // Sound receiver
+PARTICLE_EMITTER        // Particle system
+NAV_MESH_AGENT          // Navigation agent
+HUD_TEXT                // Screen-space text
+TEXT_COMPONENT          // 3D world text
+LINES_COMPONENT         // Debug lines
+GRASS_REGION            // Grass rendering
+GRASS_INTERACTOR        // Grass bending
+<span class="boring">}</span></code></pre></pre>
+<h2 id="transform"><a class="header" href="#transform">Transform</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>LocalTransform {
+    translation: Vec3,
+    rotation: nalgebra_glm::Quat,
+    scale: Vec3,
+}
+
+// Create identity transform
+LocalTransform::default()
+
+// Create with values
+LocalTransform {
+    translation: Vec3::new(x, y, z),
+    rotation: nalgebra_glm::quat_angle_axis(angle, &amp;axis),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="camera"><a class="header" href="#camera">Camera</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>Camera {
+    fov: f32,              // Field of view in radians
+    near: f32,             // Near clip plane
+    far: f32,              // Far clip plane
+    active: bool,          // Is this the active camera
+    clear_color: [f32; 4], // Background color
+    exposure: f32,         // Exposure adjustment
+}
+
+// Spawn cameras
+spawn_fly_camera(world) -&gt; Entity
+spawn_pan_orbit_camera(world, target, distance) -&gt; Entity
+spawn_follow_camera(world, target_entity, offset) -&gt; Entity
+<span class="boring">}</span></code></pre></pre>
+<h2 id="primitives"><a class="header" href="#primitives">Primitives</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>spawn_primitive(world, Primitive::Cube) -&gt; Entity
+spawn_primitive(world, Primitive::Sphere) -&gt; Entity
+spawn_primitive(world, Primitive::Plane) -&gt; Entity
+spawn_primitive(world, Primitive::Cylinder) -&gt; Entity
+spawn_primitive(world, Primitive::Capsule) -&gt; Entity
+spawn_primitive(world, Primitive::Cone) -&gt; Entity
+spawn_primitive(world, Primitive::Torus) -&gt; Entity
+<span class="boring">}</span></code></pre></pre>
+<h2 id="model-loading"><a class="header" href="#model-loading">Model Loading</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>load_gltf(world, "path/to/model.glb") -&gt; Vec&lt;Entity&gt;
+load_gltf(world, "path/to/model.gltf") -&gt; Vec&lt;Entity&gt;
+
+// With custom transform
+let entities = load_gltf(world, "model.glb");
+for entity in entities {
+    if let Some(transform) = world.get_local_transform_mut(entity) {
+        transform.scale = Vec3::new(0.01, 0.01, 0.01);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="materials"><a class="header" href="#materials">Materials</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>Material {
+    base_color: [f32; 4],        // RGBA
+    roughness: f32,              // 0.0 (smooth) to 1.0 (rough)
+    metallic: f32,               // 0.0 (dielectric) to 1.0 (metal)
+    emissive: [f32; 3],          // RGB emission
+    emissive_strength: f32,      // Emission intensity
+    alpha_mode: AlphaMode,       // Opaque, Mask, Blend
+    alpha_cutoff: f32,           // For Mask mode
+    double_sided: bool,          // Render both faces
+    base_color_texture: Option&lt;Handle&gt;,
+    normal_texture: Option&lt;Handle&gt;,
+    metallic_roughness_texture: Option&lt;Handle&gt;,
+    emissive_texture: Option&lt;Handle&gt;,
+    occlusion_texture: Option&lt;Handle&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="lighting"><a class="header" href="#lighting">Lighting</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Directional light (sun)
+spawn_directional_light(world, direction: Vec3) -&gt; Entity
+
+// Point light
+spawn_point_light(world, position: Vec3, color: Vec3, intensity: f32, range: f32) -&gt; Entity
+
+// Spot light
+spawn_spot_light(world, position: Vec3, direction: Vec3, color: Vec3, intensity: f32, range: f32, inner_angle: f32, outer_angle: f32) -&gt; Entity
+<span class="boring">}</span></code></pre></pre>
+<h2 id="physics"><a class="header" href="#physics">Physics</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Rigid bodies
+add_rigid_body(world, entity, RigidBodyType::Dynamic, mass: f32)
+add_rigid_body(world, entity, RigidBodyType::Static, 0.0)
+add_rigid_body(world, entity, RigidBodyType::Kinematic, 0.0)
+
+// Colliders
+add_collider(world, entity, ColliderShape::Box { half_extents: Vec3 })
+add_collider(world, entity, ColliderShape::Sphere { radius: f32 })
+add_collider(world, entity, ColliderShape::Capsule { half_height: f32, radius: f32 })
+add_collider(world, entity, ColliderShape::Cylinder { half_height: f32, radius: f32 })
+add_collider(world, entity, ColliderShape::Cone { half_height: f32, radius: f32 })
+add_collider(world, entity, ColliderShape::ConvexHull { points: Vec&lt;Vec3&gt; })
+add_collider(world, entity, ColliderShape::TriMesh { vertices: Vec&lt;Vec3&gt;, indices: Vec&lt;[u32; 3]&gt; })
+add_collider(world, entity, ColliderShape::Heightfield { heights: Vec&lt;Vec&lt;f32&gt;&gt;, scale: Vec3 })
+
+// Joints
+create_fixed_joint(world, body1, anchor1, body2, anchor2)
+create_revolute_joint(world, body1, anchor1, body2, anchor2, axis)
+create_prismatic_joint(world, body1, anchor1, body2, anchor2, axis)
+create_spherical_joint(world, body1, anchor1, body2, anchor2)
+create_rope_joint(world, body1, anchor1, body2, anchor2, max_distance)
+create_spring_joint(world, body1, anchor1, body2, anchor2, rest_length, stiffness, damping)
+
+// Raycasting
+raycast(world, origin: Vec3, direction: Vec3, max_distance: f32) -&gt; Option&lt;RaycastHit&gt;
+raycast_all(world, origin, direction, max_distance) -&gt; Vec&lt;RaycastHit&gt;
+
+// Update
+update_physics(world, dt: f32)
+update_character_controller(world)
+<span class="boring">}</span></code></pre></pre>
+<h2 id="animation"><a class="header" href="#animation">Animation</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Get animation player
+if let Some(player) = world.get_animation_player_mut(entity) {
+    player.play("animation_name");
+    player.blend_to("other_animation", blend_time: f32);
+    player.stop();
+    player.pause();
+    player.resume();
+    player.set_looping(true);
+    player.set_speed(1.0);
+    player.seek(time: f32);
+    player.current_animation() -&gt; Option&lt;&amp;str&gt;
+    player.is_playing() -&gt; bool
+}
+
+// Update all animation players
+update_animation_players(world, dt: f32)
+<span class="boring">}</span></code></pre></pre>
+<h2 id="audio"><a class="header" href="#audio">Audio</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Load sounds
+load_sound(world, "name", "path/to/sound.wav")
+load_sound(world, "music", "path/to/music.ogg")
+
+// Play sounds
+play_sound(world, "name")
+play_sound_with_volume(world, "name", volume: f32)
+play_sound_looped(world, "name")
+stop_sound(world, "name")
+
+// Spatial audio
+spawn_audio_source(world, position: Vec3, sound_name: &amp;str) -&gt; Entity
+<span class="boring">}</span></code></pre></pre>
+<h2 id="input"><a class="header" href="#input">Input</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Keyboard
+world.resources.input.keyboard.is_key_pressed(KeyCode::KeyW) -&gt; bool
+world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) -&gt; bool
+world.resources.input.keyboard.is_key_just_released(KeyCode::ShiftLeft) -&gt; bool
+
+// Mouse
+world.resources.input.mouse.position -&gt; Vec2
+world.resources.input.mouse.delta -&gt; Vec2
+world.resources.input.mouse.scroll_delta -&gt; Vec2
+world.resources.input.mouse.state.contains(MouseState::LEFT_CLICKED) -&gt; bool
+world.resources.input.mouse.state.contains(MouseState::RIGHT_CLICKED) -&gt; bool
+world.resources.input.mouse.state.contains(MouseState::LEFT_JUST_PRESSED) -&gt; bool
+
+// Cursor
+world.resources.input.cursor_locked = true;
+world.resources.input.cursor_visible = false;
+
+// Gamepad (with feature)
+query_active_gamepad(world) -&gt; Option&lt;&amp;Gamepad&gt;
+gamepad.is_pressed(gilrs::Button::South) -&gt; bool
+gamepad.axis_value(gilrs::Axis::LeftStickX) -&gt; f32
+<span class="boring">}</span></code></pre></pre>
+<h2 id="hud-text"><a class="header" href="#hud-text">HUD Text</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>spawn_hud_text(world, text: &amp;str, anchor: HudAnchor, offset: Vec2) -&gt; Entity
+spawn_hud_text_with_properties(world, text, anchor, offset, properties: TextProperties) -&gt; Entity
+
+TextProperties {
+    font_size: f32,
+    color: [f32; 4],
+    text_alignment: TextAlignment,      // Left, Center, Right
+    vertical_alignment: VerticalAlignment,
+    line_height: f32,
+    letter_spacing: f32,
+    outline_width: f32,
+    outline_color: [f32; 4],
+}
+
+HudAnchor::TopLeft | TopCenter | TopRight
+HudAnchor::CenterLeft | Center | CenterRight
+HudAnchor::BottomLeft | BottomCenter | BottomRight
+<span class="boring">}</span></code></pre></pre>
+<h2 id="particles"><a class="header" href="#particles">Particles</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ParticleEmitter {
+    emitter_type: EmitterType,     // Fire, Smoke, Sparks, Snow, Dust
+    shape: EmitterShape,           // Point, Sphere, Box, Cone
+    position: Vec3,
+    direction: Vec3,
+    spawn_rate: f32,
+    burst_count: u32,
+    particle_lifetime_min: f32,
+    particle_lifetime_max: f32,
+    initial_velocity_min: f32,
+    initial_velocity_max: f32,
+    velocity_spread: f32,
+    gravity: Vec3,
+    drag: f32,
+    size_start: f32,
+    size_end: f32,
+    color_gradient: ColorGradient,
+    emissive_strength: f32,
+    turbulence_strength: f32,
+    turbulence_frequency: f32,
+    enabled: bool,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>generate_navmesh_recast(world, vertices: &amp;[Vec3], indices: &amp;[[u32; 3]], config: &amp;RecastNavMeshConfig)
+set_agent_destination(world, agent: Entity, target: Vec3)
+query_path(world, start: Vec3, end: Vec3) -&gt; Option&lt;Vec&lt;Vec3&gt;&gt;
+is_on_navmesh(world, point: Vec3) -&gt; bool
+add_offmesh_connection(world, start: Vec3, end: Vec3, bidirectional: bool)
+update_navmesh_agents(world)
+<span class="boring">}</span></code></pre></pre>
+<h2 id="math-nalgebra_glm"><a class="header" href="#math-nalgebra_glm">Math (nalgebra_glm)</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Vectors
+Vec2::new(x, y)
+Vec3::new(x, y, z)
+Vec4::new(x, y, z, w)
+Vec3::zeros()
+Vec3::x()  // Unit X
+Vec3::y()  // Unit Y
+Vec3::z()  // Unit Z
+
+// Vector operations
+vec.normalize()
+vec.magnitude()
+vec.dot(&amp;other)
+vec.cross(&amp;other)
+
+// Quaternions
+nalgebra_glm::quat_identity()
+nalgebra_glm::quat_angle_axis(angle: f32, axis: &amp;Vec3) -&gt; Quat
+nalgebra_glm::quat_slerp(from: &amp;Quat, to: &amp;Quat, t: f32) -&gt; Quat
+
+// Interpolation
+nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
+<span class="boring">}</span></code></pre></pre>
+<h2 id="state-trait"><a class="header" href="#state-trait">State Trait</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>trait State {
+    fn initialize(&amp;mut self, world: &amp;mut World) {}
+    fn run_systems(&amp;mut self, world: &amp;mut World) {}
+    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {}
+    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {}
+    fn on_mouse_motion(&amp;mut self, world: &amp;mut World, delta: Vec2) {}
+    fn on_mouse_scroll(&amp;mut self, world: &amp;mut World, delta: Vec2) {}
+    fn on_window_resize(&amp;mut self, world: &amp;mut World, width: u32, height: u32) {}
+    fn on_gamepad_event(&amp;mut self, world: &amp;mut World, event: gilrs::Event) {}
+    fn configure_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, device: &amp;wgpu::Device, surface_format: wgpu::TextureFormat, resources: RenderResources) {}
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="running"><a class="header" href="#running">Running</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024">fn main() {
+    nightshade::run(MyGame::default());
+}</code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="appendix-platforms.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="appendix-platforms.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

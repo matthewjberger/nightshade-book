@@ -1,0 +1,431 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Lighting - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="lighting"><a class="header" href="#lighting">Lighting</a></h1>
+<p>Nightshade supports three types of lights: directional, point, and spot lights.</p>
+<h2 id="light-types"><a class="header" href="#light-types">Light Types</a></h2>
+<h3 id="directional-light-sun"><a class="header" href="#directional-light-sun">Directional Light (Sun)</a></h3>
+<p>Illuminates the entire scene from a direction, simulating distant light sources like the sun:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_sun(world: &amp;mut World) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
+        1
+    )[0];
+
+    world.set_light(entity, Light {
+        light_type: LightType::Directional,
+        color: Vec3::new(1.0, 0.98, 0.95),
+        intensity: 2.0,
+        cast_shadows: true,
+        shadow_bias: 0.001,
+        ..Default::default()
+    });
+
+    // Point light downward at an angle
+    world.set_local_transform(entity, LocalTransform {
+        rotation: nalgebra_glm::quat_look_at(
+            &amp;Vec3::new(-0.5, -1.0, -0.3).normalize(),
+            &amp;Vec3::y(),
+        ),
+        ..Default::default()
+    });
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="point-light"><a class="header" href="#point-light">Point Light</a></h3>
+<p>Emits light in all directions from a point:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_point_light(world: &amp;mut World, position: Vec3, color: Vec3, intensity: f32) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
+        1
+    )[0];
+
+    world.set_light(entity, Light {
+        light_type: LightType::Point,
+        color,
+        intensity,
+        range: 10.0,
+        cast_shadows: false,
+        ..Default::default()
+    });
+
+    world.set_local_transform(entity, LocalTransform {
+        translation: position,
+        ..Default::default()
+    });
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="spot-light"><a class="header" href="#spot-light">Spot Light</a></h3>
+<p>Cone-shaped light, perfect for flashlights or stage lighting:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_spotlight(world: &amp;mut World, position: Vec3, direction: Vec3) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
+        1
+    )[0];
+
+    world.set_light(entity, Light {
+        light_type: LightType::Spot,
+        color: Vec3::new(1.0, 0.95, 0.9),
+        intensity: 15.0,
+        range: 20.0,
+        inner_cone_angle: 0.2,  // Full intensity cone
+        outer_cone_angle: 0.5,  // Falloff cone
+        cast_shadows: true,
+        shadow_bias: 0.002,
+    });
+
+    world.set_local_transform(entity, LocalTransform {
+        translation: position,
+        rotation: nalgebra_glm::quat_look_at(&amp;direction.normalize(), &amp;Vec3::y()),
+        ..Default::default()
+    });
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="light-properties"><a class="header" href="#light-properties">Light Properties</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Property</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>color</code></td><td>RGB color of the light</td></tr>
+<tr><td><code>intensity</code></td><td>Brightness multiplier</td></tr>
+<tr><td><code>range</code></td><td>Maximum distance for point/spot lights</td></tr>
+<tr><td><code>cast_shadows</code></td><td>Whether this light creates shadows</td></tr>
+<tr><td><code>shadow_bias</code></td><td>Offset to reduce shadow acne</td></tr>
+<tr><td><code>inner_cone_angle</code></td><td>Spot light inner cone (full intensity)</td></tr>
+<tr><td><code>outer_cone_angle</code></td><td>Spot light outer cone (falloff edge)</td></tr>
+</tbody></table>
+</div>
+<h2 id="dynamic-lighting"><a class="header" href="#dynamic-lighting">Dynamic Lighting</a></h2>
+<h3 id="flickering-light"><a class="header" href="#flickering-light">Flickering Light</a></h3>
+<p>Create a flickering fire/torch effect:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_flickering_light(world: &amp;mut World, light_entity: Entity) {
+    let time = world.resources.window.timing.uptime_milliseconds as f32 / 1000.0;
+
+    if let Some(light) = world.get_light_mut(light_entity) {
+        let flicker1 = (time * 8.0).sin() * 0.15;
+        let flicker2 = (time * 12.5).sin() * 0.1;
+        let flicker3 = (time * 23.0).sin() * 0.08;
+
+        let base_intensity = 3.5;
+        light.intensity = base_intensity + flicker1 + flicker2 + flicker3;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="color-cycling"><a class="header" href="#color-cycling">Color Cycling</a></h3>
+<p>Animated color changes:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_disco_light(world: &amp;mut World, light_entity: Entity) {
+    let time = world.resources.window.timing.uptime_milliseconds as f32 / 1000.0;
+
+    if let Some(light) = world.get_light_mut(light_entity) {
+        light.color = Vec3::new(
+            (time * 2.0).sin() * 0.5 + 0.5,
+            (time * 2.0 + 2.094).sin() * 0.5 + 0.5,
+            (time * 2.0 + 4.188).sin() * 0.5 + 0.5,
+        );
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="flashlight-camera-attached-spotlight"><a class="header" href="#flashlight-camera-attached-spotlight">Flashlight (Camera-Attached Spotlight)</a></h2>
+<p>Attach a spotlight to the camera for a flashlight effect:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_flashlight(world: &amp;mut World, flashlight: Entity) {
+    let Some(camera) = world.resources.active_camera else { return };
+    let Some(camera_transform) = world.get_global_transform(camera) else { return };
+
+    let position = camera_transform.translation();
+    let forward = camera_transform.forward();
+
+    if let Some(transform) = world.get_local_transform_mut(flashlight) {
+        transform.translation = position;
+        transform.rotation = nalgebra_glm::quat_look_at(&amp;forward, &amp;Vec3::y());
+    }
+    world.mark_local_transform_dirty(flashlight);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="shadow-settings"><a class="header" href="#shadow-settings">Shadow Settings</a></h2>
+<p>Configure shadow quality through graphics resources:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.shadow_map_size = 2048;
+world.resources.graphics.shadow_cascades = 4;
+world.resources.graphics.shadow_distance = 100.0;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="ambient-light"><a class="header" href="#ambient-light">Ambient Light</a></h2>
+<p>Set ambient lighting through the atmosphere:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.atmosphere = Atmosphere::Sky;
+world.resources.graphics.ambient_intensity = 0.3;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="multiple-lights"><a class="header" href="#multiple-lights">Multiple Lights</a></h2>
+<p>Nightshade supports multiple lights in a scene:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn setup_lighting(world: &amp;mut World) {
+    // Main sun
+    spawn_sun(world);
+
+    // Fill lights
+    spawn_point_light(world, Vec3::new(5.0, 3.0, 5.0), Vec3::new(0.8, 0.9, 1.0), 2.0);
+    spawn_point_light(world, Vec3::new(-5.0, 3.0, -5.0), Vec3::new(1.0, 0.8, 0.7), 1.5);
+
+    // Accent spotlight
+    spawn_spotlight(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+}
+<span class="boring">}</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="materials.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="post-processing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="materials.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="post-processing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

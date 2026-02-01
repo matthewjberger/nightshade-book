@@ -1,0 +1,458 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Colliders - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="colliders"><a class="header" href="#colliders">Colliders</a></h1>
+<p>Colliders define the physical shape of objects for collision detection.</p>
+<h2 id="collider-shapes"><a class="header" href="#collider-shapes">Collider Shapes</a></h2>
+<h3 id="ball-sphere"><a class="header" href="#ball-sphere">Ball (Sphere)</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Ball { radius: 0.5 },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="cuboid-box"><a class="header" href="#cuboid-box">Cuboid (Box)</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Cuboid {
+        half_extents: Vec3::new(1.0, 0.5, 1.0),  // Half-sizes
+    },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="capsule"><a class="header" href="#capsule">Capsule</a></h3>
+<p>Perfect for characters:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Capsule {
+        half_height: 0.5,  // Height of cylindrical section
+        radius: 0.3,
+    },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="cylinder"><a class="header" href="#cylinder">Cylinder</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Cylinder {
+        half_height: 1.0,
+        radius: 0.5,
+    },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="cone"><a class="header" href="#cone">Cone</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Cone {
+        half_height: 1.0,
+        radius: 0.5,
+    },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="triangle-mesh"><a class="header" href="#triangle-mesh">Triangle Mesh</a></h3>
+<p>For complex static geometry:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let vertices: Vec&lt;Vec3&gt; = mesh.vertices.iter()
+    .map(|v| Vec3::new(v.position[0], v.position[1], v.position[2]))
+    .collect();
+
+let indices: Vec&lt;[u32; 3]&gt; = mesh.indices
+    .chunks(3)
+    .map(|c| [c[0], c[1], c[2]])
+    .collect();
+
+world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Trimesh { vertices, indices },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="heightfield"><a class="header" href="#heightfield">Heightfield</a></h3>
+<p>For terrain:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let heights: Vec&lt;Vec&lt;f32&gt;&gt; = generate_height_grid(64, 64);
+
+world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Heightfield {
+        heights,
+        scale: Vec3::new(100.0, 50.0, 100.0),
+    },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="compound"><a class="header" href="#compound">Compound</a></h3>
+<p>Multiple shapes combined:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let shapes = vec![
+    (ColliderShape::Cuboid { half_extents: Vec3::new(0.5, 0.1, 0.5) }, body_offset),
+    (ColliderShape::Ball { radius: 0.3 }, head_offset),
+];
+
+world.set_collider(entity, ColliderComponent {
+    shape: ColliderShape::Compound { shapes },
+    handle: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
+<p>Control surface properties:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_physics_material(entity, PhysicsMaterialComponent {
+    friction: 0.5,      // Sliding resistance (0 = ice, 1 = rubber)
+    restitution: 0.3,   // Bounciness (0 = no bounce, 1 = perfect bounce)
+    density: 1.0,       // Mass per unit volume
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="material-examples"><a class="header" href="#material-examples">Material Examples</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Ice
+let ice = PhysicsMaterialComponent {
+    friction: 0.05,
+    restitution: 0.1,
+    density: 0.9,
+};
+
+// Rubber
+let rubber = PhysicsMaterialComponent {
+    friction: 0.9,
+    restitution: 0.8,
+    density: 1.1,
+};
+
+// Metal
+let metal = PhysicsMaterialComponent {
+    friction: 0.4,
+    restitution: 0.2,
+    density: 7.8,
+};
+<span class="boring">}</span></code></pre></pre>
+<h2 id="collision-groups"><a class="header" href="#collision-groups">Collision Groups</a></h2>
+<p>Filter which objects collide:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use rapier3d::prelude::*;
+
+// Define groups
+const GROUP_PLAYER: Group = Group::GROUP_1;
+const GROUP_ENEMY: Group = Group::GROUP_2;
+const GROUP_PROJECTILE: Group = Group::GROUP_3;
+const GROUP_WORLD: Group = Group::GROUP_4;
+
+// Player collides with enemies and world, not own projectiles
+let player_filter = CollisionGroups::new(
+    GROUP_PLAYER,
+    GROUP_ENEMY | GROUP_WORLD,
+);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="sensor-colliders"><a class="header" href="#sensor-colliders">Sensor Colliders</a></h2>
+<p>Detect overlaps without physical response:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Create a trigger zone
+if let Some(collider) = world.resources.physics.collider_set.get_mut(handle.into()) {
+    collider.set_sensor(true);
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Check sensor overlaps in your game logic:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn check_trigger_zone(world: &amp;World, trigger_entity: Entity) -&gt; Vec&lt;Entity&gt; {
+    // Query overlapping entities
+    let overlaps = overlap_test(world, trigger_entity);
+    overlaps
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="collision-events"><a class="header" href="#collision-events">Collision Events</a></h2>
+<p>Query collision pairs:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    // Check for new collisions this frame
+    for (entity_a, entity_b, started) in world.resources.physics.collision_events() {
+        if started {
+            handle_collision_start(entity_a, entity_b);
+        } else {
+            handle_collision_end(entity_a, entity_b);
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="convex-decomposition"><a class="header" href="#convex-decomposition">Convex Decomposition</a></h2>
+<p>For complex shapes on dynamic bodies, use convex decomposition:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use rapier3d::prelude::*;
+
+// This creates multiple convex pieces from a concave mesh
+let decomposed = SharedShape::convex_decomposition(&amp;vertices, &amp;indices);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Shape</th><th>Performance</th><th>Use Case</th></tr></thead><tbody>
+<tr><td>Ball</td><td>Fastest</td><td>Rolling objects</td></tr>
+<tr><td>Cuboid</td><td>Fast</td><td>Crates, buildings</td></tr>
+<tr><td>Capsule</td><td>Fast</td><td>Characters</td></tr>
+<tr><td>Cylinder</td><td>Medium</td><td>Barrels, pillars</td></tr>
+<tr><td>Convex</td><td>Medium</td><td>Simple props</td></tr>
+<tr><td>Trimesh</td><td>Slow</td><td>Static terrain only</td></tr>
+<tr><td>Compound</td><td>Varies</td><td>Complex dynamic objects</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>Prefer primitive shapes over meshes</li>
+<li>Use trimesh only for static geometry</li>
+<li>Compound colliders are better than multiple entities</li>
+<li>Simplify collision geometry vs visual geometry</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="rigid-bodies.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="character-controllers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="rigid-bodies.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="character-controllers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

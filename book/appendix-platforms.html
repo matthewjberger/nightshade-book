@@ -1,0 +1,488 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Platform Support - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="platform-support"><a class="header" href="#platform-support">Platform Support</a></h1>
+<p>Nightshade supports multiple platforms through wgpu's cross-platform abstractions.</p>
+<h2 id="supported-platforms"><a class="header" href="#supported-platforms">Supported Platforms</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Status</th><th>Backend</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Windows 10/11</td><td>Full Support</td><td>Vulkan, DX12</td><td>Primary development platform</td></tr>
+<tr><td>Linux</td><td>Full Support</td><td>Vulkan</td><td>X11 and Wayland</td></tr>
+<tr><td>macOS</td><td>Full Support</td><td>Metal</td><td>Requires macOS 10.13+</td></tr>
+<tr><td>Web (WASM)</td><td>Experimental</td><td>WebGPU</td><td>Modern browsers only</td></tr>
+</tbody></table>
+</div>
+<h2 id="windows"><a class="header" href="#windows">Windows</a></h2>
+<h3 id="requirements"><a class="header" href="#requirements">Requirements</a></h3>
+<ul>
+<li>Windows 10 version 1903 or later (for DX12)</li>
+<li>Windows 10 version 1607 or later (for Vulkan)</li>
+<li>GPU with Vulkan 1.1 or DirectX 12 support</li>
+</ul>
+<h3 id="graphics-backends"><a class="header" href="#graphics-backends">Graphics Backends</a></h3>
+<p>Windows supports multiple backends in order of preference:</p>
+<ol>
+<li><strong>Vulkan</strong> - Best performance and feature support</li>
+<li><strong>DirectX 12</strong> - Native Windows API, good compatibility</li>
+<li><strong>DirectX 11</strong> - Fallback for older hardware</li>
+</ol>
+<h3 id="building"><a class="header" href="#building">Building</a></h3>
+<pre><code class="language-bash">cargo build --release
+</code></pre>
+<h3 id="distribution"><a class="header" href="#distribution">Distribution</a></h3>
+<p>The executable is self-contained. Include your <code>assets</code> folder alongside the executable.</p>
+<pre><code>game/
+├── game.exe
+└── assets/
+    ├── models/
+    ├── textures/
+    └── audio/
+</code></pre>
+<h2 id="linux"><a class="header" href="#linux">Linux</a></h2>
+<h3 id="requirements-1"><a class="header" href="#requirements-1">Requirements</a></h3>
+<ul>
+<li>X11 or Wayland display server</li>
+<li>Vulkan 1.1 compatible GPU and drivers</li>
+<li>Common distributions: Ubuntu 20.04+, Fedora 33+, Arch Linux</li>
+</ul>
+<h3 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h3>
+<p>Install Vulkan development packages:</p>
+<p><strong>Ubuntu/Debian:</strong></p>
+<pre><code class="language-bash">sudo apt install libvulkan1 vulkan-tools libvulkan-dev
+sudo apt install libasound2-dev  # For audio feature
+</code></pre>
+<p><strong>Fedora:</strong></p>
+<pre><code class="language-bash">sudo dnf install vulkan-loader vulkan-tools vulkan-headers
+sudo dnf install alsa-lib-devel  # For audio feature
+</code></pre>
+<p><strong>Arch Linux:</strong></p>
+<pre><code class="language-bash">sudo pacman -S vulkan-icd-loader vulkan-tools vulkan-headers
+sudo pacman -S alsa-lib  # For audio feature
+</code></pre>
+<h3 id="building-1"><a class="header" href="#building-1">Building</a></h3>
+<pre><code class="language-bash">cargo build --release
+</code></pre>
+<h3 id="wayland-support"><a class="header" href="#wayland-support">Wayland Support</a></h3>
+<p>Nightshade uses winit which supports both X11 and Wayland. The backend is selected automatically based on environment:</p>
+<pre><code class="language-bash"># Force X11
+WINIT_UNIX_BACKEND=x11 ./game
+
+# Force Wayland
+WINIT_UNIX_BACKEND=wayland ./game
+</code></pre>
+<h3 id="distribution-1"><a class="header" href="#distribution-1">Distribution</a></h3>
+<p>Create an AppImage or distribute with a shell script:</p>
+<pre><code class="language-bash">#!/bin/bash
+cd "$(dirname "$0")"
+./game
+</code></pre>
+<h2 id="macos"><a class="header" href="#macos">macOS</a></h2>
+<h3 id="requirements-2"><a class="header" href="#requirements-2">Requirements</a></h3>
+<ul>
+<li>macOS 10.13 (High Sierra) or later</li>
+<li>Metal-capable GPU (most Macs from 2012+)</li>
+</ul>
+<h3 id="building-2"><a class="header" href="#building-2">Building</a></h3>
+<pre><code class="language-bash">cargo build --release
+</code></pre>
+<h3 id="code-signing"><a class="header" href="#code-signing">Code Signing</a></h3>
+<p>For distribution, sign your application:</p>
+<pre><code class="language-bash">codesign --deep --force --sign "Developer ID Application: Your Name" target/release/game
+</code></pre>
+<h3 id="app-bundle"><a class="header" href="#app-bundle">App Bundle</a></h3>
+<p>Create a macOS app bundle:</p>
+<pre><code>Game.app/
+└── Contents/
+    ├── Info.plist
+    ├── MacOS/
+    │   └── game
+    └── Resources/
+        └── assets/
+</code></pre>
+<p><strong>Info.plist:</strong></p>
+<pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;CFBundleExecutable&lt;/key&gt;
+    &lt;string&gt;game&lt;/string&gt;
+    &lt;key&gt;CFBundleIdentifier&lt;/key&gt;
+    &lt;string&gt;com.yourcompany.game&lt;/string&gt;
+    &lt;key&gt;CFBundleName&lt;/key&gt;
+    &lt;string&gt;Game&lt;/string&gt;
+    &lt;key&gt;CFBundleVersion&lt;/key&gt;
+    &lt;string&gt;1.0&lt;/string&gt;
+    &lt;key&gt;CFBundleShortVersionString&lt;/key&gt;
+    &lt;string&gt;1.0&lt;/string&gt;
+    &lt;key&gt;LSMinimumSystemVersion&lt;/key&gt;
+    &lt;string&gt;10.13&lt;/string&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;
+</code></pre>
+<h2 id="web-webassembly"><a class="header" href="#web-webassembly">Web (WebAssembly)</a></h2>
+<h3 id="requirements-3"><a class="header" href="#requirements-3">Requirements</a></h3>
+<ul>
+<li>Modern browser with WebGPU support</li>
+<li>Chrome 113+, Edge 113+, Firefox (Nightly with flag)</li>
+</ul>
+<h3 id="building-3"><a class="header" href="#building-3">Building</a></h3>
+<p>Install wasm-pack:</p>
+<pre><code class="language-bash">cargo install wasm-pack
+</code></pre>
+<p>Build for web:</p>
+<pre><code class="language-bash">wasm-pack build --target web
+</code></pre>
+<h3 id="html-template"><a class="header" href="#html-template">HTML Template</a></h3>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;title&gt;Game&lt;/title&gt;
+    &lt;style&gt;
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;canvas id="canvas"&gt;&lt;/canvas&gt;
+    &lt;script type="module"&gt;
+        import init from './pkg/game.js';
+        init();
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h3 id="limitations"><a class="header" href="#limitations">Limitations</a></h3>
+<p>Web builds have some limitations:</p>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Status</th></tr></thead><tbody>
+<tr><td>Rendering</td><td>Supported</td></tr>
+<tr><td>Input</td><td>Supported</td></tr>
+<tr><td>Audio</td><td>Supported (Web Audio)</td></tr>
+<tr><td>Gamepad</td><td>Supported (Gamepad API)</td></tr>
+<tr><td>Physics</td><td>Supported</td></tr>
+<tr><td>File System</td><td>Limited (no direct access)</td></tr>
+<tr><td>Threads</td><td>Limited (requires SharedArrayBuffer)</td></tr>
+</tbody></table>
+</div>
+<h3 id="asset-loading"><a class="header" href="#asset-loading">Asset Loading</a></h3>
+<p>Assets must be served over HTTP. Use fetch API for loading:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(target_arch = "wasm32")]
+async fn load_assets() {
+    // Assets loaded via HTTP fetch
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="cross-compilation"><a class="header" href="#cross-compilation">Cross-Compilation</a></h2>
+<h3 id="windows-from-linux"><a class="header" href="#windows-from-linux">Windows from Linux</a></h3>
+<p>Install the MinGW toolchain:</p>
+<pre><code class="language-bash">sudo apt install mingw-w64
+rustup target add x86_64-pc-windows-gnu
+cargo build --release --target x86_64-pc-windows-gnu
+</code></pre>
+<h3 id="linux-from-windows"><a class="header" href="#linux-from-windows">Linux from Windows</a></h3>
+<p>Use WSL2 or Docker:</p>
+<pre><code class="language-bash"># In WSL2
+cargo build --release --target x86_64-unknown-linux-gnu
+</code></pre>
+<h3 id="macos-cross-compilation"><a class="header" href="#macos-cross-compilation">macOS Cross-Compilation</a></h3>
+<p>Cross-compiling to macOS is complex due to SDK requirements. Consider using CI/CD services like GitHub Actions with macOS runners.</p>
+<h2 id="gpu-requirements"><a class="header" href="#gpu-requirements">GPU Requirements</a></h2>
+<h3 id="minimum-requirements"><a class="header" href="#minimum-requirements">Minimum Requirements</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Requirement</th></tr></thead><tbody>
+<tr><td>API</td><td>Vulkan 1.1 / DX12 / Metal</td></tr>
+<tr><td>VRAM</td><td>2 GB</td></tr>
+<tr><td>Shader Model</td><td>5.0</td></tr>
+</tbody></table>
+</div>
+<h3 id="recommended-requirements"><a class="header" href="#recommended-requirements">Recommended Requirements</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Requirement</th></tr></thead><tbody>
+<tr><td>API</td><td>Vulkan 1.2+</td></tr>
+<tr><td>VRAM</td><td>4+ GB</td></tr>
+<tr><td>Shader Model</td><td>6.0</td></tr>
+</tbody></table>
+</div>
+<h3 id="feature-support-by-gpu-generation"><a class="header" href="#feature-support-by-gpu-generation">Feature Support by GPU Generation</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>GPU</th><th>Basic Rendering</th><th>Tessellation</th><th>Compute Culling</th></tr></thead><tbody>
+<tr><td>Intel HD 4000+</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>NVIDIA GTX 600+</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>AMD GCN 1.0+</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Apple M1+</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+</tbody></table>
+</div>
+<h2 id="performance-by-platform"><a class="header" href="#performance-by-platform">Performance by Platform</a></h2>
+<p>Relative performance (higher is better):</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Performance</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Windows (Vulkan)</td><td>100%</td><td>Best overall</td></tr>
+<tr><td>Windows (DX12)</td><td>95%</td><td>Slightly more overhead</td></tr>
+<tr><td>Linux (Vulkan)</td><td>98%</td><td>Excellent with proper drivers</td></tr>
+<tr><td>macOS (Metal)</td><td>90%</td><td>Good, but Metal has different characteristics</td></tr>
+<tr><td>Web (WebGPU)</td><td>70%</td><td>JavaScript overhead</td></tr>
+</tbody></table>
+</div>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="windows-no-suitable-adapter-found"><a class="header" href="#windows-no-suitable-adapter-found">Windows: "No suitable adapter found"</a></h3>
+<ul>
+<li>Update GPU drivers</li>
+<li>Install Vulkan Runtime</li>
+<li>Try forcing DX12: <code>WGPU_BACKEND=dx12 ./game.exe</code></li>
+</ul>
+<h3 id="linux-failed-to-create-vulkan-instance"><a class="header" href="#linux-failed-to-create-vulkan-instance">Linux: "Failed to create Vulkan instance"</a></h3>
+<ul>
+<li>Install Vulkan drivers for your GPU</li>
+<li>Check <code>vulkaninfo</code> command works</li>
+<li>Verify ICD loader: <code>ls /usr/share/vulkan/icd.d/</code></li>
+</ul>
+<h3 id="macos-metal-not-available"><a class="header" href="#macos-metal-not-available">macOS: "Metal not available"</a></h3>
+<ul>
+<li>Update macOS to 10.13+</li>
+<li>Check GPU supports Metal: Apple Menu &gt; About This Mac &gt; System Report &gt; Graphics</li>
+</ul>
+<h3 id="web-webgpu-not-supported"><a class="header" href="#web-webgpu-not-supported">Web: "WebGPU not supported"</a></h3>
+<ul>
+<li>Use Chrome 113+ or Edge 113+</li>
+<li>Enable WebGPU flag in browser settings if needed</li>
+<li>Check <code>navigator.gpu</code> exists in browser console</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="appendix-features.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="appendix-api.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="appendix-features.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="appendix-api.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

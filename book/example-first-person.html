@@ -1,0 +1,695 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>First Person Game - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="first-person-game"><a class="header" href="#first-person-game">First Person Game</a></h1>
+<p>A complete first-person shooter/exploration template with physics, audio, and weapons.</p>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
+
+struct FirstPersonGame {
+    player: Option&lt;Entity&gt;,
+    weapon: Option&lt;Entity&gt;,
+    health: f32,
+    ammo: u32,
+    score: u32,
+    footstep_timer: f32,
+}
+
+impl Default for FirstPersonGame {
+    fn default() -&gt; Self {
+        Self {
+            player: None,
+            weapon: None,
+            health: 100.0,
+            ammo: 30,
+            score: 0,
+            footstep_timer: 0.0,
+        }
+    }
+}
+
+impl State for FirstPersonGame {
+    fn initialize(&amp;mut self, world: &amp;mut World) {
+        self.setup_player(world);
+        self.setup_level(world);
+        self.setup_lighting(world);
+        self.setup_ui(world);
+        self.setup_audio(world);
+
+        world.resources.input.cursor_locked = true;
+        world.resources.input.cursor_visible = false;
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        let dt = world.resources.timing.delta_time;
+
+        self.update_player_movement(world, dt);
+        self.update_weapon_sway(world, dt);
+        self.update_footsteps(world, dt);
+        self.update_ui(world);
+
+        update_physics(world, dt);
+        update_character_controller(world);
+    }
+
+    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
+        if state == KeyState::Pressed {
+            match key {
+                KeyCode::Escape =&gt; self.toggle_pause(world),
+                KeyCode::KeyR =&gt; self.reload_weapon(),
+                _ =&gt; {}
+            }
+        }
+    }
+
+    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+        if button == MouseButton::Left &amp;&amp; state == ElementState::Pressed {
+            self.fire_weapon(world);
+        }
+    }
+}
+
+impl FirstPersonGame {
+    fn setup_player(&amp;mut self, world: &amp;mut World) {
+        let player = world.spawn_entities(
+            LOCAL_TRANSFORM | GLOBAL_TRANSFORM |
+            CHARACTER_CONTROLLER | COLLIDER_COMPONENT |
+            AUDIO_LISTENER,
+            1
+        )[0];
+
+        world.set_local_transform(player, LocalTransform {
+            translation: Vec3::new(0.0, 1.8, 0.0),
+            ..Default::default()
+        });
+
+        world.set_character_controller(player, CharacterController {
+            height: 1.8,
+            radius: 0.3,
+            step_height: 0.3,
+            max_slope: 45.0,
+            move_speed: 5.0,
+            jump_speed: 7.0,
+            gravity: 20.0,
+            grounded: false,
+            velocity: Vec3::zeros(),
+        });
+
+        world.set_collider(player, ColliderComponent {
+            shape: ColliderShape::Capsule {
+                half_height: 0.6,
+                radius: 0.3,
+            },
+            handle: None,
+        });
+
+        let camera = world.spawn_entities(
+            LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA | PARENT,
+            1
+        )[0];
+
+        world.set_local_transform(camera, LocalTransform {
+            translation: Vec3::new(0.0, 0.7, 0.0),
+            ..Default::default()
+        });
+
+        world.set_camera(camera, Camera {
+            fov: 75.0_f32.to_radians(),
+            near: 0.1,
+            far: 1000.0,
+            active: true,
+            ..Default::default()
+        });
+
+        world.set_parent(camera, Parent(player));
+        world.resources.active_camera = Some(camera);
+
+        self.setup_weapon(world, camera);
+        self.player = Some(player);
+    }
+
+    fn setup_weapon(&amp;mut self, world: &amp;mut World, camera: Entity) {
+        let weapon = load_gltf(world, "assets/models/pistol.glb")[0];
+
+        world.set_local_transform(weapon, LocalTransform {
+            translation: Vec3::new(0.3, -0.2, -0.5),
+            rotation: nalgebra_glm::quat_angle_axis(
+                std::f32::consts::PI,
+                &amp;Vec3::y(),
+            ),
+            scale: Vec3::new(0.1, 0.1, 0.1),
+        });
+
+        world.set_parent(weapon, Parent(camera));
+        self.weapon = Some(weapon);
+    }
+
+    fn setup_level(&amp;mut self, world: &amp;mut World) {
+        let floor = spawn_primitive(world, Primitive::Plane);
+        world.set_local_transform(floor, LocalTransform {
+            scale: Vec3::new(50.0, 1.0, 50.0),
+            ..Default::default()
+        });
+        world.set_material(floor, Material {
+            base_color: [0.3, 0.3, 0.3, 1.0],
+            roughness: 0.9,
+            ..Default::default()
+        });
+        add_collider(world, floor, ColliderShape::Box {
+            half_extents: Vec3::new(50.0, 0.1, 50.0),
+        });
+
+        for index in 0..10 {
+            let wall = spawn_primitive(world, Primitive::Cube);
+            let angle = index as f32 * std::f32::consts::TAU / 10.0;
+            let distance = 20.0;
+
+            world.set_local_transform(wall, LocalTransform {
+                translation: Vec3::new(
+                    angle.cos() * distance,
+                    2.0,
+                    angle.sin() * distance,
+                ),
+                scale: Vec3::new(5.0, 4.0, 0.5),
+                rotation: nalgebra_glm::quat_angle_axis(angle, &amp;Vec3::y()),
+            });
+
+            add_collider(world, wall, ColliderShape::Box {
+                half_extents: Vec3::new(5.0, 4.0, 0.5),
+            });
+        }
+
+        for index in 0..5 {
+            let crate_entity = spawn_primitive(world, Primitive::Cube);
+            world.set_local_transform(crate_entity, LocalTransform {
+                translation: Vec3::new(
+                    (index as f32 - 2.0) * 3.0,
+                    0.5,
+                    -10.0,
+                ),
+                ..Default::default()
+            });
+            world.set_material(crate_entity, Material {
+                base_color: [0.6, 0.4, 0.2, 1.0],
+                roughness: 0.8,
+                ..Default::default()
+            });
+
+            add_rigid_body(world, crate_entity, RigidBodyType::Dynamic, 10.0);
+            add_collider(world, crate_entity, ColliderShape::Box {
+                half_extents: Vec3::new(0.5, 0.5, 0.5),
+            });
+        }
+    }
+
+    fn setup_lighting(&amp;mut self, world: &amp;mut World) {
+        spawn_directional_light(world, Vec3::new(-0.5, -1.0, -0.3));
+
+        world.resources.graphics.ambient_intensity = 0.1;
+    }
+
+    fn setup_ui(&amp;mut self, world: &amp;mut World) {
+        spawn_hud_text(
+            world,
+            &amp;format!("Health: {}", self.health as u32),
+            HudAnchor::BottomLeft,
+            Vec2::new(20.0, -30.0),
+        );
+
+        spawn_hud_text(
+            world,
+            &amp;format!("Ammo: {}", self.ammo),
+            HudAnchor::BottomRight,
+            Vec2::new(-20.0, -30.0),
+        );
+
+        let crosshair = spawn_hud_text(
+            world,
+            "+",
+            HudAnchor::Center,
+            Vec2::zeros(),
+        );
+
+        if let Some(hud_text) = world.get_hud_text_mut(crosshair) {
+            hud_text.properties.font_size = 24.0;
+            hud_text.properties.color = [1.0, 1.0, 1.0, 0.8];
+        }
+    }
+
+    fn setup_audio(&amp;mut self, world: &amp;mut World) {
+        load_sound(world, "footstep", "assets/audio/footstep.wav");
+        load_sound(world, "gunshot", "assets/audio/gunshot.wav");
+        load_sound(world, "reload", "assets/audio/reload.wav");
+    }
+
+    fn update_player_movement(&amp;mut self, world: &amp;mut World, dt: f32) {
+        let Some(player) = self.player else { return };
+
+        let keyboard = &amp;world.resources.input.keyboard;
+        let mouse_delta = world.resources.input.mouse.delta;
+
+        let mut move_input = Vec3::zeros();
+        if keyboard.is_key_pressed(KeyCode::KeyW) { move_input.z -= 1.0; }
+        if keyboard.is_key_pressed(KeyCode::KeyS) { move_input.z += 1.0; }
+        if keyboard.is_key_pressed(KeyCode::KeyA) { move_input.x -= 1.0; }
+        if keyboard.is_key_pressed(KeyCode::KeyD) { move_input.x += 1.0; }
+
+        if move_input.magnitude() &gt; 0.0 {
+            move_input = move_input.normalize();
+        }
+
+        let sprint = keyboard.is_key_pressed(KeyCode::ShiftLeft);
+        let speed = if sprint { 8.0 } else { 5.0 };
+
+        if let Some(controller) = world.get_character_controller_mut(player) {
+            if let Some(transform) = world.get_local_transform(player) {
+                let forward = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+                let right = transform.rotation * Vec3::new(1.0, 0.0, 0.0);
+
+                let forward_flat = Vec3::new(forward.x, 0.0, forward.z).normalize();
+                let right_flat = Vec3::new(right.x, 0.0, right.z).normalize();
+
+                let world_move = forward_flat * -move_input.z + right_flat * move_input.x;
+                controller.velocity.x = world_move.x * speed;
+                controller.velocity.z = world_move.z * speed;
+
+                if keyboard.is_key_just_pressed(KeyCode::Space) &amp;&amp; controller.grounded {
+                    controller.velocity.y = controller.jump_speed;
+                }
+            }
+        }
+
+        if let Some(transform) = world.get_local_transform_mut(player) {
+            let sensitivity = 0.002;
+            let yaw = nalgebra_glm::quat_angle_axis(
+                -mouse_delta.x * sensitivity,
+                &amp;Vec3::y(),
+            );
+            transform.rotation = yaw * transform.rotation;
+        }
+
+        if let Some(camera) = world.resources.active_camera {
+            if let Some(transform) = world.get_local_transform_mut(camera) {
+                let sensitivity = 0.002;
+                let pitch = nalgebra_glm::quat_angle_axis(
+                    -mouse_delta.y * sensitivity,
+                    &amp;Vec3::x(),
+                );
+                transform.rotation = transform.rotation * pitch;
+            }
+        }
+    }
+
+    fn update_weapon_sway(&amp;mut self, world: &amp;mut World, dt: f32) {
+        let Some(weapon) = self.weapon else { return };
+
+        let mouse_delta = world.resources.input.mouse.delta;
+
+        if let Some(transform) = world.get_local_transform_mut(weapon) {
+            let target_x = 0.3 - mouse_delta.x * 0.001;
+            let target_y = -0.2 - mouse_delta.y * 0.001;
+
+            transform.translation.x += (target_x - transform.translation.x) * dt * 10.0;
+            transform.translation.y += (target_y - transform.translation.y) * dt * 10.0;
+        }
+    }
+
+    fn update_footsteps(&amp;mut self, world: &amp;mut World, dt: f32) {
+        let Some(player) = self.player else { return };
+
+        let keyboard = &amp;world.resources.input.keyboard;
+        let moving = keyboard.is_key_pressed(KeyCode::KeyW) ||
+                     keyboard.is_key_pressed(KeyCode::KeyS) ||
+                     keyboard.is_key_pressed(KeyCode::KeyA) ||
+                     keyboard.is_key_pressed(KeyCode::KeyD);
+
+        if let Some(controller) = world.get_character_controller(player) {
+            if moving &amp;&amp; controller.grounded {
+                self.footstep_timer -= dt;
+                if self.footstep_timer &lt;= 0.0 {
+                    play_sound(world, "footstep");
+                    self.footstep_timer = 0.4;
+                }
+            }
+        }
+    }
+
+    fn update_ui(&amp;mut self, world: &amp;mut World) {
+    }
+
+    fn fire_weapon(&amp;mut self, world: &amp;mut World) {
+        if self.ammo == 0 {
+            return;
+        }
+
+        self.ammo -= 1;
+        play_sound(world, "gunshot");
+
+        if let Some(camera) = world.resources.active_camera {
+            if let Some(transform) = world.get_global_transform(camera) {
+                let origin = transform.translation;
+                let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+
+                if let Some(hit) = raycast(world, origin, direction, 100.0) {
+                    if let Some(body) = world.get_rigid_body_mut(hit.entity) {
+                        if body.body_type == RigidBodyType::Dynamic {
+                            body.velocity += direction * 10.0;
+                        }
+                    }
+
+                    self.spawn_impact_effect(world, hit.position, hit.normal);
+                }
+            }
+        }
+    }
+
+    fn spawn_impact_effect(&amp;self, world: &amp;mut World, position: Vec3, normal: Vec3) {
+        let sparks = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+
+        world.set_particle_emitter(sparks, ParticleEmitter {
+            emitter_type: EmitterType::Sparks,
+            shape: EmitterShape::Point,
+            position,
+            direction: normal,
+            spawn_rate: 0.0,
+            burst_count: 20,
+            particle_lifetime_min: 0.1,
+            particle_lifetime_max: 0.3,
+            initial_velocity_min: 3.0,
+            initial_velocity_max: 8.0,
+            velocity_spread: 0.5,
+            gravity: Vec3::new(0.0, -10.0, 0.0),
+            size_start: 0.02,
+            size_end: 0.01,
+            emissive_strength: 10.0,
+            enabled: true,
+            ..Default::default()
+        });
+    }
+
+    fn reload_weapon(&amp;mut self) {
+        self.ammo = 30;
+    }
+
+    fn toggle_pause(&amp;mut self, world: &amp;mut World) {
+        world.resources.input.cursor_locked = !world.resources.input.cursor_locked;
+        world.resources.input.cursor_visible = !world.resources.input.cursor_visible;
+    }
+}
+
+fn main() {
+    nightshade::run(FirstPersonGame::default());
+}</code></pre></pre>
+<h2 id="key-components"><a class="header" href="#key-components">Key Components</a></h2>
+<h3 id="character-controller"><a class="header" href="#character-controller">Character Controller</a></h3>
+<p>The character controller handles physics-based movement:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>CharacterController {
+    height: 1.8,        // Player height
+    radius: 0.3,        // Collision radius
+    step_height: 0.3,   // Max step up height
+    max_slope: 45.0,    // Walkable slope angle
+    move_speed: 5.0,    // Base move speed
+    jump_speed: 7.0,    // Jump velocity
+    gravity: 20.0,      // Gravity strength
+    grounded: false,    // On ground?
+    velocity: Vec3::zeros(),
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="camera-setup"><a class="header" href="#camera-setup">Camera Setup</a></h3>
+<p>First-person camera is parented to the player:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_parent(camera, Parent(player));
+<span class="boring">}</span></code></pre></pre>
+<p>This makes the camera follow the player automatically.</p>
+<h3 id="weapon-attachment"><a class="header" href="#weapon-attachment">Weapon Attachment</a></h3>
+<p>The weapon is parented to the camera so it stays in view:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_parent(weapon, Parent(camera));
+<span class="boring">}</span></code></pre></pre>
+<h3 id="mouse-look"><a class="header" href="#mouse-look">Mouse Look</a></h3>
+<p>Horizontal rotation (yaw) goes on the player body, vertical rotation (pitch) goes on the camera:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Yaw on player
+transform.rotation = yaw * transform.rotation;
+
+// Pitch on camera
+transform.rotation = transform.rotation * pitch;
+<span class="boring">}</span></code></pre></pre>
+<p>This prevents gimbal lock and feels natural.</p>
+<h2 id="cargotoml"><a class="header" href="#cargotoml">Cargo.toml</a></h2>
+<pre><code class="language-toml">[package]
+name = "fps-game"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nightshade = { git = "...", features = ["engine", "physics", "audio"] }
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="example-minimal.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="example-third-person.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="example-minimal.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="example-third-person.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

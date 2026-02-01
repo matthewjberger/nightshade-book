@@ -1,0 +1,564 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Lines Rendering - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="lines-rendering"><a class="header" href="#lines-rendering">Lines Rendering</a></h1>
+<p>Debug line drawing for visualization, gizmos, and wireframes.</p>
+<h2 id="basic-line-drawing"><a class="header" href="#basic-line-drawing">Basic Line Drawing</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::lines::*;
+
+fn initialize(&amp;mut self, world: &amp;mut World) {
+    let entity = world.spawn_entities(LINES_COMPONENT, 1)[0];
+
+    let mut lines = Lines::new();
+    lines.add(
+        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(1.0, 1.0, 1.0),
+        Vec4::new(1.0, 0.0, 0.0, 1.0),
+    );
+
+    world.set_lines(entity, lines);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="lines-component"><a class="header" href="#lines-component">Lines Component</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Lines {
+    pub lines: Vec&lt;Line&gt;,
+    pub version: u64,
+}
+
+pub struct Line {
+    pub start: Vec3,
+    pub end: Vec3,
+    pub color: Vec4,  // RGBA, linear color space
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="adding-lines"><a class="header" href="#adding-lines">Adding Lines</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut lines = Lines::new();
+
+// Single line
+lines.add(start, end, color);
+
+// Multiple lines
+lines.add(Vec3::zeros(), Vec3::x(), Vec4::new(1.0, 0.0, 0.0, 1.0));
+lines.add(Vec3::zeros(), Vec3::y(), Vec4::new(0.0, 1.0, 0.0, 1.0));
+lines.add(Vec3::zeros(), Vec3::z(), Vec4::new(0.0, 0.0, 1.0, 1.0));
+<span class="boring">}</span></code></pre></pre>
+<h2 id="drawing-shapes"><a class="header" href="#drawing-shapes">Drawing Shapes</a></h2>
+<h3 id="coordinate-axes"><a class="header" href="#coordinate-axes">Coordinate Axes</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_axes(lines: &amp;mut Lines, origin: Vec3, scale: f32) {
+    let red = Vec4::new(1.0, 0.0, 0.0, 1.0);
+    let green = Vec4::new(0.0, 1.0, 0.0, 1.0);
+    let blue = Vec4::new(0.0, 0.0, 1.0, 1.0);
+
+    lines.add(origin, origin + Vec3::x() * scale, red);
+    lines.add(origin, origin + Vec3::y() * scale, green);
+    lines.add(origin, origin + Vec3::z() * scale, blue);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="wireframe-box"><a class="header" href="#wireframe-box">Wireframe Box</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_box(lines: &amp;mut Lines, center: Vec3, half_extents: Vec3, color: Vec4) {
+    let min = center - half_extents;
+    let max = center + half_extents;
+
+    // Bottom face
+    lines.add(Vec3::new(min.x, min.y, min.z), Vec3::new(max.x, min.y, min.z), color);
+    lines.add(Vec3::new(max.x, min.y, min.z), Vec3::new(max.x, min.y, max.z), color);
+    lines.add(Vec3::new(max.x, min.y, max.z), Vec3::new(min.x, min.y, max.z), color);
+    lines.add(Vec3::new(min.x, min.y, max.z), Vec3::new(min.x, min.y, min.z), color);
+
+    // Top face
+    lines.add(Vec3::new(min.x, max.y, min.z), Vec3::new(max.x, max.y, min.z), color);
+    lines.add(Vec3::new(max.x, max.y, min.z), Vec3::new(max.x, max.y, max.z), color);
+    lines.add(Vec3::new(max.x, max.y, max.z), Vec3::new(min.x, max.y, max.z), color);
+    lines.add(Vec3::new(min.x, max.y, max.z), Vec3::new(min.x, max.y, min.z), color);
+
+    // Vertical edges
+    lines.add(Vec3::new(min.x, min.y, min.z), Vec3::new(min.x, max.y, min.z), color);
+    lines.add(Vec3::new(max.x, min.y, min.z), Vec3::new(max.x, max.y, min.z), color);
+    lines.add(Vec3::new(max.x, min.y, max.z), Vec3::new(max.x, max.y, max.z), color);
+    lines.add(Vec3::new(min.x, min.y, max.z), Vec3::new(min.x, max.y, max.z), color);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="wireframe-sphere"><a class="header" href="#wireframe-sphere">Wireframe Sphere</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_sphere(lines: &amp;mut Lines, center: Vec3, radius: f32, color: Vec4, segments: u32) {
+    let step = std::f32::consts::TAU / segments as f32;
+
+    // XY circle
+    for index in 0..segments {
+        let angle1 = index as f32 * step;
+        let angle2 = (index + 1) as f32 * step;
+
+        let p1 = center + Vec3::new(angle1.cos() * radius, angle1.sin() * radius, 0.0);
+        let p2 = center + Vec3::new(angle2.cos() * radius, angle2.sin() * radius, 0.0);
+        lines.add(p1, p2, color);
+    }
+
+    // XZ circle
+    for index in 0..segments {
+        let angle1 = index as f32 * step;
+        let angle2 = (index + 1) as f32 * step;
+
+        let p1 = center + Vec3::new(angle1.cos() * radius, 0.0, angle1.sin() * radius);
+        let p2 = center + Vec3::new(angle2.cos() * radius, 0.0, angle2.sin() * radius);
+        lines.add(p1, p2, color);
+    }
+
+    // YZ circle
+    for index in 0..segments {
+        let angle1 = index as f32 * step;
+        let angle2 = (index + 1) as f32 * step;
+
+        let p1 = center + Vec3::new(0.0, angle1.cos() * radius, angle1.sin() * radius);
+        let p2 = center + Vec3::new(0.0, angle2.cos() * radius, angle2.sin() * radius);
+        lines.add(p1, p2, color);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="grid"><a class="header" href="#grid">Grid</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_grid(lines: &amp;mut Lines, size: f32, divisions: u32, color: Vec4) {
+    let step = size / divisions as f32;
+    let half = size / 2.0;
+
+    for index in 0..=divisions {
+        let offset = -half + index as f32 * step;
+
+        // X-axis lines
+        lines.add(
+            Vec3::new(-half, 0.0, offset),
+            Vec3::new(half, 0.0, offset),
+            color,
+        );
+
+        // Z-axis lines
+        lines.add(
+            Vec3::new(offset, 0.0, -half),
+            Vec3::new(offset, 0.0, half),
+            color,
+        );
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="arrow"><a class="header" href="#arrow">Arrow</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_arrow(lines: &amp;mut Lines, start: Vec3, end: Vec3, color: Vec4, head_size: f32) {
+    lines.add(start, end, color);
+
+    let direction = (end - start).normalize();
+    let perpendicular = if direction.y.abs() &lt; 0.9 {
+        direction.cross(&amp;Vec3::y()).normalize()
+    } else {
+        direction.cross(&amp;Vec3::x()).normalize()
+    };
+
+    let head_base = end - direction * head_size;
+    let offset = perpendicular * head_size * 0.5;
+
+    lines.add(end, head_base + offset, color);
+    lines.add(end, head_base - offset, color);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="updating-lines"><a class="header" href="#updating-lines">Updating Lines</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    if let Some(lines) = world.get_lines_mut(self.debug_lines) {
+        lines.clear();
+
+        // Draw velocity vectors for all physics bodies
+        for entity in world.query(RIGID_BODY_COMPONENT | LOCAL_TRANSFORM) {
+            if let (Some(body), Some(transform)) = (
+                world.get_rigid_body(entity),
+                world.get_local_transform(entity),
+            ) {
+                let start = transform.translation;
+                let end = start + body.velocity;
+                lines.add(start, end, Vec4::new(1.0, 1.0, 0.0, 1.0));
+            }
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="built-in-debug-visualization"><a class="header" href="#built-in-debug-visualization">Built-in Debug Visualization</a></h2>
+<h3 id="bounding-volumes"><a class="header" href="#bounding-volumes">Bounding Volumes</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.show_bounding_volumes = true;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="selected-entity-bounds"><a class="header" href="#selected-entity-bounds">Selected Entity Bounds</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.show_selected_bounding_volume = true;
+world.resources.graphics.bounding_volume_selected_entity = Some(entity);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="surface-normals"><a class="header" href="#surface-normals">Surface Normals</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.show_normals = true;
+world.resources.graphics.normal_line_length = 0.2;
+world.resources.graphics.normal_line_color = [0.0, 1.0, 0.0, 1.0];
+<span class="boring">}</span></code></pre></pre>
+<h2 id="gpu-culling"><a class="header" href="#gpu-culling">GPU Culling</a></h2>
+<p>Lines are frustum-culled on the GPU for performance:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.gpu_culling_enabled = true;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="line-limits"><a class="header" href="#line-limits">Line Limits</a></h2>
+<p>The system supports up to 1,000,000 lines per component:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const MAX_LINES: u32 = 1_000_000;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="transform-gizmos"><a class="header" href="#transform-gizmos">Transform Gizmos</a></h2>
+<p>Built-in gizmos for entity manipulation:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::gizmos::*;
+
+// Translation gizmo (XYZ arrows)
+create_translation_gizmo(world, entity);
+
+// Rotation gizmo (rings)
+create_rotation_gizmo(world, entity);
+
+// Scale gizmo (cubes with cylinders)
+create_scale_gizmo(world, entity);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="debug-helpers"><a class="header" href="#debug-helpers">Debug Helpers</a></h2>
+<h3 id="draw-physics-colliders"><a class="header" href="#draw-physics-colliders">Draw Physics Colliders</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_colliders(world: &amp;mut World, lines_entity: Entity) {
+    if let Some(lines) = world.get_lines_mut(lines_entity) {
+        lines.clear();
+
+        for entity in world.query(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
+            if let (Some(collider), Some(transform)) = (
+                world.get_collider(entity),
+                world.get_global_transform(entity),
+            ) {
+                match &amp;collider.shape {
+                    ColliderShape::Sphere { radius } =&gt; {
+                        draw_sphere(lines, transform.translation, *radius, Vec4::new(0.0, 1.0, 0.0, 1.0), 16);
+                    }
+                    ColliderShape::Box { half_extents } =&gt; {
+                        draw_box(lines, transform.translation, *half_extents, Vec4::new(0.0, 1.0, 0.0, 1.0));
+                    }
+                    _ =&gt; {}
+                }
+            }
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="draw-navigation-path"><a class="header" href="#draw-navigation-path">Draw Navigation Path</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_navmesh_path(lines: &amp;mut Lines, path: &amp;[Vec3], color: Vec4) {
+    for index in 0..path.len().saturating_sub(1) {
+        lines.add(path[index], path[index + 1], color);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="draw-ray"><a class="header" href="#draw-ray">Draw Ray</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn draw_ray(lines: &amp;mut Lines, origin: Vec3, direction: Vec3, length: f32, color: Vec4) {
+    let end = origin + direction.normalize() * length;
+    draw_arrow(lines, origin, end, color, 0.1);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
+<ul>
+<li>Clear and rebuild lines each frame for dynamic visualization</li>
+<li>Use GPU culling for large numbers of lines</li>
+<li>Batch related lines in a single Lines component</li>
+<li>Disable debug visualization in release builds</li>
+</ul>
+<h2 id="example-debug-overlay"><a class="header" href="#example-debug-overlay">Example: Debug Overlay</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct DebugOverlay {
+    lines_entity: Entity,
+    show_colliders: bool,
+    show_velocities: bool,
+    show_paths: bool,
+}
+
+impl DebugOverlay {
+    fn update(&amp;self, world: &amp;mut World) {
+        if let Some(lines) = world.get_lines_mut(self.lines_entity) {
+            lines.clear();
+
+            if self.show_colliders {
+                self.draw_all_colliders(world, lines);
+            }
+
+            if self.show_velocities {
+                self.draw_all_velocities(world, lines);
+            }
+
+            if self.show_paths {
+                self.draw_all_paths(world, lines);
+            }
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="hud-text.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="audio-analyzer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="hud-text.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="audio-analyzer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

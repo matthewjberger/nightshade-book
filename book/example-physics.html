@@ -1,0 +1,782 @@
+<!DOCTYPE HTML>
+<html lang="en" class="dark sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Physics Playground - Nightshade Game Engine</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "dark";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('dark')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Nightshade Game Engine</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="physics-playground"><a class="header" href="#physics-playground">Physics Playground</a></h1>
+<p>An interactive physics sandbox demonstrating rigid bodies, colliders, joints, and forces.</p>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
+
+struct PhysicsPlayground {
+    spawn_mode: SpawnMode,
+    selected_entity: Option&lt;Entity&gt;,
+    holding_entity: Option&lt;Entity&gt;,
+    grab_distance: f32,
+}
+
+#[derive(Default, Clone, Copy)]
+enum SpawnMode {
+    #[default]
+    Cube,
+    Sphere,
+    Capsule,
+    Chain,
+    Ragdoll,
+}
+
+impl Default for PhysicsPlayground {
+    fn default() -&gt; Self {
+        Self {
+            spawn_mode: SpawnMode::Cube,
+            selected_entity: None,
+            holding_entity: None,
+            grab_distance: 5.0,
+        }
+    }
+}
+
+impl State for PhysicsPlayground {
+    fn initialize(&amp;mut self, world: &amp;mut World) {
+        spawn_fly_camera(world);
+        self.setup_environment(world);
+        self.setup_ui(world);
+
+        world.resources.input.cursor_locked = true;
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        let dt = world.resources.timing.delta_time;
+
+        self.update_held_object(world);
+        self.update_ui(world);
+
+        update_physics(world, dt);
+    }
+
+    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
+        if state == KeyState::Pressed {
+            match key {
+                KeyCode::Digit1 =&gt; self.spawn_mode = SpawnMode::Cube,
+                KeyCode::Digit2 =&gt; self.spawn_mode = SpawnMode::Sphere,
+                KeyCode::Digit3 =&gt; self.spawn_mode = SpawnMode::Capsule,
+                KeyCode::Digit4 =&gt; self.spawn_mode = SpawnMode::Chain,
+                KeyCode::Digit5 =&gt; self.spawn_mode = SpawnMode::Ragdoll,
+                KeyCode::KeyR =&gt; self.reset_scene(world),
+                KeyCode::KeyF =&gt; self.apply_explosion(world),
+                KeyCode::KeyG =&gt; self.toggle_gravity(world),
+                _ =&gt; {}
+            }
+        }
+    }
+
+    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+        match (button, state) {
+            (MouseButton::Left, ElementState::Pressed) =&gt; {
+                self.spawn_object(world);
+            }
+            (MouseButton::Right, ElementState::Pressed) =&gt; {
+                self.grab_object(world);
+            }
+            (MouseButton::Right, ElementState::Released) =&gt; {
+                self.release_object(world);
+            }
+            (MouseButton::Middle, ElementState::Pressed) =&gt; {
+                self.delete_at_cursor(world);
+            }
+            _ =&gt; {}
+        }
+    }
+}
+
+impl PhysicsPlayground {
+    fn setup_environment(&amp;mut self, world: &amp;mut World) {
+        let floor = spawn_primitive(world, Primitive::Plane);
+        world.set_local_transform(floor, LocalTransform {
+            scale: Vec3::new(50.0, 1.0, 50.0),
+            ..Default::default()
+        });
+        world.set_material(floor, Material {
+            base_color: [0.3, 0.3, 0.35, 1.0],
+            roughness: 0.8,
+            ..Default::default()
+        });
+        add_collider(world, floor, ColliderShape::Box {
+            half_extents: Vec3::new(50.0, 0.1, 50.0),
+        });
+
+        self.spawn_walls(world);
+
+        spawn_directional_light(world, Vec3::new(-0.5, -1.0, -0.3));
+        world.resources.graphics.ambient_intensity = 0.2;
+    }
+
+    fn spawn_walls(&amp;mut self, world: &amp;mut World) {
+        let wall_positions = [
+            (Vec3::new(25.0, 2.5, 0.0), Vec3::new(0.5, 5.0, 50.0)),
+            (Vec3::new(-25.0, 2.5, 0.0), Vec3::new(0.5, 5.0, 50.0)),
+            (Vec3::new(0.0, 2.5, 25.0), Vec3::new(50.0, 5.0, 0.5)),
+            (Vec3::new(0.0, 2.5, -25.0), Vec3::new(50.0, 5.0, 0.5)),
+        ];
+
+        for (position, half_extents) in wall_positions {
+            let wall = spawn_primitive(world, Primitive::Cube);
+            world.set_local_transform(wall, LocalTransform {
+                translation: position,
+                scale: half_extents * 2.0,
+                ..Default::default()
+            });
+            world.set_material(wall, Material {
+                base_color: [0.4, 0.4, 0.45, 1.0],
+                roughness: 0.9,
+                ..Default::default()
+            });
+            add_collider(world, wall, ColliderShape::Box { half_extents });
+        }
+    }
+
+    fn setup_ui(&amp;mut self, world: &amp;mut World) {
+        let help_text = "Controls:\n\
+            1-5: Select spawn mode\n\
+            Left Click: Spawn object\n\
+            Right Click: Grab/throw\n\
+            Middle Click: Delete\n\
+            R: Reset scene\n\
+            F: Explosion\n\
+            G: Toggle gravity";
+
+        spawn_hud_text(world, help_text, HudAnchor::TopLeft, Vec2::new(20.0, 20.0));
+
+        spawn_hud_text(world, "Mode: Cube", HudAnchor::TopRight, Vec2::new(-20.0, 20.0));
+    }
+
+    fn update_ui(&amp;mut self, world: &amp;mut World) {
+    }
+
+    fn spawn_object(&amp;mut self, world: &amp;mut World) {
+        let Some(camera) = world.resources.active_camera else { return };
+        let Some(transform) = world.get_global_transform(camera) else { return };
+
+        let spawn_position = transform.translation +
+            transform.rotation * Vec3::new(0.0, 0.0, -5.0);
+
+        match self.spawn_mode {
+            SpawnMode::Cube =&gt; self.spawn_cube(world, spawn_position),
+            SpawnMode::Sphere =&gt; self.spawn_sphere(world, spawn_position),
+            SpawnMode::Capsule =&gt; self.spawn_capsule(world, spawn_position),
+            SpawnMode::Chain =&gt; self.spawn_chain(world, spawn_position),
+            SpawnMode::Ragdoll =&gt; self.spawn_ragdoll(world, spawn_position),
+        }
+    }
+
+    fn spawn_cube(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
+        let cube = spawn_primitive(world, Primitive::Cube);
+
+        world.set_local_transform(cube, LocalTransform {
+            translation: position,
+            rotation: random_rotation(),
+            ..Default::default()
+        });
+
+        world.set_material(cube, Material {
+            base_color: random_color(),
+            roughness: 0.7,
+            metallic: 0.1,
+            ..Default::default()
+        });
+
+        add_rigid_body(world, cube, RigidBodyType::Dynamic, 1.0);
+        add_collider(world, cube, ColliderShape::Box {
+            half_extents: Vec3::new(0.5, 0.5, 0.5),
+        });
+
+        cube
+    }
+
+    fn spawn_sphere(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
+        let sphere = spawn_primitive(world, Primitive::Sphere);
+
+        world.set_local_transform(sphere, LocalTransform {
+            translation: position,
+            ..Default::default()
+        });
+
+        world.set_material(sphere, Material {
+            base_color: random_color(),
+            roughness: 0.3,
+            metallic: 0.8,
+            ..Default::default()
+        });
+
+        add_rigid_body(world, sphere, RigidBodyType::Dynamic, 1.0);
+        add_collider(world, sphere, ColliderShape::Sphere { radius: 0.5 });
+
+        sphere
+    }
+
+    fn spawn_capsule(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
+        let capsule = spawn_primitive(world, Primitive::Capsule);
+
+        world.set_local_transform(capsule, LocalTransform {
+            translation: position,
+            rotation: random_rotation(),
+            ..Default::default()
+        });
+
+        world.set_material(capsule, Material {
+            base_color: random_color(),
+            roughness: 0.5,
+            metallic: 0.3,
+            ..Default::default()
+        });
+
+        add_rigid_body(world, capsule, RigidBodyType::Dynamic, 1.0);
+        add_collider(world, capsule, ColliderShape::Capsule {
+            half_height: 0.5,
+            radius: 0.3,
+        });
+
+        capsule
+    }
+
+    fn spawn_chain(&amp;self, world: &amp;mut World, start_position: Vec3) {
+        let link_count = 10;
+        let link_spacing = 0.8;
+        let mut previous_link: Option&lt;Entity&gt; = None;
+
+        for index in 0..link_count {
+            let position = start_position + Vec3::new(0.0, -(index as f32 * link_spacing), 0.0);
+
+            let link = spawn_primitive(world, Primitive::Capsule);
+            world.set_local_transform(link, LocalTransform {
+                translation: position,
+                scale: Vec3::new(0.2, 0.3, 0.2),
+                ..Default::default()
+            });
+
+            world.set_material(link, Material {
+                base_color: [0.7, 0.7, 0.75, 1.0],
+                roughness: 0.3,
+                metallic: 0.9,
+                ..Default::default()
+            });
+
+            if index == 0 {
+                add_rigid_body(world, link, RigidBodyType::Static, 0.0);
+            } else {
+                add_rigid_body(world, link, RigidBodyType::Dynamic, 0.5);
+            }
+
+            add_collider(world, link, ColliderShape::Capsule {
+                half_height: 0.15,
+                radius: 0.1,
+            });
+
+            if let Some(prev) = previous_link {
+                create_spherical_joint(
+                    world,
+                    prev,
+                    Vec3::new(0.0, -link_spacing / 2.0, 0.0),
+                    link,
+                    Vec3::new(0.0, link_spacing / 2.0, 0.0),
+                );
+            }
+
+            previous_link = Some(link);
+        }
+    }
+
+    fn spawn_ragdoll(&amp;self, world: &amp;mut World, position: Vec3) {
+        let torso = self.spawn_body_part(world, position, Vec3::new(0.3, 0.4, 0.2), [0.8, 0.6, 0.5, 1.0]);
+
+        let head = self.spawn_body_part(
+            world,
+            position + Vec3::new(0.0, 0.6, 0.0),
+            Vec3::new(0.15, 0.15, 0.15),
+            [0.9, 0.7, 0.6, 1.0],
+        );
+
+        let left_arm = self.spawn_body_part(
+            world,
+            position + Vec3::new(-0.5, 0.2, 0.0),
+            Vec3::new(0.25, 0.08, 0.08),
+            [0.8, 0.6, 0.5, 1.0],
+        );
+
+        let right_arm = self.spawn_body_part(
+            world,
+            position + Vec3::new(0.5, 0.2, 0.0),
+            Vec3::new(0.25, 0.08, 0.08),
+            [0.8, 0.6, 0.5, 1.0],
+        );
+
+        let left_leg = self.spawn_body_part(
+            world,
+            position + Vec3::new(-0.15, -0.6, 0.0),
+            Vec3::new(0.1, 0.3, 0.1),
+            [0.3, 0.3, 0.5, 1.0],
+        );
+
+        let right_leg = self.spawn_body_part(
+            world,
+            position + Vec3::new(0.15, -0.6, 0.0),
+            Vec3::new(0.1, 0.3, 0.1),
+            [0.3, 0.3, 0.5, 1.0],
+        );
+
+        create_spherical_joint(world, torso, Vec3::new(0.0, 0.4, 0.0), head, Vec3::new(0.0, -0.15, 0.0));
+        create_spherical_joint(world, torso, Vec3::new(-0.3, 0.2, 0.0), left_arm, Vec3::new(0.25, 0.0, 0.0));
+        create_spherical_joint(world, torso, Vec3::new(0.3, 0.2, 0.0), right_arm, Vec3::new(-0.25, 0.0, 0.0));
+        create_spherical_joint(world, torso, Vec3::new(-0.15, -0.4, 0.0), left_leg, Vec3::new(0.0, 0.3, 0.0));
+        create_spherical_joint(world, torso, Vec3::new(0.15, -0.4, 0.0), right_leg, Vec3::new(0.0, 0.3, 0.0));
+    }
+
+    fn spawn_body_part(&amp;self, world: &amp;mut World, position: Vec3, half_extents: Vec3, color: [f32; 4]) -&gt; Entity {
+        let part = spawn_primitive(world, Primitive::Cube);
+
+        world.set_local_transform(part, LocalTransform {
+            translation: position,
+            scale: half_extents * 2.0,
+            ..Default::default()
+        });
+
+        world.set_material(part, Material {
+            base_color: color,
+            roughness: 0.8,
+            ..Default::default()
+        });
+
+        add_rigid_body(world, part, RigidBodyType::Dynamic, half_extents.x * half_extents.y * half_extents.z * 8.0);
+        add_collider(world, part, ColliderShape::Box { half_extents });
+
+        part
+    }
+
+    fn grab_object(&amp;mut self, world: &amp;mut World) {
+        let Some(camera) = world.resources.active_camera else { return };
+        let Some(transform) = world.get_global_transform(camera) else { return };
+
+        let origin = transform.translation;
+        let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+
+        if let Some(hit) = raycast(world, origin, direction, 20.0) {
+            if world.get_rigid_body(hit.entity).is_some() {
+                self.holding_entity = Some(hit.entity);
+                self.grab_distance = hit.distance;
+
+                if let Some(body) = world.get_rigid_body_mut(hit.entity) {
+                    body.linear_damping = 10.0;
+                    body.angular_damping = 10.0;
+                }
+            }
+        }
+    }
+
+    fn release_object(&amp;mut self, world: &amp;mut World) {
+        if let Some(entity) = self.holding_entity.take() {
+            if let Some(body) = world.get_rigid_body_mut(entity) {
+                body.linear_damping = 0.0;
+                body.angular_damping = 0.0;
+
+                let Some(camera) = world.resources.active_camera else { return };
+                let Some(transform) = world.get_global_transform(camera) else { return };
+
+                let throw_direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+                body.velocity = throw_direction * 20.0;
+            }
+        }
+    }
+
+    fn update_held_object(&amp;mut self, world: &amp;mut World) {
+        let Some(entity) = self.holding_entity else { return };
+        let Some(camera) = world.resources.active_camera else { return };
+        let Some(camera_transform) = world.get_global_transform(camera) else { return };
+
+        let target = camera_transform.translation +
+            camera_transform.rotation * Vec3::new(0.0, 0.0, -self.grab_distance);
+
+        if let Some(transform) = world.get_local_transform(entity) {
+            let to_target = target - transform.translation;
+            if let Some(body) = world.get_rigid_body_mut(entity) {
+                body.velocity = to_target * 20.0;
+            }
+        }
+    }
+
+    fn delete_at_cursor(&amp;mut self, world: &amp;mut World) {
+        let Some(camera) = world.resources.active_camera else { return };
+        let Some(transform) = world.get_global_transform(camera) else { return };
+
+        let origin = transform.translation;
+        let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+
+        if let Some(hit) = raycast(world, origin, direction, 50.0) {
+            world.despawn(hit.entity);
+        }
+    }
+
+    fn apply_explosion(&amp;self, world: &amp;mut World) {
+        let Some(camera) = world.resources.active_camera else { return };
+        let Some(transform) = world.get_global_transform(camera) else { return };
+
+        let explosion_center = transform.translation +
+            transform.rotation * Vec3::new(0.0, 0.0, -5.0);
+        let explosion_radius = 10.0;
+        let explosion_force = 50.0;
+
+        for entity in world.query(RIGID_BODY_COMPONENT | GLOBAL_TRANSFORM) {
+            if let (Some(body), Some(entity_transform)) = (
+                world.get_rigid_body_mut(entity),
+                world.get_global_transform(entity),
+            ) {
+                let to_entity = entity_transform.translation - explosion_center;
+                let distance = to_entity.magnitude();
+
+                if distance &lt; explosion_radius &amp;&amp; distance &gt; 0.1 {
+                    let falloff = 1.0 - (distance / explosion_radius);
+                    let force = to_entity.normalize() * explosion_force * falloff;
+                    body.velocity += force;
+                }
+            }
+        }
+    }
+
+    fn toggle_gravity(&amp;self, world: &amp;mut World) {
+        let gravity = &amp;mut world.resources.physics.gravity;
+        if gravity.y &lt; 0.0 {
+            *gravity = Vec3::zeros();
+        } else {
+            *gravity = Vec3::new(0.0, -9.81, 0.0);
+        }
+    }
+
+    fn reset_scene(&amp;mut self, world: &amp;mut World) {
+        let entities_to_remove: Vec&lt;Entity&gt; = world
+            .query(RIGID_BODY_COMPONENT)
+            .filter(|e| {
+                world.get_rigid_body(*e)
+                    .map(|b| b.body_type == RigidBodyType::Dynamic)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        for entity in entities_to_remove {
+            world.despawn(entity);
+        }
+
+        self.holding_entity = None;
+        self.selected_entity = None;
+    }
+}
+
+fn random_color() -&gt; [f32; 4] {
+    [
+        0.3 + 0.7 * pseudo_random(),
+        0.3 + 0.7 * pseudo_random(),
+        0.3 + 0.7 * pseudo_random(),
+        1.0,
+    ]
+}
+
+fn random_rotation() -&gt; nalgebra_glm::Quat {
+    nalgebra_glm::quat_angle_axis(
+        pseudo_random() * std::f32::consts::TAU,
+        &amp;Vec3::new(
+            pseudo_random() - 0.5,
+            pseudo_random() - 0.5,
+            pseudo_random() - 0.5,
+        ).normalize(),
+    )
+}
+
+fn pseudo_random() -&gt; f32 {
+    static mut SEED: u32 = 12345;
+    unsafe {
+        SEED = SEED.wrapping_mul(1103515245).wrapping_add(12345);
+        (SEED as f32 / u32::MAX as f32)
+    }
+}
+
+fn main() {
+    nightshade::run(PhysicsPlayground::default());
+}</code></pre></pre>
+<h2 id="features-demonstrated"><a class="header" href="#features-demonstrated">Features Demonstrated</a></h2>
+<h3 id="object-spawning"><a class="header" href="#object-spawning">Object Spawning</a></h3>
+<p>Spawn various physics primitives with random colors:</p>
+<ul>
+<li>Cubes</li>
+<li>Spheres</li>
+<li>Capsules</li>
+</ul>
+<h3 id="joint-systems"><a class="header" href="#joint-systems">Joint Systems</a></h3>
+<p><strong>Chain</strong>: A series of capsules connected by spherical joints, anchored at the top.</p>
+<p><strong>Ragdoll</strong>: A humanoid figure made of box body parts connected by joints:</p>
+<ul>
+<li>Head connected to torso</li>
+<li>Arms connected to torso</li>
+<li>Legs connected to torso</li>
+</ul>
+<h3 id="object-manipulation"><a class="header" href="#object-manipulation">Object Manipulation</a></h3>
+<p><strong>Grab</strong>: Right-click to grab objects and move them with the camera.</p>
+<p><strong>Throw</strong>: Release right-click to throw grabbed objects.</p>
+<p><strong>Delete</strong>: Middle-click to delete objects.</p>
+<h3 id="physics-effects"><a class="header" href="#physics-effects">Physics Effects</a></h3>
+<p><strong>Explosion</strong>: Press F to apply radial force to nearby objects.</p>
+<p><strong>Gravity Toggle</strong>: Press G to toggle between normal gravity and zero gravity.</p>
+<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
+<p>Used for:</p>
+<ul>
+<li>Selecting objects to grab</li>
+<li>Deleting objects</li>
+<li>Hit detection</li>
+</ul>
+<h2 id="cargotoml"><a class="header" href="#cargotoml">Cargo.toml</a></h2>
+<pre><code class="language-toml">[package]
+name = "physics-playground"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nightshade = { git = "...", features = ["engine", "physics"] }
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="example-third-person.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="appendix-features.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="example-third-person.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="appendix-features.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>
