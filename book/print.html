@@ -177,6 +177,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<blockquote>
+<p><strong><a href="https://matthewberger.dev/nightshade">View the Gallery</a></strong> - See live demos of Nightshade's features running in your browser.</p>
+</blockquote>
 <p><strong>Nightshade</strong> is a modern game engine written in Rust, designed for creating 3D games and interactive applications. It provides a complete toolkit for game development including rendering, physics, audio, animation, and more.</p>
 <h2 id="what-is-nightshade"><a class="header" href="#what-is-nightshade">What is Nightshade?</a></h2>
 <p>Nightshade is a batteries-included game engine that handles the complexity of modern 3D graphics while remaining approachable for developers of all skill levels. Whether you're building a simple visualizer, a physics playground, or a complete 3D game, Nightshade provides the foundation you need.</p>
@@ -292,6 +295,92 @@
 <li><a href="https://docs.rs/nightshade">API Documentation</a> - Generated API docs</li>
 </ul>
 <p>Let's get started!</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="interactive-demo"><a class="header" href="#interactive-demo">Interactive Demo</a></h1>
+<p>Experience Nightshade running directly in your browser via WebGPU.</p>
+<div style="width: 100%; height: 500px; border: 1px solid #333; border-radius: 8px; overflow: hidden; margin: 20px 0;">
+    <iframe
+        src="demos/hello/index.html"
+        style="width: 100%; height: 100%; border: none;"
+        allow="fullscreen"
+    ></iframe>
+</div>
+<h2 id="controls"><a class="header" href="#controls">Controls</a></h2>
+<ul>
+<li><strong>Mouse Drag</strong>: Orbit the camera around the scene</li>
+<li><strong>Scroll Wheel</strong>: Zoom in and out</li>
+</ul>
+<h2 id="what-youre-seeing"><a class="header" href="#what-youre-seeing">What You're Seeing</a></h2>
+<p>This demo showcases several Nightshade features:</p>
+<ul>
+<li><strong>Primitives</strong>: A cube, sphere, and torus rendered with PBR materials</li>
+<li><strong>Emissive Materials</strong>: Each object has emissive properties that create a glowing effect</li>
+<li><strong>Bloom Post-Processing</strong>: The glow spreads beyond object boundaries</li>
+<li><strong>Nebula Skybox</strong>: A procedural space background</li>
+<li><strong>Pan-Orbit Camera</strong>: Interactive camera controls</li>
+<li><strong>Animation</strong>: Objects rotate and bob with smooth interpolation</li>
+</ul>
+<h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
+<p>This demo requires a browser with WebGPU support:</p>
+<ul>
+<li><strong>Chrome/Edge</strong>: Version 113+ (enabled by default)</li>
+<li><strong>Firefox</strong>: Version 141+ (enabled by default)</li>
+<li><strong>Safari</strong>: Version 18+ (Technology Preview)</li>
+</ul>
+<p>If you see a blank frame, your browser may not support WebGPU yet.</p>
+<h2 id="source-code"><a class="header" href="#source-code">Source Code</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    launch(HelloNightshade::default())
+}
+
+#[derive(Default)]
+struct HelloNightshade {
+    cube: Option&lt;Entity&gt;,
+    sphere: Option&lt;Entity&gt;,
+    torus: Option&lt;Entity&gt;,
+    time: f32,
+}
+
+impl State for HelloNightshade {
+    fn title(&amp;self) -&gt; &amp;str {
+        "Hello Nightshade"
+    }
+
+    fn initialize(&amp;mut self, world: &amp;mut World) {
+        world.resources.graphics.atmosphere = Atmosphere::Nebula;
+        world.resources.graphics.bloom_enabled = true;
+        world.resources.graphics.bloom_intensity = 0.15;
+
+        let camera = spawn_pan_orbit_camera(
+            world,
+            Vec3::new(0.0, 0.0, 0.0),
+            8.0, 0.5, 0.3,
+            "Camera".to_string(),
+        );
+        world.resources.active_camera = Some(camera);
+
+        spawn_sun(world);
+
+        // Spawn primitives with emissive materials
+        self.cube = Some(spawn_primitive(world, Primitive::Cube));
+        self.sphere = Some(spawn_primitive(world, Primitive::Sphere));
+        self.torus = Some(spawn_primitive(world, Primitive::Torus));
+
+        // Configure positions and materials...
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        pan_orbit_camera_system(world);
+
+        let dt = world.resources.window.timing.delta_time;
+        self.time += dt;
+
+        // Animate objects with rotation and bobbing
+        // ...
+    }
+}</code></pre></pre>
+<p>See the full source in the <a href="https://github.com/matthewjberger/nightshade-book/tree/main/demos/hello">book repository</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
 <p>Before using Nightshade, ensure you have:</p>
@@ -483,7 +572,7 @@ impl State for MyGame {
         escape_key_exit_system(world);
     }
 }</code></pre></pre>
-<h2 id="controls"><a class="header" href="#controls">Controls</a></h2>
+<h2 id="controls-1"><a class="header" href="#controls-1">Controls</a></h2>
 <p>With the fly camera system enabled:</p>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
 <tr><td>W/A/S/D</td><td>Move forward/left/back/right</td></tr>
@@ -2059,6 +2148,9 @@ pub async fn start() {
 <li><strong>Consider fixed timestep for gameplay</strong>: Not just physics</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="cameras-1"><a class="header" href="#cameras-1">Cameras</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/skybox">Skybox</a></p>
+</blockquote>
 <p>Cameras define what the player sees in your game.</p>
 <h2 id="camera-components-1"><a class="header" href="#camera-components-1">Camera Components</a></h2>
 <p>A camera entity needs these components:</p>
@@ -2220,6 +2312,9 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="meshes--models"><a class="header" href="#meshes--models">Meshes &amp; Models</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/prefabs">Prefabs</a></p>
+</blockquote>
 <h2 id="built-in-primitives"><a class="header" href="#built-in-primitives">Built-in Primitives</a></h2>
 <p>Nightshade provides basic geometric primitives:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -2423,6 +2518,9 @@ world.set_casts_shadow(entity, CastsShadow(true));
 world.set_casts_shadow(entity, CastsShadow(false));
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="materials"><a class="header" href="#materials">Materials</a></h1>
+<blockquote>
+<p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/textures">Textures</a> | <a href="https://matthewberger.dev/nightshade/alpha_blending">Alpha Blending</a></p>
+</blockquote>
 <p>Materials define the visual appearance of meshes using PBR (Physically Based Rendering).</p>
 <h2 id="material-structure"><a class="header" href="#material-structure">Material Structure</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -2633,6 +2731,9 @@ fn create_rough(color: Vec3) -&gt; Material {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="lighting-1"><a class="header" href="#lighting-1">Lighting</a></h1>
+<blockquote>
+<p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/lights">Lights</a> | <a href="https://matthewberger.dev/nightshade/shadows">Shadows</a> | <a href="https://matthewberger.dev/nightshade/spotlight_shadows">Spotlight Shadows</a></p>
+</blockquote>
 <p>Nightshade supports three types of lights: directional, point, and spot lights.</p>
 <h2 id="light-types"><a class="header" href="#light-types">Light Types</a></h2>
 <h3 id="directional-light-sun"><a class="header" href="#directional-light-sun">Directional Light (Sun)</a></h3>
@@ -2818,6 +2919,9 @@ world.resources.graphics.ambient_intensity = 0.3;
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="post-processing"><a class="header" href="#post-processing">Post-Processing</a></h1>
+<blockquote>
+<p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/bloom">Bloom</a> | <a href="https://matthewberger.dev/nightshade/ssao">SSAO</a> | <a href="https://matthewberger.dev/nightshade/depth_of_field">Depth of Field</a></p>
+</blockquote>
 <p>Nightshade includes several post-processing effects that enhance visual quality.</p>
 <h2 id="available-effects"><a class="header" href="#available-effects">Available Effects</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Effect</th><th>Description</th></tr></thead><tbody>
@@ -2961,6 +3065,9 @@ fn set_quality_high(world: &amp;mut World) {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="render-graph"><a class="header" href="#render-graph">Render Graph</a></h1>
+<blockquote>
+<p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/custom_pass">Custom Pass</a> | <a href="https://matthewberger.dev/nightshade/custom_multipass">Custom Multipass</a> | <a href="https://matthewberger.dev/nightshade/render_layers">Render Layers</a></p>
+</blockquote>
 <p>The render graph is a declarative system for defining the rendering pipeline. Passes are automatically ordered based on their dependencies.</p>
 <h2 id="default-pipeline"><a class="header" href="#default-pipeline">Default Pipeline</a></h2>
 <p>Nightshade's default render pipeline includes:</p>
@@ -3134,6 +3241,9 @@ graph
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="water"><a class="header" href="#water">Water</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/water">Water</a></p>
+</blockquote>
 <p>Nightshade includes a procedural water system supporting both planar water surfaces and volumetric water bodies.</p>
 <h2 id="water-component"><a class="header" href="#water-component">Water Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -3350,6 +3460,9 @@ fn calm_weather(world: &amp;mut World, water: Entity) {
 <li>Water rendering uses a dedicated render pass</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="decals"><a class="header" href="#decals">Decals</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/decals">Decals</a></p>
+</blockquote>
 <p>Decals are textures projected onto scene geometry, commonly used for bullet holes, blood splatters, footprints, and environmental details.</p>
 <h2 id="decal-component"><a class="header" href="#decal-component">Decal Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -3566,6 +3679,9 @@ fn update_decal_lifetimes(world: &amp;mut World, decals: &amp;mut Vec&lt;DecalLi
 <li>Use object pooling for frequently spawned decals</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/physics">Physics</a></p>
+</blockquote>
 <p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
 <h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
 <p>Physics is enabled with the <code>physics</code> feature:</p>
@@ -4712,6 +4828,9 @@ impl CharacterFactory {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="animation-playback"><a class="header" href="#animation-playback">Animation Playback</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/dance">Dance</a></p>
+</blockquote>
 <p>Control animation playback through the <code>AnimationPlayer</code> component.</p>
 <h2 id="animationplayer-component"><a class="header" href="#animationplayer-component">AnimationPlayer Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -4899,6 +5018,9 @@ fn footstep_system(world: &amp;mut World, character: Entity) {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="blending--transitions"><a class="header" href="#blending--transitions">Blending &amp; Transitions</a></h1>
+<blockquote>
+<p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/dance">Dance</a> | <a href="https://matthewberger.dev/nightshade/morph">Morph Targets</a></p>
+</blockquote>
 <p>Smooth transitions between animations using cross-fading.</p>
 <h2 id="cross-fade-transition"><a class="header" href="#cross-fade-transition">Cross-Fade Transition</a></h2>
 <p>The <code>blend_to</code> method smoothly transitions between animations:</p>
@@ -5089,6 +5211,9 @@ struct LayeredAnimation {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="audio-system"><a class="header" href="#audio-system">Audio System</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/audio">Audio</a></p>
+</blockquote>
 <p>Nightshade uses Kira for audio playback, supporting both sound effects and music.</p>
 <h2 id="enabling-audio"><a class="header" href="#enabling-audio">Enabling Audio</a></h2>
 <p>Audio requires the <code>audio</code> feature:</p>
@@ -5884,6 +6009,9 @@ fn gather_input(world: &amp;World) -&gt; PlayerInput {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="egui-integration"><a class="header" href="#egui-integration">egui Integration</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/ui">UI</a></p>
+</blockquote>
 <p>Nightshade integrates <a href="https://github.com/emilk/egui">egui</a>, a popular immediate-mode GUI library for Rust. Use it for debug interfaces, tools, and in-game menus.</p>
 <h2 id="enabling-egui"><a class="header" href="#enabling-egui">Enabling egui</a></h2>
 <p>Add the <code>egui</code> feature to your <code>Cargo.toml</code>:</p>
@@ -6146,6 +6274,9 @@ ctx.set_visuals(visuals);
 <li><strong>Don't block gameplay</strong>: Check <code>wants_keyboard_input()</code> before processing game input</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="immediate-mode-ui"><a class="header" href="#immediate-mode-ui">Immediate Mode UI</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/menu">Menu</a></p>
+</blockquote>
 <p>In addition to egui, Nightshade provides a lightweight custom immediate-mode UI system for simple in-game interfaces.</p>
 <h2 id="the-immediate_ui-method"><a class="header" href="#the-immediate_ui-method">The immediate_ui() Method</a></h2>
 <p>Implement the <code>immediate_ui()</code> method on your <code>State</code>:</p>
@@ -6407,6 +6538,9 @@ world.resources.user_interface.button_hover_color = Vec4::new(0.3, 0.3, 0.3, 1.0
 <li>Dockable windows</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="hud-text"><a class="header" href="#hud-text">HUD Text</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/hud_text">HUD Text</a></p>
+</blockquote>
 <p>Screen-space text rendering for UI, scores, and debug information.</p>
 <h2 id="creating-hud-text"><a class="header" href="#creating-hud-text">Creating HUD Text</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -6726,6 +6860,9 @@ impl FpsCounter {
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="terrain"><a class="header" href="#terrain">Terrain</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/terrain">Terrain</a></p>
+</blockquote>
 <p>Nightshade supports procedural terrain generation with LOD and tessellation.</p>
 <h2 id="enabling-terrain"><a class="header" href="#enabling-terrain">Enabling Terrain</a></h2>
 <p>Terrain requires the <code>terrain</code> feature:</p>
@@ -6929,6 +7066,9 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
 }
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="particle-systems"><a class="header" href="#particle-systems">Particle Systems</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/fireworks">Fireworks</a></p>
+</blockquote>
 <p>GPU-accelerated particle systems for fire, smoke, snow, and other effects.</p>
 <h2 id="creating-a-particle-emitter"><a class="header" href="#creating-a-particle-emitter">Creating a Particle Emitter</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -7139,6 +7279,9 @@ if let Some(emitter) = world.get_particle_emitter_mut(entity) {
 <tr><td><code>turbulence_frequency</code></td><td>Noise frequency</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="navigation-mesh"><a class="header" href="#navigation-mesh">Navigation Mesh</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/navmesh">NavMesh</a></p>
+</blockquote>
 <p>AI pathfinding using Recast navigation mesh generation.</p>
 <h2 id="enabling-navmesh"><a class="header" href="#enabling-navmesh">Enabling NavMesh</a></h2>
 <p>NavMesh requires the <code>navmesh</code> feature:</p>
@@ -8267,6 +8410,9 @@ fn main() {
 <li>Tempo estimation improves over time as more onsets are detected</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="effects-pass"><a class="header" href="#effects-pass">Effects Pass</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/psx">PSX Retro Effects</a></p>
+</blockquote>
 <p>The EffectsPass is a configurable post-processing system with 38 shader parameters for visual effects. It includes distortions, color grading, raymarched overlays, retro effects, and more.</p>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <p>The EffectsPass operates as a render graph node that processes the rendered scene through a fullscreen shader. Effects can be combined and animated for music visualizers, stylized games, or creative applications.</p>
@@ -8700,6 +8846,9 @@ fn main() {
 <tr><td><code>ascii_mode</code></td><td>0.0-1.0</td><td>0.0</td><td>ASCII art conversion</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="picking-system"><a class="header" href="#picking-system">Picking System</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/picking">Picking</a></p>
+</blockquote>
 <p>Picking allows you to select entities in the 3D world using mouse clicks or screen positions. Nightshade supports both CPU ray-based picking and GPU pixel-perfect picking.</p>
 <h2 id="ray-picking"><a class="header" href="#ray-picking">Ray Picking</a></h2>
 <p>Convert a screen position to a ray and test against entity bounds.</p>
@@ -8927,6 +9076,9 @@ fn pick_gizmo_handle(world: &amp;World, ray: PickingRay, gizmo_position: Vec3) -
 <li><strong>Cache bounding volumes</strong>: Don't recompute every frame</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sdf-sculpting"><a class="header" href="#sdf-sculpting">SDF Sculpting</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/voxels">Voxels</a></p>
+</blockquote>
 <p>Nightshade includes a voxel-based Signed Distance Field (SDF) system for real-time terrain sculpting and procedural geometry.</p>
 <h2 id="sdf-world"><a class="header" href="#sdf-world">SDF World</a></h2>
 <p>The SDF system uses a sparse brick map for efficient storage:</p>
@@ -9182,6 +9334,9 @@ world.resources.sdf_world.clipmap.center = camera_position;
 <li>SDF rendering uses a dedicated compute shader pass</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="lattice-deformation"><a class="header" href="#lattice-deformation">Lattice Deformation</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/lattice">Lattice</a></p>
+</blockquote>
 <p>Lattice deformation (also called Free-Form Deformation or FFD) allows you to deform meshes by manipulating a grid of control points surrounding the mesh.</p>
 <h2 id="enabling-lattice"><a class="header" href="#enabling-lattice">Enabling Lattice</a></h2>
 <p>Add the <code>lattice</code> feature:</p>
@@ -9404,6 +9559,9 @@ fn run_systems(&amp;mut self, world: &amp;mut World) {
 <li>Only update lattice when control points actually change</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="scripting"><a class="header" href="#scripting">Scripting</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/block_breaker_scripts">Block Breaker with Scripts</a></p>
+</blockquote>
 <p>Nightshade supports runtime scripting using <a href="https://rhai.rs/">Rhai</a>, an embedded scripting language for Rust.</p>
 <h2 id="enabling-scripting"><a class="header" href="#enabling-scripting">Enabling Scripting</a></h2>
 <p>Add the <code>scripting</code> feature:</p>
@@ -9832,7 +9990,7 @@ nightshade = { git = "https://github.com/user/nightshade", features = ["engine"]
 <pre><code class="language-bash">cargo run --release
 </code></pre>
 <p>Release mode is recommended for better performance.</p>
-<h2 id="controls-1"><a class="header" href="#controls-1">Controls</a></h2>
+<h2 id="controls-2"><a class="header" href="#controls-2">Controls</a></h2>
 <p>The fly camera uses standard controls:</p>
 <ul>
 <li><strong>WASD</strong> - Move horizontally</li>
@@ -10867,6 +11025,9 @@ edition = "2024"
 nightshade = { git = "...", features = ["engine", "physics"] }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="physics-playground"><a class="header" href="#physics-playground">Physics Playground</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/physics">Physics</a></p>
+</blockquote>
 <p>An interactive physics sandbox demonstrating rigid bodies, colliders, joints, and forces.</p>
 <h2 id="complete-example-5"><a class="header" href="#complete-example-5">Complete Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
@@ -11704,7 +11865,7 @@ nightshade = { git = "...", features = ["engine"] }
 </tbody></table>
 </div>
 <h2 id="windows-2"><a class="header" href="#windows-2">Windows</a></h2>
-<h3 id="requirements"><a class="header" href="#requirements">Requirements</a></h3>
+<h3 id="requirements-1"><a class="header" href="#requirements-1">Requirements</a></h3>
 <ul>
 <li>Windows 10 version 1903 or later (for DX12)</li>
 <li>Windows 10 version 1607 or later (for Vulkan)</li>
@@ -11730,7 +11891,7 @@ nightshade = { git = "...", features = ["engine"] }
     └── audio/
 </code></pre>
 <h2 id="linux-1"><a class="header" href="#linux-1">Linux</a></h2>
-<h3 id="requirements-1"><a class="header" href="#requirements-1">Requirements</a></h3>
+<h3 id="requirements-2"><a class="header" href="#requirements-2">Requirements</a></h3>
 <ul>
 <li>X11 or Wayland display server</li>
 <li>Vulkan 1.1 compatible GPU and drivers</li>
@@ -11768,7 +11929,7 @@ cd "$(dirname "$0")"
 ./game
 </code></pre>
 <h2 id="macos-1"><a class="header" href="#macos-1">macOS</a></h2>
-<h3 id="requirements-2"><a class="header" href="#requirements-2">Requirements</a></h3>
+<h3 id="requirements-3"><a class="header" href="#requirements-3">Requirements</a></h3>
 <ul>
 <li>macOS 10.13 (High Sierra) or later</li>
 <li>Metal-capable GPU (most Macs from 2012+)</li>
@@ -11811,7 +11972,7 @@ cd "$(dirname "$0")"
 &lt;/plist&gt;
 </code></pre>
 <h2 id="web-webassembly"><a class="header" href="#web-webassembly">Web (WebAssembly)</a></h2>
-<h3 id="requirements-3"><a class="header" href="#requirements-3">Requirements</a></h3>
+<h3 id="requirements-4"><a class="header" href="#requirements-4">Requirements</a></h3>
 <ul>
 <li>Modern browser with WebGPU support</li>
 <li>Chrome 113+, Edge 113+, Firefox (Nightly with flag)</li>

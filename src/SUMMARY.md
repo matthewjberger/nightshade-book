@@ -1,6 +1,7 @@
 # Nightshade Game Engine
 
 [Introduction](introduction.md)
+[Interactive Demo](interactive-demo.md)
 
 ---
 

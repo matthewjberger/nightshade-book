@@ -5,6 +5,13 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      build_demos:
+        description: 'Build interactive WASM demos'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -14,6 +21,9 @@ permissions:
 concurrency:
   group: "pages"
   cancel-in-progress: false
+
+env:
+  BUILD_DEMOS: ${{ github.event.inputs.build_demos || 'true' }}
 
 jobs:
   build:
@@ -26,8 +36,30 @@ jobs:
         with:
           mdbook-version: '0.4.52'
 
-      - name: Build
+      - name: Setup Rust
+        if: env.BUILD_DEMOS == 'true'
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install trunk
+        if: env.BUILD_DEMOS == 'true'
+        run: cargo install trunk
+
+      - name: Build demo
+        if: env.BUILD_DEMOS == 'true'
+        run: |
+          cd demos/hello
+          trunk build --release --public-url /nightshade-book/demos/hello/
+
+      - name: Build book
         run: mdbook build
+
+      - name: Copy demos to book
+        if: env.BUILD_DEMOS == 'true'
+        run: |
+          mkdir -p book/demos/hello
+          cp -r demos/hello/dist/* book/demos/hello/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
