@@ -42,7 +42,7 @@ Create a minimal application to verify everything works:
 use nightshade::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    launch(MyGame::default())
+    nightshade::run(MyGame::default())
 }
 
 #[derive(Default)]

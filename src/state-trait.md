@@ -154,11 +154,11 @@ fn configure_render_graph(
 
 ## Launching Your Game
 
-Use the `launch` function to run your game:
+Use the `nightshade::run` function to run your game:
 
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    launch(MyGame::default())
+    nightshade::run(MyGame::default())
 }
 ```
 

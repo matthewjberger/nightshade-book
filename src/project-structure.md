@@ -43,7 +43,7 @@ mod game;
 use nightshade::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    launch(game::MyGame::default())
+    nightshade::run(game::MyGame::default())
 }
 ```
 

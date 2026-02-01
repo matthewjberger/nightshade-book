@@ -10,7 +10,7 @@ Every Nightshade application implements the `State` trait:
 use nightshade::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    launch(MyGame::default())
+    nightshade::run(MyGame::default())
 }
 
 #[derive(Default)]
@@ -103,7 +103,7 @@ use nightshade::prelude::*;
 use nightshade::ecs::mesh::primitives::spawn_cube;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    launch(MyGame::default())
+    nightshade::run(MyGame::default())
 }
 
 #[derive(Default)]
