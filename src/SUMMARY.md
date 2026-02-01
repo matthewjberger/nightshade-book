@@ -20,6 +20,9 @@
   - [Components](components.md)
   - [Spawning Entities](spawning-entities.md)
   - [Querying Entities](querying-entities.md)
+- [Scene Hierarchy](scene-hierarchy.md)
+- [Event System](event-system.md)
+- [Main Loop](main-loop.md)
 
 ---
 
@@ -31,6 +34,8 @@
 - [Lighting](lighting.md)
 - [Post-Processing](post-processing.md)
 - [Render Graph](render-graph.md)
+- [Water](water.md)
+- [Decals](decals.md)
 
 ---
 
@@ -66,16 +71,27 @@
 
 ---
 
+# User Interface
+
+- [egui Integration](egui.md)
+- [Immediate Mode UI](immediate-ui.md)
+- [HUD Text](hud-text.md)
+
+---
+
 # Advanced Features
 
 - [Terrain](terrain.md)
 - [Particle Systems](particles.md)
 - [Navigation Mesh](navmesh.md)
 - [Grass System](grass.md)
-- [HUD Text](hud-text.md)
 - [Lines Rendering](lines.md)
 - [Audio Analyzer](audio-analyzer.md)
 - [Effects Pass](effects-pass.md)
+- [Picking System](picking.md)
+- [SDF Sculpting](sdf-sculpting.md)
+- [Lattice Deformation](lattice.md)
+- [Scripting](scripting.md)
 
 ---
 
