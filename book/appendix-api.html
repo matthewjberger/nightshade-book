@@ -545,6 +545,100 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
     fn configure_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, device: &amp;wgpu::Device, surface_format: wgpu::TextureFormat, resources: RenderResources) {}
 }
 <span class="boring">}</span></code></pre></pre>
+<h2 id="audio-analyzer-fft-feature"><a class="header" href="#audio-analyzer-fft-feature">Audio Analyzer (fft feature)</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Create analyzer
+let mut analyzer = AudioAnalyzer::new();
+analyzer.load_samples(samples, sample_rate);
+
+// Analyze at playback position
+analyzer.analyze_at_time(time_seconds);
+
+// Frequency bands (0.0-1.0)
+analyzer.sub_bass           // 20-60 Hz
+analyzer.bass               // 60-250 Hz
+analyzer.low_mids           // 250-500 Hz
+analyzer.mids               // 500-2000 Hz
+analyzer.high_mids          // 2000-4000 Hz
+analyzer.highs              // 4000-12000 Hz
+
+// Smoothed versions
+analyzer.smoothed_bass
+analyzer.smoothed_mids
+// ... etc
+
+// Beat detection (decay from 1.0)
+analyzer.onset_detected     // bool
+analyzer.kick_decay
+analyzer.snare_decay
+analyzer.hat_decay
+
+// Tempo
+analyzer.estimated_bpm      // 60-200
+analyzer.beat_phase         // 0.0-1.0
+analyzer.beat_confidence
+
+// Structure detection
+analyzer.is_building
+analyzer.is_dropping
+analyzer.is_breakdown
+analyzer.build_intensity
+analyzer.drop_intensity
+
+// Spectral features
+analyzer.spectral_centroid  // Brightness
+analyzer.spectral_flatness  // Noise vs tonal
+analyzer.spectral_flux      // Rate of change
+analyzer.intensity          // Energy relative to average
+<span class="boring">}</span></code></pre></pre>
+<h2 id="effects-pass"><a class="header" href="#effects-pass">Effects Pass</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::render::wgpu::passes::postprocess::effects::*;
+
+// Create state
+let effects_state = create_effects_state();
+
+// Modify effects
+if let Ok(mut state) = effects_state.write() {
+    state.uniforms.chromatic_aberration = 0.02;
+    state.uniforms.vignette = 0.3;
+    state.uniforms.glitch_intensity = 0.5;
+    state.uniforms.wave_distortion = 0.2;
+    state.uniforms.crt_scanlines = 0.3;
+    state.uniforms.film_grain = 0.1;
+    state.uniforms.hue_rotation = 0.5;
+    state.uniforms.saturation = 1.2;
+    state.uniforms.color_grade_mode = ColorGradeMode::Cyberpunk as f32;
+    state.uniforms.raymarch_mode = RaymarchMode::Tunnel as f32;
+    state.uniforms.raymarch_blend = 0.5;
+    state.enabled = true;
+}
+
+// Color grade modes: None, Cyberpunk, Sunset, Grayscale, Sepia, Matrix, HotMetal
+// Raymarch modes: Off, Tunnel, Fractal, Mandelbulb, PlasmaVortex, Geometric
+<span class="boring">}</span></code></pre></pre>
+<h2 id="debug-lines"><a class="header" href="#debug-lines">Debug Lines</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Spawn lines entity
+let lines = world.spawn_entities(LOCAL_TRANSFORM | LINES_COMPONENT, 1)[0];
+
+// Set line data
+world.set_lines(lines, LinesComponent {
+    lines: vec![
+        Line { start: Vec3::zeros(), end: Vec3::new(1.0, 0.0, 0.0), color: [1.0, 0.0, 0.0, 1.0] },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 1.0, 0.0), color: [0.0, 1.0, 0.0, 1.0] },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 0.0, 1.0), color: [0.0, 0.0, 1.0, 1.0] },
+    ],
+});
+
+// Gizmos
+draw_gizmo_box(world, center, half_extents, color);
+draw_gizmo_sphere(world, center, radius, color);
+draw_gizmo_ray(world, origin, direction, length, color);
+<span class="boring">}</span></code></pre></pre>
 <h2 id="running"><a class="header" href="#running">Running</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">fn main() {
     nightshade::run(MyGame::default());
@@ -558,6 +652,9 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
+                            <a rel="next prefetch" href="appendix-troubleshooting.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -569,26 +666,13 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
                         <i class="fa fa-angle-left"></i>
                     </a>
 
+                    <a rel="next prefetch" href="appendix-troubleshooting.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
             </nav>
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 

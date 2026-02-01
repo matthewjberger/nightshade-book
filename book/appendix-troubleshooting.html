@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Lines Rendering - Nightshade Game Engine</title>
+        <title>Troubleshooting - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,336 +175,320 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="lines-rendering"><a class="header" href="#lines-rendering">Lines Rendering</a></h1>
-<p>Debug line drawing for visualization, gizmos, and wireframes.</p>
-<h2 id="basic-line-drawing"><a class="header" href="#basic-line-drawing">Basic Line Drawing</a></h2>
+                        <h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
+<p>Common issues and their solutions.</p>
+<h2 id="compilation-errors"><a class="header" href="#compilation-errors">Compilation Errors</a></h2>
+<h3 id="feature-x-is-not-enabled"><a class="header" href="#feature-x-is-not-enabled">"feature <code>X</code> is not enabled"</a></h3>
+<p>You're using a feature that isn't enabled in your <code>Cargo.toml</code>. Add the required feature:</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "physics", "audio"] }
+</code></pre>
+<p>See <a href="appendix-features.html">Feature Flags</a> for the complete list.</p>
+<h3 id="cannot-find-function-spawn_primitive"><a class="header" href="#cannot-find-function-spawn_primitive">"cannot find function <code>spawn_primitive</code>"</a></h3>
+<p>Import the prelude:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::lines::*;
-
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    let entity = world.spawn_entities(LINES_COMPONENT, 1)[0];
-
-    let mut lines = Lines::new();
-    lines.add(
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(1.0, 1.0, 1.0),
-        Vec4::new(1.0, 0.0, 0.0, 1.0),
-    );
-
-    world.set_lines(entity, lines);
+</span>use nightshade::prelude::*;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="the-trait-state-is-not-implemented"><a class="header" href="#the-trait-state-is-not-implemented">"the trait <code>State</code> is not implemented"</a></h3>
+<p>Ensure your game struct implements all required methods:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl State for MyGame {
+    fn title(&amp;self) -&gt; &amp;str { "My Game" }
+    fn initialize(&amp;mut self, world: &amp;mut World) {}
+    fn run_systems(&amp;mut self, world: &amp;mut World) {}
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="lines-component"><a class="header" href="#lines-component">Lines Component</a></h2>
+<h3 id="nalgebra_glm-vs-glam-conflict"><a class="header" href="#nalgebra_glm-vs-glam-conflict">"nalgebra_glm vs glam conflict"</a></h3>
+<p>Nightshade uses <code>nalgebra_glm</code> exclusively. Don't mix with <code>glam</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct Lines {
-    pub lines: Vec&lt;Line&gt;,
-    pub version: u64,
-}
+</span>// Correct
+use nalgebra_glm::Vec3;
 
-pub struct Line {
-    pub start: Vec3,
-    pub end: Vec3,
-    pub color: Vec4,  // RGBA, linear color space
-}
+// Wrong - will cause type mismatches
+use glam::Vec3;
 <span class="boring">}</span></code></pre></pre>
-<h2 id="adding-lines"><a class="header" href="#adding-lines">Adding Lines</a></h2>
+<h2 id="runtime-errors"><a class="header" href="#runtime-errors">Runtime Errors</a></h2>
+<h3 id="no-suitable-adapter-found"><a class="header" href="#no-suitable-adapter-found">"No suitable adapter found"</a></h3>
+<p>Your GPU doesn't support the required graphics API.</p>
+<p><strong>Windows:</strong></p>
+<ul>
+<li>Update graphics drivers</li>
+<li>Install Vulkan Runtime from https://vulkan.lunarg.com/</li>
+<li>Try forcing DX12: <code>WGPU_BACKEND=dx12 ./game.exe</code></li>
+</ul>
+<p><strong>Linux:</strong></p>
+<ul>
+<li>Install Vulkan drivers: <code>sudo apt install mesa-vulkan-drivers</code></li>
+<li>Verify with <code>vulkaninfo</code></li>
+</ul>
+<p><strong>macOS:</strong></p>
+<ul>
+<li>Ensure macOS 10.13+ (Metal required)</li>
+<li>Check System Report &gt; Graphics for Metal support</li>
+</ul>
+<h3 id="entity-not-found"><a class="header" href="#entity-not-found">"Entity not found"</a></h3>
+<p>You're accessing an entity that was despawned or never existed:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let mut lines = Lines::new();
-
-// Single line
-lines.add(start, end, color);
-
-// Multiple lines
-lines.add(Vec3::zeros(), Vec3::x(), Vec4::new(1.0, 0.0, 0.0, 1.0));
-lines.add(Vec3::zeros(), Vec3::y(), Vec4::new(0.0, 1.0, 0.0, 1.0));
-lines.add(Vec3::zeros(), Vec3::z(), Vec4::new(0.0, 0.0, 1.0, 1.0));
-<span class="boring">}</span></code></pre></pre>
-<h2 id="drawing-shapes"><a class="header" href="#drawing-shapes">Drawing Shapes</a></h2>
-<h3 id="coordinate-axes"><a class="header" href="#coordinate-axes">Coordinate Axes</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_axes(lines: &amp;mut Lines, origin: Vec3, scale: f32) {
-    let red = Vec4::new(1.0, 0.0, 0.0, 1.0);
-    let green = Vec4::new(0.0, 1.0, 0.0, 1.0);
-    let blue = Vec4::new(0.0, 0.0, 1.0, 1.0);
-
-    lines.add(origin, origin + Vec3::x() * scale, red);
-    lines.add(origin, origin + Vec3::y() * scale, green);
-    lines.add(origin, origin + Vec3::z() * scale, blue);
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="wireframe-box"><a class="header" href="#wireframe-box">Wireframe Box</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_box(lines: &amp;mut Lines, center: Vec3, half_extents: Vec3, color: Vec4) {
-    let min = center - half_extents;
-    let max = center + half_extents;
-
-    // Bottom face
-    lines.add(Vec3::new(min.x, min.y, min.z), Vec3::new(max.x, min.y, min.z), color);
-    lines.add(Vec3::new(max.x, min.y, min.z), Vec3::new(max.x, min.y, max.z), color);
-    lines.add(Vec3::new(max.x, min.y, max.z), Vec3::new(min.x, min.y, max.z), color);
-    lines.add(Vec3::new(min.x, min.y, max.z), Vec3::new(min.x, min.y, min.z), color);
-
-    // Top face
-    lines.add(Vec3::new(min.x, max.y, min.z), Vec3::new(max.x, max.y, min.z), color);
-    lines.add(Vec3::new(max.x, max.y, min.z), Vec3::new(max.x, max.y, max.z), color);
-    lines.add(Vec3::new(max.x, max.y, max.z), Vec3::new(min.x, max.y, max.z), color);
-    lines.add(Vec3::new(min.x, max.y, max.z), Vec3::new(min.x, max.y, min.z), color);
-
-    // Vertical edges
-    lines.add(Vec3::new(min.x, min.y, min.z), Vec3::new(min.x, max.y, min.z), color);
-    lines.add(Vec3::new(max.x, min.y, min.z), Vec3::new(max.x, max.y, min.z), color);
-    lines.add(Vec3::new(max.x, min.y, max.z), Vec3::new(max.x, max.y, max.z), color);
-    lines.add(Vec3::new(min.x, min.y, max.z), Vec3::new(min.x, max.y, max.z), color);
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="wireframe-sphere"><a class="header" href="#wireframe-sphere">Wireframe Sphere</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_sphere(lines: &amp;mut Lines, center: Vec3, radius: f32, color: Vec4, segments: u32) {
-    let step = std::f32::consts::TAU / segments as f32;
-
-    // XY circle
-    for index in 0..segments {
-        let angle1 = index as f32 * step;
-        let angle2 = (index + 1) as f32 * step;
-
-        let p1 = center + Vec3::new(angle1.cos() * radius, angle1.sin() * radius, 0.0);
-        let p2 = center + Vec3::new(angle2.cos() * radius, angle2.sin() * radius, 0.0);
-        lines.add(p1, p2, color);
-    }
-
-    // XZ circle
-    for index in 0..segments {
-        let angle1 = index as f32 * step;
-        let angle2 = (index + 1) as f32 * step;
-
-        let p1 = center + Vec3::new(angle1.cos() * radius, 0.0, angle1.sin() * radius);
-        let p2 = center + Vec3::new(angle2.cos() * radius, 0.0, angle2.sin() * radius);
-        lines.add(p1, p2, color);
-    }
-
-    // YZ circle
-    for index in 0..segments {
-        let angle1 = index as f32 * step;
-        let angle2 = (index + 1) as f32 * step;
-
-        let p1 = center + Vec3::new(0.0, angle1.cos() * radius, angle1.sin() * radius);
-        let p2 = center + Vec3::new(0.0, angle2.cos() * radius, angle2.sin() * radius);
-        lines.add(p1, p2, color);
+</span>// Check entity exists before access
+if world.has_entity(entity) {
+    if let Some(transform) = world.get_local_transform(entity) {
+        // Safe to use
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="grid"><a class="header" href="#grid">Grid</a></h3>
+<h3 id="texture-not-found"><a class="header" href="#texture-not-found">"Texture not found"</a></h3>
+<p>The texture path is incorrect or the file doesn't exist:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn draw_grid(lines: &amp;mut Lines, size: f32, divisions: u32, color: Vec4) {
-    let step = size / divisions as f32;
-    let half = size / 2.0;
-
-    for index in 0..=divisions {
-        let offset = -half + index as f32 * step;
-
-        // X-axis lines
-        lines.add(
-            Vec3::new(-half, 0.0, offset),
-            Vec3::new(half, 0.0, offset),
-            color,
-        );
-
-        // Z-axis lines
-        lines.add(
-            Vec3::new(offset, 0.0, -half),
-            Vec3::new(offset, 0.0, half),
-            color,
-        );
+</span>// Paths are relative to the executable
+load_gltf(world, "assets/models/character.glb");  // Correct
+load_gltf(world, "/home/user/game/assets/models/character.glb");  // Avoid absolute paths
+<span class="boring">}</span></code></pre></pre>
+<h3 id="physics-objects-fall-through-floor"><a class="header" href="#physics-objects-fall-through-floor">Physics objects fall through floor</a></h3>
+<p>Common causes:</p>
+<ol>
+<li><strong>Missing collider on floor:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>add_collider(world, floor, ColliderShape::Box {
+    half_extents: Vec3::new(50.0, 0.5, 50.0),
+});
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Objects spawned inside each other:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Spawn above the floor, not at y=0
+transform.translation = Vec3::new(0.0, 2.0, 0.0);
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>High velocity causing tunneling:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Enable CCD for fast objects
+world.set_rigid_body(entity, RigidBodyComponent {
+    ccd_enabled: true,
+    ..Default::default()
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="animation-not-playing"><a class="header" href="#animation-not-playing">Animation not playing</a></h3>
+<ol>
+<li><strong>Check animation name exists:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(player) = world.get_animation_player_mut(entity) {
+    // List available animations
+    for name in player.available_animations() {
+        println!("Animation: {}", name);
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="arrow"><a class="header" href="#arrow">Arrow</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_arrow(lines: &amp;mut Lines, start: Vec3, end: Vec3, color: Vec4, head_size: f32) {
-    lines.add(start, end, color);
-
-    let direction = (end - start).normalize();
-    let perpendicular = if direction.y.abs() &lt; 0.9 {
-        direction.cross(&amp;Vec3::y()).normalize()
-    } else {
-        direction.cross(&amp;Vec3::x()).normalize()
-    };
-
-    let head_base = end - direction * head_size;
-    let offset = perpendicular * head_size * 0.5;
-
-    lines.add(end, head_base + offset, color);
-    lines.add(end, head_base - offset, color);
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="updating-lines"><a class="header" href="#updating-lines">Updating Lines</a></h2>
+<ol start="2">
+<li><strong>Call update each frame:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    if let Some(lines) = world.get_lines_mut(self.debug_lines) {
-        lines.clear();
-
-        // Draw velocity vectors for all physics bodies
-        for entity in world.query(RIGID_BODY_COMPONENT | LOCAL_TRANSFORM) {
-            if let (Some(body), Some(transform)) = (
-                world.get_rigid_body(entity),
-                world.get_local_transform(entity),
-            ) {
-                let start = transform.translation;
-                let end = start + body.velocity;
-                lines.add(start, end, Vec4::new(1.0, 1.0, 0.0, 1.0));
-            }
-        }
+    update_animation_players(world, dt);
+}
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>Animation player is on child entity:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// glTF animations are often on child nodes
+for child in world.get_children(model_root) {
+    if let Some(player) = world.get_animation_player_mut(child) {
+        player.play("idle");
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="built-in-debug-visualization"><a class="header" href="#built-in-debug-visualization">Built-in Debug Visualization</a></h2>
-<h3 id="bounding-volumes"><a class="header" href="#bounding-volumes">Bounding Volumes</a></h3>
+<h3 id="no-audio-output"><a class="header" href="#no-audio-output">No audio output</a></h3>
+<ol>
+<li><strong>Load sound before playing:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.graphics.show_bounding_volumes = true;
+</span>load_sound(world, "shoot", "assets/audio/shoot.wav");
+play_sound(world, "shoot");
 <span class="boring">}</span></code></pre></pre>
-<h3 id="selected-entity-bounds"><a class="header" href="#selected-entity-bounds">Selected Entity Bounds</a></h3>
+<ol start="2">
+<li><strong>Check audio feature is enabled:</strong></li>
+</ol>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "audio"] }
+</code></pre>
+<ol start="3">
+<li><strong>Verify file format:</strong> Supported formats are WAV, OGG, MP3, FLAC.</li>
+</ol>
+<h2 id="performance-issues"><a class="header" href="#performance-issues">Performance Issues</a></h2>
+<h3 id="low-frame-rate"><a class="header" href="#low-frame-rate">Low frame rate</a></h3>
+<ol>
+<li><strong>Check entity count:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.graphics.show_selected_bounding_volume = true;
-world.resources.graphics.bounding_volume_selected_entity = Some(entity);
+</span>println!("Entities: {}", world.entity_count());
 <span class="boring">}</span></code></pre></pre>
-<h3 id="surface-normals"><a class="header" href="#surface-normals">Surface Normals</a></h3>
+<ol start="2">
+<li><strong>Disable expensive effects:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.graphics.show_normals = true;
-world.resources.graphics.normal_line_length = 0.2;
-world.resources.graphics.normal_line_color = [0.0, 1.0, 0.0, 1.0];
+</span>world.resources.graphics.ssao_enabled = false;
+world.resources.graphics.bloom_enabled = false;
 <span class="boring">}</span></code></pre></pre>
-<h2 id="gpu-culling"><a class="header" href="#gpu-culling">GPU Culling</a></h2>
-<p>Lines are frustum-culled on the GPU for performance:</p>
+<ol start="3">
+<li><strong>Reduce shadow quality:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.graphics.gpu_culling_enabled = true;
+</span>world.resources.graphics.shadow_map_size = 1024; // Default is 2048
 <span class="boring">}</span></code></pre></pre>
-<h2 id="line-limits"><a class="header" href="#line-limits">Line Limits</a></h2>
-<p>The system supports up to 1,000,000 lines per component:</p>
+<ol start="4">
+<li><strong>Use simpler colliders:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>const MAX_LINES: u32 = 1_000_000;
+</span>// Prefer boxes/spheres over trimesh
+add_collider(world, entity, ColliderShape::Box { ... });
 <span class="boring">}</span></code></pre></pre>
-<h2 id="transform-gizmos"><a class="header" href="#transform-gizmos">Transform Gizmos</a></h2>
-<p>Built-in gizmos for entity manipulation:</p>
+<h3 id="memory-usage-high"><a class="header" href="#memory-usage-high">Memory usage high</a></h3>
+<ol>
+<li><strong>Despawn unused entities:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::gizmos::*;
+</span>world.despawn(entity);
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Unload unused textures:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.texture_cache.clear_unused();
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>Use smaller textures for distant objects.</strong></li>
+</ol>
+<h3 id="stuttering--hitching"><a class="header" href="#stuttering--hitching">Stuttering / hitching</a></h3>
+<ol>
+<li><strong>Avoid allocations in run_systems:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Bad - allocates every frame
+let entities: Vec&lt;Entity&gt; = world.query(TRANSFORM).collect();
 
-// Translation gizmo (XYZ arrows)
-create_translation_gizmo(world, entity);
-
-// Rotation gizmo (rings)
-create_rotation_gizmo(world, entity);
-
-// Scale gizmo (cubes with cylinders)
-create_scale_gizmo(world, entity);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-helpers"><a class="header" href="#debug-helpers">Debug Helpers</a></h2>
-<h3 id="draw-physics-colliders"><a class="header" href="#draw-physics-colliders">Draw Physics Colliders</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_colliders(world: &amp;mut World, lines_entity: Entity) {
-    if let Some(lines) = world.get_lines_mut(lines_entity) {
-        lines.clear();
-
-        for entity in world.query(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
-            if let (Some(collider), Some(transform)) = (
-                world.get_collider(entity),
-                world.get_global_transform(entity),
-            ) {
-                match &amp;collider.shape {
-                    ColliderShape::Sphere { radius } =&gt; {
-                        draw_sphere(lines, transform.translation, *radius, Vec4::new(0.0, 1.0, 0.0, 1.0), 16);
-                    }
-                    ColliderShape::Box { half_extents } =&gt; {
-                        draw_box(lines, transform.translation, *half_extents, Vec4::new(0.0, 1.0, 0.0, 1.0));
-                    }
-                    _ =&gt; {}
-                }
-            }
-        }
-    }
+// Good - iterate directly
+for entity in world.query(TRANSFORM) {
+    // ...
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="draw-navigation-path"><a class="header" href="#draw-navigation-path">Draw Navigation Path</a></h3>
+<ol start="2">
+<li><strong>Preload assets in initialize:</strong></li>
+</ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn draw_navmesh_path(lines: &amp;mut Lines, path: &amp;[Vec3], color: Vec4) {
-    for index in 0..path.len().saturating_sub(1) {
-        lines.add(path[index], path[index + 1], color);
-    }
+</span>fn initialize(&amp;mut self, world: &amp;mut World) {
+    load_gltf(world, "assets/models/enemy.glb");
+    load_sound(world, "explosion", "assets/audio/explosion.wav");
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="draw-ray"><a class="header" href="#draw-ray">Draw Ray</a></h3>
+<h2 id="visual-issues"><a class="header" href="#visual-issues">Visual Issues</a></h2>
+<h3 id="objects-are-black"><a class="header" href="#objects-are-black">Objects are black</a></h3>
+<p>Missing or incorrect lighting:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn draw_ray(lines: &amp;mut Lines, origin: Vec3, direction: Vec3, length: f32, color: Vec4) {
-    let end = origin + direction.normalize() * length;
-    draw_arrow(lines, origin, end, color, 0.1);
-}
+</span>spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+world.resources.graphics.ambient_intensity = 0.1;
 <span class="boring">}</span></code></pre></pre>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
+<h3 id="objects-are-too-bright--washed-out"><a class="header" href="#objects-are-too-bright--washed-out">Objects are too bright / washed out</a></h3>
+<p>Adjust exposure and tonemapping:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.exposure = 1.0;
+world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="textures-look-wrong"><a class="header" href="#textures-look-wrong">Textures look wrong</a></h3>
+<ol>
+<li>
+<p><strong>Normal maps inverted:</strong> Some tools export Y-flipped normals. Check your export settings.</p>
+</li>
+<li>
+<p><strong>sRGB vs Linear:</strong> Base color textures should be sRGB. Normal/metallic/roughness should be linear.</p>
+</li>
+<li>
+<p><strong>Texture coordinates flipped:</strong> glTF uses top-left origin. Some models may need UV adjustment.</p>
+</li>
+</ol>
+<h3 id="z-fighting-flickering-surfaces"><a class="header" href="#z-fighting-flickering-surfaces">Z-fighting (flickering surfaces)</a></h3>
+<p>Surfaces too close together:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Increase near plane
+camera.near = 0.1;  // Instead of 0.01
+
+// Or separate surfaces more
+floor_transform.translation.y = 0.0;
+decal_transform.translation.y = 0.01;  // Slight offset
+<span class="boring">}</span></code></pre></pre>
+<h2 id="webassembly-issues"><a class="header" href="#webassembly-issues">WebAssembly Issues</a></h2>
+<h3 id="webgpu-not-supported"><a class="header" href="#webgpu-not-supported">"WebGPU not supported"</a></h3>
 <ul>
-<li>Clear and rebuild lines each frame for dynamic visualization</li>
-<li>Use GPU culling for large numbers of lines</li>
-<li>Batch related lines in a single Lines component</li>
-<li>Disable debug visualization in release builds</li>
+<li>Use Chrome 113+ or Edge 113+</li>
+<li>Firefox requires enabling <code>dom.webgpu.enabled</code> in about:config</li>
+<li>Safari support is limited</li>
 </ul>
-<h2 id="example-debug-overlay"><a class="header" href="#example-debug-overlay">Example: Debug Overlay</a></h2>
+<h3 id="assets-fail-to-load"><a class="header" href="#assets-fail-to-load">Assets fail to load</a></h3>
+<p>WASM can't access the filesystem. Serve assets via HTTP:</p>
+<pre><code class="language-html">&lt;script&gt;
+// Assets must be fetched, not loaded from disk
+fetch('assets/model.glb')
+    .then(response =&gt; response.arrayBuffer())
+    .then(data =&gt; { /* use data */ });
+&lt;/script&gt;
+</code></pre>
+<h3 id="performance-worse-than-native"><a class="header" href="#performance-worse-than-native">Performance worse than native</a></h3>
+<p>Expected. WebGPU has overhead. Reduce quality settings:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct DebugOverlay {
-    lines_entity: Entity,
-    show_colliders: bool,
-    show_velocities: bool,
-    show_paths: bool,
-}
-
-impl DebugOverlay {
-    fn update(&amp;self, world: &amp;mut World) {
-        if let Some(lines) = world.get_lines_mut(self.lines_entity) {
-            lines.clear();
-
-            if self.show_colliders {
-                self.draw_all_colliders(world, lines);
-            }
-
-            if self.show_velocities {
-                self.draw_all_velocities(world, lines);
-            }
-
-            if self.show_paths {
-                self.draw_all_paths(world, lines);
-            }
-        }
-    }
+</span>#[cfg(target_arch = "wasm32")]
+{
+    world.resources.graphics.ssao_enabled = false;
+    world.resources.graphics.shadow_map_size = 512;
 }
 <span class="boring">}</span></code></pre></pre>
+<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
+<p>If your issue isn't listed here:</p>
+<ol>
+<li>Check the <a href="https://github.com/matthewjberger/nightshade/issues">GitHub Issues</a></li>
+<li>Search existing issues for similar problems</li>
+<li>Create a new issue with:
+<ul>
+<li>Nightshade version</li>
+<li>Platform (OS, GPU)</li>
+<li>Minimal code to reproduce</li>
+<li>Error message or screenshot</li>
+</ul>
+</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="hud-text.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="appendix-api.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="audio-analyzer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -512,13 +496,10 @@ impl DebugOverlay {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="hud-text.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="appendix-api.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="audio-analyzer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
             </nav>
 
         </div>

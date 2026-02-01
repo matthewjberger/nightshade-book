@@ -178,33 +178,118 @@
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><strong>Nightshade</strong> is a modern game engine written in Rust, designed for creating 3D games and interactive applications. It provides a complete toolkit for game development including rendering, physics, audio, animation, and more.</p>
-<h2 id="key-features"><a class="header" href="#key-features">Key Features</a></h2>
+<h2 id="what-is-nightshade"><a class="header" href="#what-is-nightshade">What is Nightshade?</a></h2>
+<p>Nightshade is a batteries-included game engine that handles the complexity of modern 3D graphics while remaining approachable for developers of all skill levels. Whether you're building a simple visualizer, a physics playground, or a complete 3D game, Nightshade provides the foundation you need.</p>
+<p>The engine is built on top of industry-standard libraries:</p>
 <ul>
-<li><strong>WebGPU Rendering</strong> - Modern graphics API via wgpu, supporting Windows, macOS, Linux, and WebAssembly</li>
-<li><strong>Entity Component System</strong> - Fast, cache-friendly ECS powered by freecs</li>
-<li><strong>Physics Simulation</strong> - Rapier3D integration for rigid bodies, colliders, joints, and character controllers</li>
-<li><strong>Audio Engine</strong> - Kira-based audio with spatial 3D sound support</li>
-<li><strong>Animation System</strong> - Skeletal animation with blending and cross-fading</li>
-<li><strong>Asset Loading</strong> - glTF/GLB model loading with automatic material and texture handling</li>
-<li><strong>Immediate Mode UI</strong> - egui integration for tools and debug interfaces</li>
-<li><strong>Particle Systems</strong> - GPU-accelerated particle effects</li>
-<li><strong>Terrain Generation</strong> - Procedural terrain with LOD and tessellation</li>
-<li><strong>Navigation Mesh</strong> - AI pathfinding with Recast integration</li>
+<li><strong>wgpu</strong> for cross-platform GPU access (Vulkan, Metal, DirectX 12, WebGPU)</li>
+<li><strong>Rapier3D</strong> for physics simulation</li>
+<li><strong>Kira</strong> for audio playback and spatial sound</li>
+<li><strong>egui</strong> for immediate-mode UI</li>
+<li><strong>glTF</strong> for 3D model loading</li>
 </ul>
+<h2 id="key-features"><a class="header" href="#key-features">Key Features</a></h2>
+<h3 id="rendering"><a class="header" href="#rendering">Rendering</a></h3>
+<ul>
+<li><strong>Physically Based Rendering (PBR)</strong> - Metallic-roughness workflow with support for all standard texture maps</li>
+<li><strong>Dynamic Lighting</strong> - Directional, point, and spot lights with real-time shadows</li>
+<li><strong>Post-Processing</strong> - Bloom, SSAO, depth of field, tonemapping, and custom effects</li>
+<li><strong>Skeletal Animation</strong> - Smooth blending and crossfading between animations</li>
+<li><strong>Particle Systems</strong> - GPU-accelerated particles with configurable emitters</li>
+<li><strong>Terrain</strong> - Procedural generation with tessellation and LOD</li>
+<li><strong>Grass</strong> - Thousands of interactive grass blades with wind simulation</li>
+</ul>
+<h3 id="physics"><a class="header" href="#physics">Physics</a></h3>
+<ul>
+<li><strong>Rigid Body Dynamics</strong> - Dynamic, kinematic, and static bodies</li>
+<li><strong>Collision Shapes</strong> - Box, sphere, capsule, cylinder, convex hull, trimesh, heightfield</li>
+<li><strong>Character Controllers</strong> - Built-in player movement with slopes, steps, and jumping</li>
+<li><strong>Physics Joints</strong> - Fixed, revolute, prismatic, spherical, rope, and spring joints</li>
+<li><strong>Raycasting</strong> - Query the physics world for line-of-sight and hit detection</li>
+</ul>
+<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
+<ul>
+<li><strong>Sound Playback</strong> - WAV, OGG, MP3, FLAC support</li>
+<li><strong>Spatial Audio</strong> - 3D positioned sound sources with distance attenuation</li>
+<li><strong>FFT Analysis</strong> - Real-time spectral analysis for music visualizers</li>
+</ul>
+<h3 id="input"><a class="header" href="#input">Input</a></h3>
+<ul>
+<li><strong>Keyboard &amp; Mouse</strong> - Full key detection with press/release states</li>
+<li><strong>Gamepad</strong> - Controller support with analog sticks, triggers, and rumble</li>
+<li><strong>Cursor Control</strong> - Lock and hide cursor for FPS-style games</li>
+</ul>
+<h3 id="tools"><a class="header" href="#tools">Tools</a></h3>
+<ul>
+<li><strong>Navigation Mesh</strong> - AI pathfinding with Recast integration</li>
+<li><strong>Debug Rendering</strong> - Lines, boxes, spheres for visualization</li>
+<li><strong>HUD Text</strong> - Screen-space text rendering with anchoring</li>
+<li><strong>Screenshot Capture</strong> - Save frames to PNG</li>
+</ul>
+<h2 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h2>
+<p>Nightshade follows a simple architecture centered around the <code>State</code> trait and the <code>World</code> container:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                      Your Game (State)                       │
+├─────────────────────────────────────────────────────────────┤
+│  initialize()  │  run_systems()  │  ui()  │  input handlers │
+└────────────────┴─────────────────┴────────┴─────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                          World                               │
+├──────────────────┬──────────────────┬───────────────────────┤
+│     Entities     │    Components    │      Resources        │
+│  (unique IDs)    │  (data arrays)   │  (global singletons)  │
+└──────────────────┴──────────────────┴───────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│   Renderer    │    │    Physics    │    │     Audio     │
+│    (wgpu)     │    │   (Rapier)    │    │    (Kira)     │
+└───────────────┘    └───────────────┘    └───────────────┘
+</code></pre>
+<h3 id="the-game-loop"><a class="header" href="#the-game-loop">The Game Loop</a></h3>
+<p>Each frame, Nightshade:</p>
+<ol>
+<li>Processes window and input events</li>
+<li>Calls your <code>run_systems()</code> method</li>
+<li>Updates physics simulation</li>
+<li>Propagates transform hierarchies</li>
+<li>Renders the scene</li>
+<li>Presents to the screen</li>
+</ol>
+<p>You control game logic in <code>run_systems()</code>, and the engine handles everything else.</p>
 <h2 id="design-philosophy"><a class="header" href="#design-philosophy">Design Philosophy</a></h2>
 <p>Nightshade follows these core principles:</p>
-<ol>
-<li><strong>Simplicity</strong> - A minimal API surface that's easy to learn</li>
-<li><strong>Performance</strong> - Data-oriented design for cache efficiency</li>
-<li><strong>Flexibility</strong> - Feature flags to include only what you need</li>
-<li><strong>Cross-Platform</strong> - Write once, run on desktop, web, and VR</li>
-</ol>
+<h3 id="simplicity"><a class="header" href="#simplicity">Simplicity</a></h3>
+<p>The API surface is minimal and consistent. Common tasks like spawning entities, loading models, and handling input should be intuitive. If something feels overly complex, it's probably a bug.</p>
+<h3 id="performance"><a class="header" href="#performance">Performance</a></h3>
+<p>The engine uses data-oriented design throughout. The ECS stores components in contiguous arrays for cache-friendly access. The renderer batches draw calls and uses GPU instancing where possible.</p>
+<h3 id="flexibility"><a class="header" href="#flexibility">Flexibility</a></h3>
+<p>Feature flags let you include only what you need. Building a simple visualizer? Just use <code>engine</code>. Need physics? Add <code>physics</code>. Everything is opt-in.</p>
+<h3 id="cross-platform"><a class="header" href="#cross-platform">Cross-Platform</a></h3>
+<p>Write once, run everywhere. The same code runs on Windows, macOS, Linux, and WebAssembly. The engine automatically selects the appropriate graphics backend.</p>
+<h2 id="when-to-use-nightshade"><a class="header" href="#when-to-use-nightshade">When to Use Nightshade</a></h2>
+<p>Nightshade is well-suited for:</p>
+<ul>
+<li><strong>3D Games</strong> - Action games, platformers, simulations</li>
+<li><strong>Visualizers</strong> - Music-reactive graphics, data visualization</li>
+<li><strong>Prototypes</strong> - Quickly test game ideas</li>
+<li><strong>Learning</strong> - Understanding game engine concepts</li>
+</ul>
+<p>Nightshade may not be ideal for:</p>
+<ul>
+<li><strong>2D-only games</strong> - Consider a dedicated 2D engine</li>
+<li><strong>AAA production</strong> - Missing some advanced features (GI, complex animation graphs)</li>
+<li><strong>Mobile</strong> - Not yet optimized for mobile platforms</li>
+</ul>
 <h2 id="version"><a class="header" href="#version">Version</a></h2>
 <p>This documentation covers <strong>Nightshade v0.6.69</strong> using <strong>Rust 2024 Edition</strong>.</p>
 <h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
 <ul>
-<li><a href="https://github.com/matthewjberger/nightshade">GitHub Repository</a></li>
-<li><a href="https://docs.rs/nightshade">API Documentation</a></li>
+<li><a href="https://github.com/matthewjberger/nightshade">GitHub Repository</a> - Source code and issue tracker</li>
+<li><a href="https://docs.rs/nightshade">API Documentation</a> - Generated API docs</li>
 </ul>
 <p>Let's get started!</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
@@ -764,7 +849,7 @@ impl State for MyGame {
 let fps = world.resources.window.timing.frames_per_second;
 let elapsed = world.resources.window.timing.uptime_milliseconds as f32 / 1000.0;
 <span class="boring">}</span></code></pre></pre>
-<h3 id="input"><a class="header" href="#input">Input</a></h3>
+<h3 id="input-1"><a class="header" href="#input-1">Input</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Keyboard
@@ -8842,7 +8927,7 @@ nightshade = { git = "...", features = ["engine", "physics"] }
 <li>Input handling (keyboard, mouse)</li>
 <li>Timing system</li>
 </ul>
-<h3 id="physics"><a class="header" href="#physics"><code>physics</code></a></h3>
+<h3 id="physics-1"><a class="header" href="#physics-1"><code>physics</code></a></h3>
 <p>Rapier3D physics integration.</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "physics"] }
 </code></pre>
@@ -8857,7 +8942,7 @@ nightshade = { git = "...", features = ["engine", "physics"] }
 <li>Continuous collision detection (CCD)</li>
 </ul>
 <p><strong>Additional Dependencies:</strong> rapier3d</p>
-<h3 id="audio"><a class="header" href="#audio"><code>audio</code></a></h3>
+<h3 id="audio-1"><a class="header" href="#audio-1"><code>audio</code></a></h3>
 <p>Kira audio engine integration.</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "audio"] }
 </code></pre>
@@ -9530,7 +9615,7 @@ spawn_point_light(world, position: Vec3, color: Vec3, intensity: f32, range: f32
 // Spot light
 spawn_spot_light(world, position: Vec3, direction: Vec3, color: Vec3, intensity: f32, range: f32, inner_angle: f32, outer_angle: f32) -&gt; Entity
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-1"><a class="header" href="#physics-1">Physics</a></h2>
+<h2 id="physics-2"><a class="header" href="#physics-2">Physics</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Rigid bodies
@@ -9584,7 +9669,7 @@ if let Some(player) = world.get_animation_player_mut(entity) {
 // Update all animation players
 update_animation_players(world, dt: f32)
 <span class="boring">}</span></code></pre></pre>
-<h2 id="audio-1"><a class="header" href="#audio-1">Audio</a></h2>
+<h2 id="audio-2"><a class="header" href="#audio-2">Audio</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Load sounds
@@ -9600,7 +9685,7 @@ stop_sound(world, "name")
 // Spatial audio
 spawn_audio_source(world, position: Vec3, sound_name: &amp;str) -&gt; Entity
 <span class="boring">}</span></code></pre></pre>
-<h2 id="input-1"><a class="header" href="#input-1">Input</a></h2>
+<h2 id="input-2"><a class="header" href="#input-2">Input</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Keyboard
@@ -9723,10 +9808,409 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
     fn configure_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, device: &amp;wgpu::Device, surface_format: wgpu::TextureFormat, resources: RenderResources) {}
 }
 <span class="boring">}</span></code></pre></pre>
+<h2 id="audio-analyzer-fft-feature"><a class="header" href="#audio-analyzer-fft-feature">Audio Analyzer (fft feature)</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Create analyzer
+let mut analyzer = AudioAnalyzer::new();
+analyzer.load_samples(samples, sample_rate);
+
+// Analyze at playback position
+analyzer.analyze_at_time(time_seconds);
+
+// Frequency bands (0.0-1.0)
+analyzer.sub_bass           // 20-60 Hz
+analyzer.bass               // 60-250 Hz
+analyzer.low_mids           // 250-500 Hz
+analyzer.mids               // 500-2000 Hz
+analyzer.high_mids          // 2000-4000 Hz
+analyzer.highs              // 4000-12000 Hz
+
+// Smoothed versions
+analyzer.smoothed_bass
+analyzer.smoothed_mids
+// ... etc
+
+// Beat detection (decay from 1.0)
+analyzer.onset_detected     // bool
+analyzer.kick_decay
+analyzer.snare_decay
+analyzer.hat_decay
+
+// Tempo
+analyzer.estimated_bpm      // 60-200
+analyzer.beat_phase         // 0.0-1.0
+analyzer.beat_confidence
+
+// Structure detection
+analyzer.is_building
+analyzer.is_dropping
+analyzer.is_breakdown
+analyzer.build_intensity
+analyzer.drop_intensity
+
+// Spectral features
+analyzer.spectral_centroid  // Brightness
+analyzer.spectral_flatness  // Noise vs tonal
+analyzer.spectral_flux      // Rate of change
+analyzer.intensity          // Energy relative to average
+<span class="boring">}</span></code></pre></pre>
+<h2 id="effects-pass-1"><a class="header" href="#effects-pass-1">Effects Pass</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::render::wgpu::passes::postprocess::effects::*;
+
+// Create state
+let effects_state = create_effects_state();
+
+// Modify effects
+if let Ok(mut state) = effects_state.write() {
+    state.uniforms.chromatic_aberration = 0.02;
+    state.uniforms.vignette = 0.3;
+    state.uniforms.glitch_intensity = 0.5;
+    state.uniforms.wave_distortion = 0.2;
+    state.uniforms.crt_scanlines = 0.3;
+    state.uniforms.film_grain = 0.1;
+    state.uniforms.hue_rotation = 0.5;
+    state.uniforms.saturation = 1.2;
+    state.uniforms.color_grade_mode = ColorGradeMode::Cyberpunk as f32;
+    state.uniforms.raymarch_mode = RaymarchMode::Tunnel as f32;
+    state.uniforms.raymarch_blend = 0.5;
+    state.enabled = true;
+}
+
+// Color grade modes: None, Cyberpunk, Sunset, Grayscale, Sepia, Matrix, HotMetal
+// Raymarch modes: Off, Tunnel, Fractal, Mandelbulb, PlasmaVortex, Geometric
+<span class="boring">}</span></code></pre></pre>
+<h2 id="debug-lines"><a class="header" href="#debug-lines">Debug Lines</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Spawn lines entity
+let lines = world.spawn_entities(LOCAL_TRANSFORM | LINES_COMPONENT, 1)[0];
+
+// Set line data
+world.set_lines(lines, LinesComponent {
+    lines: vec![
+        Line { start: Vec3::zeros(), end: Vec3::new(1.0, 0.0, 0.0), color: [1.0, 0.0, 0.0, 1.0] },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 1.0, 0.0), color: [0.0, 1.0, 0.0, 1.0] },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 0.0, 1.0), color: [0.0, 0.0, 1.0, 1.0] },
+    ],
+});
+
+// Gizmos
+draw_gizmo_box(world, center, half_extents, color);
+draw_gizmo_sphere(world, center, radius, color);
+draw_gizmo_ray(world, origin, direction, length, color);
+<span class="boring">}</span></code></pre></pre>
 <h2 id="running-1"><a class="header" href="#running-1">Running</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">fn main() {
     nightshade::run(MyGame::default());
 }</code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h1>
+<p>Common issues and their solutions.</p>
+<h2 id="compilation-errors"><a class="header" href="#compilation-errors">Compilation Errors</a></h2>
+<h3 id="feature-x-is-not-enabled"><a class="header" href="#feature-x-is-not-enabled">"feature <code>X</code> is not enabled"</a></h3>
+<p>You're using a feature that isn't enabled in your <code>Cargo.toml</code>. Add the required feature:</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "physics", "audio"] }
+</code></pre>
+<p>See <a href="appendix-features.html">Feature Flags</a> for the complete list.</p>
+<h3 id="cannot-find-function-spawn_primitive"><a class="header" href="#cannot-find-function-spawn_primitive">"cannot find function <code>spawn_primitive</code>"</a></h3>
+<p>Import the prelude:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::prelude::*;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="the-trait-state-is-not-implemented"><a class="header" href="#the-trait-state-is-not-implemented">"the trait <code>State</code> is not implemented"</a></h3>
+<p>Ensure your game struct implements all required methods:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl State for MyGame {
+    fn title(&amp;self) -&gt; &amp;str { "My Game" }
+    fn initialize(&amp;mut self, world: &amp;mut World) {}
+    fn run_systems(&amp;mut self, world: &amp;mut World) {}
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="nalgebra_glm-vs-glam-conflict"><a class="header" href="#nalgebra_glm-vs-glam-conflict">"nalgebra_glm vs glam conflict"</a></h3>
+<p>Nightshade uses <code>nalgebra_glm</code> exclusively. Don't mix with <code>glam</code>:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Correct
+use nalgebra_glm::Vec3;
+
+// Wrong - will cause type mismatches
+use glam::Vec3;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="runtime-errors"><a class="header" href="#runtime-errors">Runtime Errors</a></h2>
+<h3 id="no-suitable-adapter-found"><a class="header" href="#no-suitable-adapter-found">"No suitable adapter found"</a></h3>
+<p>Your GPU doesn't support the required graphics API.</p>
+<p><strong>Windows:</strong></p>
+<ul>
+<li>Update graphics drivers</li>
+<li>Install Vulkan Runtime from https://vulkan.lunarg.com/</li>
+<li>Try forcing DX12: <code>WGPU_BACKEND=dx12 ./game.exe</code></li>
+</ul>
+<p><strong>Linux:</strong></p>
+<ul>
+<li>Install Vulkan drivers: <code>sudo apt install mesa-vulkan-drivers</code></li>
+<li>Verify with <code>vulkaninfo</code></li>
+</ul>
+<p><strong>macOS:</strong></p>
+<ul>
+<li>Ensure macOS 10.13+ (Metal required)</li>
+<li>Check System Report &gt; Graphics for Metal support</li>
+</ul>
+<h3 id="entity-not-found"><a class="header" href="#entity-not-found">"Entity not found"</a></h3>
+<p>You're accessing an entity that was despawned or never existed:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Check entity exists before access
+if world.has_entity(entity) {
+    if let Some(transform) = world.get_local_transform(entity) {
+        // Safe to use
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="texture-not-found"><a class="header" href="#texture-not-found">"Texture not found"</a></h3>
+<p>The texture path is incorrect or the file doesn't exist:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Paths are relative to the executable
+load_gltf(world, "assets/models/character.glb");  // Correct
+load_gltf(world, "/home/user/game/assets/models/character.glb");  // Avoid absolute paths
+<span class="boring">}</span></code></pre></pre>
+<h3 id="physics-objects-fall-through-floor"><a class="header" href="#physics-objects-fall-through-floor">Physics objects fall through floor</a></h3>
+<p>Common causes:</p>
+<ol>
+<li><strong>Missing collider on floor:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>add_collider(world, floor, ColliderShape::Box {
+    half_extents: Vec3::new(50.0, 0.5, 50.0),
+});
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Objects spawned inside each other:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Spawn above the floor, not at y=0
+transform.translation = Vec3::new(0.0, 2.0, 0.0);
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>High velocity causing tunneling:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Enable CCD for fast objects
+world.set_rigid_body(entity, RigidBodyComponent {
+    ccd_enabled: true,
+    ..Default::default()
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="animation-not-playing"><a class="header" href="#animation-not-playing">Animation not playing</a></h3>
+<ol>
+<li><strong>Check animation name exists:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(player) = world.get_animation_player_mut(entity) {
+    // List available animations
+    for name in player.available_animations() {
+        println!("Animation: {}", name);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Call update each frame:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    update_animation_players(world, dt);
+}
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>Animation player is on child entity:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// glTF animations are often on child nodes
+for child in world.get_children(model_root) {
+    if let Some(player) = world.get_animation_player_mut(child) {
+        player.play("idle");
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="no-audio-output"><a class="header" href="#no-audio-output">No audio output</a></h3>
+<ol>
+<li><strong>Load sound before playing:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>load_sound(world, "shoot", "assets/audio/shoot.wav");
+play_sound(world, "shoot");
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Check audio feature is enabled:</strong></li>
+</ol>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "audio"] }
+</code></pre>
+<ol start="3">
+<li><strong>Verify file format:</strong> Supported formats are WAV, OGG, MP3, FLAC.</li>
+</ol>
+<h2 id="performance-issues"><a class="header" href="#performance-issues">Performance Issues</a></h2>
+<h3 id="low-frame-rate"><a class="header" href="#low-frame-rate">Low frame rate</a></h3>
+<ol>
+<li><strong>Check entity count:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>println!("Entities: {}", world.entity_count());
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Disable expensive effects:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.ssao_enabled = false;
+world.resources.graphics.bloom_enabled = false;
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>Reduce shadow quality:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.shadow_map_size = 1024; // Default is 2048
+<span class="boring">}</span></code></pre></pre>
+<ol start="4">
+<li><strong>Use simpler colliders:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Prefer boxes/spheres over trimesh
+add_collider(world, entity, ColliderShape::Box { ... });
+<span class="boring">}</span></code></pre></pre>
+<h3 id="memory-usage-high"><a class="header" href="#memory-usage-high">Memory usage high</a></h3>
+<ol>
+<li><strong>Despawn unused entities:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.despawn(entity);
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Unload unused textures:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.texture_cache.clear_unused();
+<span class="boring">}</span></code></pre></pre>
+<ol start="3">
+<li><strong>Use smaller textures for distant objects.</strong></li>
+</ol>
+<h3 id="stuttering--hitching"><a class="header" href="#stuttering--hitching">Stuttering / hitching</a></h3>
+<ol>
+<li><strong>Avoid allocations in run_systems:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Bad - allocates every frame
+let entities: Vec&lt;Entity&gt; = world.query(TRANSFORM).collect();
+
+// Good - iterate directly
+for entity in world.query(TRANSFORM) {
+    // ...
+}
+<span class="boring">}</span></code></pre></pre>
+<ol start="2">
+<li><strong>Preload assets in initialize:</strong></li>
+</ol>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn initialize(&amp;mut self, world: &amp;mut World) {
+    load_gltf(world, "assets/models/enemy.glb");
+    load_sound(world, "explosion", "assets/audio/explosion.wav");
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="visual-issues"><a class="header" href="#visual-issues">Visual Issues</a></h2>
+<h3 id="objects-are-black"><a class="header" href="#objects-are-black">Objects are black</a></h3>
+<p>Missing or incorrect lighting:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+world.resources.graphics.ambient_intensity = 0.1;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="objects-are-too-bright--washed-out"><a class="header" href="#objects-are-too-bright--washed-out">Objects are too bright / washed out</a></h3>
+<p>Adjust exposure and tonemapping:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.exposure = 1.0;
+world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="textures-look-wrong"><a class="header" href="#textures-look-wrong">Textures look wrong</a></h3>
+<ol>
+<li>
+<p><strong>Normal maps inverted:</strong> Some tools export Y-flipped normals. Check your export settings.</p>
+</li>
+<li>
+<p><strong>sRGB vs Linear:</strong> Base color textures should be sRGB. Normal/metallic/roughness should be linear.</p>
+</li>
+<li>
+<p><strong>Texture coordinates flipped:</strong> glTF uses top-left origin. Some models may need UV adjustment.</p>
+</li>
+</ol>
+<h3 id="z-fighting-flickering-surfaces"><a class="header" href="#z-fighting-flickering-surfaces">Z-fighting (flickering surfaces)</a></h3>
+<p>Surfaces too close together:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Increase near plane
+camera.near = 0.1;  // Instead of 0.01
+
+// Or separate surfaces more
+floor_transform.translation.y = 0.0;
+decal_transform.translation.y = 0.01;  // Slight offset
+<span class="boring">}</span></code></pre></pre>
+<h2 id="webassembly-issues"><a class="header" href="#webassembly-issues">WebAssembly Issues</a></h2>
+<h3 id="webgpu-not-supported"><a class="header" href="#webgpu-not-supported">"WebGPU not supported"</a></h3>
+<ul>
+<li>Use Chrome 113+ or Edge 113+</li>
+<li>Firefox requires enabling <code>dom.webgpu.enabled</code> in about:config</li>
+<li>Safari support is limited</li>
+</ul>
+<h3 id="assets-fail-to-load"><a class="header" href="#assets-fail-to-load">Assets fail to load</a></h3>
+<p>WASM can't access the filesystem. Serve assets via HTTP:</p>
+<pre><code class="language-html">&lt;script&gt;
+// Assets must be fetched, not loaded from disk
+fetch('assets/model.glb')
+    .then(response =&gt; response.arrayBuffer())
+    .then(data =&gt; { /* use data */ });
+&lt;/script&gt;
+</code></pre>
+<h3 id="performance-worse-than-native"><a class="header" href="#performance-worse-than-native">Performance worse than native</a></h3>
+<p>Expected. WebGPU has overhead. Reduce quality settings:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(target_arch = "wasm32")]
+{
+    world.resources.graphics.ssao_enabled = false;
+    world.resources.graphics.shadow_map_size = 512;
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="getting-help-1"><a class="header" href="#getting-help-1">Getting Help</a></h2>
+<p>If your issue isn't listed here:</p>
+<ol>
+<li>Check the <a href="https://github.com/matthewjberger/nightshade/issues">GitHub Issues</a></li>
+<li>Search existing issues for similar problems</li>
+<li>Create a new issue with:
+<ul>
+<li>Nightshade version</li>
+<li>Platform (OS, GPU)</li>
+<li>Minimal code to reproduce</li>
+<li>Error message or screenshot</li>
+</ul>
+</li>
+</ol>
 
                     </main>
 
@@ -9745,22 +10229,6 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 

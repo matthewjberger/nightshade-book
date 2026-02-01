@@ -93,3 +93,4 @@
 - [Feature Flags](appendix-features.md)
 - [Platform Support](appendix-platforms.md)
 - [API Quick Reference](appendix-api.md)
+- [Troubleshooting](appendix-troubleshooting.md)

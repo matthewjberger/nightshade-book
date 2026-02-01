@@ -177,33 +177,118 @@
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
 <p><strong>Nightshade</strong> is a modern game engine written in Rust, designed for creating 3D games and interactive applications. It provides a complete toolkit for game development including rendering, physics, audio, animation, and more.</p>
-<h2 id="key-features"><a class="header" href="#key-features">Key Features</a></h2>
+<h2 id="what-is-nightshade"><a class="header" href="#what-is-nightshade">What is Nightshade?</a></h2>
+<p>Nightshade is a batteries-included game engine that handles the complexity of modern 3D graphics while remaining approachable for developers of all skill levels. Whether you're building a simple visualizer, a physics playground, or a complete 3D game, Nightshade provides the foundation you need.</p>
+<p>The engine is built on top of industry-standard libraries:</p>
 <ul>
-<li><strong>WebGPU Rendering</strong> - Modern graphics API via wgpu, supporting Windows, macOS, Linux, and WebAssembly</li>
-<li><strong>Entity Component System</strong> - Fast, cache-friendly ECS powered by freecs</li>
-<li><strong>Physics Simulation</strong> - Rapier3D integration for rigid bodies, colliders, joints, and character controllers</li>
-<li><strong>Audio Engine</strong> - Kira-based audio with spatial 3D sound support</li>
-<li><strong>Animation System</strong> - Skeletal animation with blending and cross-fading</li>
-<li><strong>Asset Loading</strong> - glTF/GLB model loading with automatic material and texture handling</li>
-<li><strong>Immediate Mode UI</strong> - egui integration for tools and debug interfaces</li>
-<li><strong>Particle Systems</strong> - GPU-accelerated particle effects</li>
-<li><strong>Terrain Generation</strong> - Procedural terrain with LOD and tessellation</li>
-<li><strong>Navigation Mesh</strong> - AI pathfinding with Recast integration</li>
+<li><strong>wgpu</strong> for cross-platform GPU access (Vulkan, Metal, DirectX 12, WebGPU)</li>
+<li><strong>Rapier3D</strong> for physics simulation</li>
+<li><strong>Kira</strong> for audio playback and spatial sound</li>
+<li><strong>egui</strong> for immediate-mode UI</li>
+<li><strong>glTF</strong> for 3D model loading</li>
 </ul>
+<h2 id="key-features"><a class="header" href="#key-features">Key Features</a></h2>
+<h3 id="rendering"><a class="header" href="#rendering">Rendering</a></h3>
+<ul>
+<li><strong>Physically Based Rendering (PBR)</strong> - Metallic-roughness workflow with support for all standard texture maps</li>
+<li><strong>Dynamic Lighting</strong> - Directional, point, and spot lights with real-time shadows</li>
+<li><strong>Post-Processing</strong> - Bloom, SSAO, depth of field, tonemapping, and custom effects</li>
+<li><strong>Skeletal Animation</strong> - Smooth blending and crossfading between animations</li>
+<li><strong>Particle Systems</strong> - GPU-accelerated particles with configurable emitters</li>
+<li><strong>Terrain</strong> - Procedural generation with tessellation and LOD</li>
+<li><strong>Grass</strong> - Thousands of interactive grass blades with wind simulation</li>
+</ul>
+<h3 id="physics"><a class="header" href="#physics">Physics</a></h3>
+<ul>
+<li><strong>Rigid Body Dynamics</strong> - Dynamic, kinematic, and static bodies</li>
+<li><strong>Collision Shapes</strong> - Box, sphere, capsule, cylinder, convex hull, trimesh, heightfield</li>
+<li><strong>Character Controllers</strong> - Built-in player movement with slopes, steps, and jumping</li>
+<li><strong>Physics Joints</strong> - Fixed, revolute, prismatic, spherical, rope, and spring joints</li>
+<li><strong>Raycasting</strong> - Query the physics world for line-of-sight and hit detection</li>
+</ul>
+<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
+<ul>
+<li><strong>Sound Playback</strong> - WAV, OGG, MP3, FLAC support</li>
+<li><strong>Spatial Audio</strong> - 3D positioned sound sources with distance attenuation</li>
+<li><strong>FFT Analysis</strong> - Real-time spectral analysis for music visualizers</li>
+</ul>
+<h3 id="input"><a class="header" href="#input">Input</a></h3>
+<ul>
+<li><strong>Keyboard &amp; Mouse</strong> - Full key detection with press/release states</li>
+<li><strong>Gamepad</strong> - Controller support with analog sticks, triggers, and rumble</li>
+<li><strong>Cursor Control</strong> - Lock and hide cursor for FPS-style games</li>
+</ul>
+<h3 id="tools"><a class="header" href="#tools">Tools</a></h3>
+<ul>
+<li><strong>Navigation Mesh</strong> - AI pathfinding with Recast integration</li>
+<li><strong>Debug Rendering</strong> - Lines, boxes, spheres for visualization</li>
+<li><strong>HUD Text</strong> - Screen-space text rendering with anchoring</li>
+<li><strong>Screenshot Capture</strong> - Save frames to PNG</li>
+</ul>
+<h2 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h2>
+<p>Nightshade follows a simple architecture centered around the <code>State</code> trait and the <code>World</code> container:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                      Your Game (State)                       │
+├─────────────────────────────────────────────────────────────┤
+│  initialize()  │  run_systems()  │  ui()  │  input handlers │
+└────────────────┴─────────────────┴────────┴─────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                          World                               │
+├──────────────────┬──────────────────┬───────────────────────┤
+│     Entities     │    Components    │      Resources        │
+│  (unique IDs)    │  (data arrays)   │  (global singletons)  │
+└──────────────────┴──────────────────┴───────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│   Renderer    │    │    Physics    │    │     Audio     │
+│    (wgpu)     │    │   (Rapier)    │    │    (Kira)     │
+└───────────────┘    └───────────────┘    └───────────────┘
+</code></pre>
+<h3 id="the-game-loop"><a class="header" href="#the-game-loop">The Game Loop</a></h3>
+<p>Each frame, Nightshade:</p>
+<ol>
+<li>Processes window and input events</li>
+<li>Calls your <code>run_systems()</code> method</li>
+<li>Updates physics simulation</li>
+<li>Propagates transform hierarchies</li>
+<li>Renders the scene</li>
+<li>Presents to the screen</li>
+</ol>
+<p>You control game logic in <code>run_systems()</code>, and the engine handles everything else.</p>
 <h2 id="design-philosophy"><a class="header" href="#design-philosophy">Design Philosophy</a></h2>
 <p>Nightshade follows these core principles:</p>
-<ol>
-<li><strong>Simplicity</strong> - A minimal API surface that's easy to learn</li>
-<li><strong>Performance</strong> - Data-oriented design for cache efficiency</li>
-<li><strong>Flexibility</strong> - Feature flags to include only what you need</li>
-<li><strong>Cross-Platform</strong> - Write once, run on desktop, web, and VR</li>
-</ol>
+<h3 id="simplicity"><a class="header" href="#simplicity">Simplicity</a></h3>
+<p>The API surface is minimal and consistent. Common tasks like spawning entities, loading models, and handling input should be intuitive. If something feels overly complex, it's probably a bug.</p>
+<h3 id="performance"><a class="header" href="#performance">Performance</a></h3>
+<p>The engine uses data-oriented design throughout. The ECS stores components in contiguous arrays for cache-friendly access. The renderer batches draw calls and uses GPU instancing where possible.</p>
+<h3 id="flexibility"><a class="header" href="#flexibility">Flexibility</a></h3>
+<p>Feature flags let you include only what you need. Building a simple visualizer? Just use <code>engine</code>. Need physics? Add <code>physics</code>. Everything is opt-in.</p>
+<h3 id="cross-platform"><a class="header" href="#cross-platform">Cross-Platform</a></h3>
+<p>Write once, run everywhere. The same code runs on Windows, macOS, Linux, and WebAssembly. The engine automatically selects the appropriate graphics backend.</p>
+<h2 id="when-to-use-nightshade"><a class="header" href="#when-to-use-nightshade">When to Use Nightshade</a></h2>
+<p>Nightshade is well-suited for:</p>
+<ul>
+<li><strong>3D Games</strong> - Action games, platformers, simulations</li>
+<li><strong>Visualizers</strong> - Music-reactive graphics, data visualization</li>
+<li><strong>Prototypes</strong> - Quickly test game ideas</li>
+<li><strong>Learning</strong> - Understanding game engine concepts</li>
+</ul>
+<p>Nightshade may not be ideal for:</p>
+<ul>
+<li><strong>2D-only games</strong> - Consider a dedicated 2D engine</li>
+<li><strong>AAA production</strong> - Missing some advanced features (GI, complex animation graphs)</li>
+<li><strong>Mobile</strong> - Not yet optimized for mobile platforms</li>
+</ul>
 <h2 id="version"><a class="header" href="#version">Version</a></h2>
 <p>This documentation covers <strong>Nightshade v0.6.69</strong> using <strong>Rust 2024 Edition</strong>.</p>
 <h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
 <ul>
-<li><a href="https://github.com/matthewjberger/nightshade">GitHub Repository</a></li>
-<li><a href="https://docs.rs/nightshade">API Documentation</a></li>
+<li><a href="https://github.com/matthewjberger/nightshade">GitHub Repository</a> - Source code and issue tracker</li>
+<li><a href="https://docs.rs/nightshade">API Documentation</a> - Generated API docs</li>
 </ul>
 <p>Let's get started!</p>
 
@@ -230,22 +315,6 @@
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 
