@@ -9906,6 +9906,720 @@ draw_gizmo_ray(world, origin, direction, length, color);
 <pre><pre class="playground"><code class="language-rust edition2024">fn main() {
     nightshade::run(MyGame::default());
 }</code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
+<p>Common recipes and patterns for Nightshade game development.</p>
+<h2 id="player-movement"><a class="header" href="#player-movement">Player Movement</a></h2>
+<h3 id="basic-wasd-movement"><a class="header" href="#basic-wasd-movement">Basic WASD Movement</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn player_movement(world: &amp;mut World, player: Entity, speed: f32) {
+    let dt = world.resources.window.timing.delta_time;
+    let keyboard = &amp;world.resources.input.keyboard;
+
+    let mut direction = Vec3::zeros();
+
+    if keyboard.is_key_pressed(KeyCode::KeyW) { direction.z -= 1.0; }
+    if keyboard.is_key_pressed(KeyCode::KeyS) { direction.z += 1.0; }
+    if keyboard.is_key_pressed(KeyCode::KeyA) { direction.x -= 1.0; }
+    if keyboard.is_key_pressed(KeyCode::KeyD) { direction.x += 1.0; }
+
+    if direction.magnitude() &gt; 0.0 {
+        direction = direction.normalize();
+
+        if let Some(transform) = world.get_local_transform_mut(player) {
+            transform.translation += direction * speed * dt;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="camera-relative-movement-1"><a class="header" href="#camera-relative-movement-1">Camera-Relative Movement</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn camera_relative_movement(
+    world: &amp;mut World,
+    player: Entity,
+    camera: Entity,
+    speed: f32,
+) {
+    let dt = world.resources.window.timing.delta_time;
+    let keyboard = &amp;world.resources.input.keyboard;
+
+    let mut input = Vec2::zeros();
+    if keyboard.is_key_pressed(KeyCode::KeyW) { input.y -= 1.0; }
+    if keyboard.is_key_pressed(KeyCode::KeyS) { input.y += 1.0; }
+    if keyboard.is_key_pressed(KeyCode::KeyA) { input.x -= 1.0; }
+    if keyboard.is_key_pressed(KeyCode::KeyD) { input.x += 1.0; }
+
+    if input.magnitude() &lt; 0.01 {
+        return;
+    }
+    input = input.normalize();
+
+    let Some(camera_transform) = world.get_global_transform(camera) else { return };
+
+    let forward = camera_transform.forward();
+    let forward_flat = Vec3::new(forward.x, 0.0, forward.z).normalize();
+    let right_flat = Vec3::new(forward.z, 0.0, -forward.x).normalize();
+
+    let world_direction = forward_flat * -input.y + right_flat * input.x;
+
+    if let Some(transform) = world.get_local_transform_mut(player) {
+        transform.translation += world_direction * speed * dt;
+
+        let target_yaw = world_direction.x.atan2(world_direction.z);
+        let target_rotation = nalgebra_glm::quat_angle_axis(target_yaw, &amp;Vec3::y());
+        transform.rotation = nalgebra_glm::quat_slerp(
+            &amp;transform.rotation,
+            &amp;target_rotation,
+            dt * 10.0,
+        );
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="jumping"><a class="header" href="#jumping">Jumping</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct PlayerState {
+    velocity_y: f32,
+    grounded: bool,
+}
+
+fn handle_jumping(
+    world: &amp;mut World,
+    player: Entity,
+    state: &amp;mut PlayerState,
+    jump_force: f32,
+    gravity: f32,
+) {
+    let dt = world.resources.window.timing.delta_time;
+    let keyboard = &amp;world.resources.input.keyboard;
+
+    if state.grounded &amp;&amp; keyboard.is_key_just_pressed(KeyCode::Space) {
+        state.velocity_y = jump_force;
+        state.grounded = false;
+    }
+
+    if !state.grounded {
+        state.velocity_y -= gravity * dt;
+    }
+
+    if let Some(transform) = world.get_local_transform_mut(player) {
+        transform.translation.y += state.velocity_y * dt;
+
+        if transform.translation.y &lt;= 0.0 {
+            transform.translation.y = 0.0;
+            state.velocity_y = 0.0;
+            state.grounded = true;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="camera-systems-1"><a class="header" href="#camera-systems-1">Camera Systems</a></h2>
+<h3 id="smooth-follow-camera"><a class="header" href="#smooth-follow-camera">Smooth Follow Camera</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct FollowCamera {
+    offset: Vec3,
+    smoothness: f32,
+}
+
+fn follow_camera_system(
+    world: &amp;mut World,
+    target: Entity,
+    camera: Entity,
+    config: &amp;FollowCamera,
+) {
+    let dt = world.resources.window.timing.delta_time;
+
+    let Some(target_transform) = world.get_global_transform(target) else { return };
+    let target_pos = target_transform.translation() + config.offset;
+
+    if let Some(cam_transform) = world.get_local_transform_mut(camera) {
+        cam_transform.translation = nalgebra_glm::lerp(
+            &amp;cam_transform.translation,
+            &amp;target_pos,
+            dt * config.smoothness,
+        );
+
+        let look_at = target_transform.translation();
+        let direction = (look_at - cam_transform.translation).normalize();
+        let pitch = (-direction.y).asin();
+        let yaw = direction.x.atan2(direction.z);
+
+        cam_transform.rotation = nalgebra_glm::quat_angle_axis(yaw, &amp;Vec3::y())
+            * nalgebra_glm::quat_angle_axis(pitch, &amp;Vec3::x());
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="third-person-orbit-camera"><a class="header" href="#third-person-orbit-camera">Third-Person Orbit Camera</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct OrbitCamera {
+    target: Entity,
+    distance: f32,
+    yaw: f32,
+    pitch: f32,
+    sensitivity: f32,
+}
+
+fn orbit_camera_system(world: &amp;mut World, camera: Entity, orbit: &amp;mut OrbitCamera) {
+    let mouse_delta = world.resources.input.mouse.delta;
+    let scroll = world.resources.input.mouse.scroll_delta;
+
+    orbit.yaw -= mouse_delta.x * orbit.sensitivity;
+    orbit.pitch -= mouse_delta.y * orbit.sensitivity;
+    orbit.pitch = orbit.pitch.clamp(-1.4, 1.4);
+    orbit.distance = (orbit.distance - scroll.y * 0.5).clamp(2.0, 20.0);
+
+    let Some(target_transform) = world.get_global_transform(orbit.target) else { return };
+    let target_pos = target_transform.translation() + Vec3::new(0.0, 1.5, 0.0);
+
+    let offset = Vec3::new(
+        orbit.yaw.sin() * orbit.pitch.cos(),
+        orbit.pitch.sin(),
+        orbit.yaw.cos() * orbit.pitch.cos(),
+    ) * orbit.distance;
+
+    let camera_pos = target_pos + offset;
+
+    if let Some(transform) = world.get_local_transform_mut(camera) {
+        transform.translation = camera_pos;
+
+        let direction = (target_pos - camera_pos).normalize();
+        let pitch = (-direction.y).asin();
+        let yaw = direction.x.atan2(direction.z);
+
+        transform.rotation = nalgebra_glm::quat_angle_axis(yaw, &amp;Vec3::y())
+            * nalgebra_glm::quat_angle_axis(pitch, &amp;Vec3::x());
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="first-person-camera-1"><a class="header" href="#first-person-camera-1">First-Person Camera</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct FpsCamera {
+    yaw: f32,
+    pitch: f32,
+    sensitivity: f32,
+}
+
+fn fps_camera_system(world: &amp;mut World, camera: Entity, fps: &amp;mut FpsCamera) {
+    let mouse_delta = world.resources.input.mouse.delta;
+
+    fps.yaw -= mouse_delta.x * fps.sensitivity;
+    fps.pitch -= mouse_delta.y * fps.sensitivity;
+    fps.pitch = fps.pitch.clamp(-1.5, 1.5);
+
+    if let Some(transform) = world.get_local_transform_mut(camera) {
+        transform.rotation = nalgebra_glm::quat_angle_axis(fps.yaw, &amp;Vec3::y())
+            * nalgebra_glm::quat_angle_axis(fps.pitch, &amp;Vec3::x());
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="combat-systems"><a class="header" href="#combat-systems">Combat Systems</a></h2>
+<h3 id="health-system"><a class="header" href="#health-system">Health System</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct Health {
+    current: f32,
+    maximum: f32,
+    invulnerable_timer: f32,
+}
+
+impl Health {
+    fn take_damage(&amp;mut self, amount: f32, dt: f32) -&gt; bool {
+        if self.invulnerable_timer &gt; 0.0 {
+            return false;
+        }
+
+        self.current = (self.current - amount).max(0.0);
+        self.invulnerable_timer = 0.5;
+
+        self.current &lt;= 0.0
+    }
+
+    fn heal(&amp;mut self, amount: f32) {
+        self.current = (self.current + amount).min(self.maximum);
+    }
+
+    fn update(&amp;mut self, dt: f32) {
+        if self.invulnerable_timer &gt; 0.0 {
+            self.invulnerable_timer -= dt;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="melee-attack"><a class="header" href="#melee-attack">Melee Attack</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn melee_attack(
+    world: &amp;mut World,
+    attacker: Entity,
+    damage: f32,
+    range: f32,
+    angle: f32,
+) -&gt; Vec&lt;Entity&gt; {
+    let Some(attacker_transform) = world.get_global_transform(attacker) else {
+        return vec![];
+    };
+
+    let origin = attacker_transform.translation();
+    let forward = attacker_transform.forward();
+
+    let mut hit_entities = vec![];
+
+    for entity in world.query(GLOBAL_TRANSFORM) {
+        if entity == attacker {
+            continue;
+        }
+
+        let Some(target_transform) = world.get_global_transform(entity) else {
+            continue;
+        };
+
+        let to_target = target_transform.translation() - origin;
+        let distance = to_target.magnitude();
+
+        if distance &gt; range {
+            continue;
+        }
+
+        let dot = forward.dot(&amp;to_target.normalize());
+        if dot &lt; angle.cos() {
+            continue;
+        }
+
+        hit_entities.push(entity);
+    }
+
+    hit_entities
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="projectile-system"><a class="header" href="#projectile-system">Projectile System</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct Projectile {
+    velocity: Vec3,
+    damage: f32,
+    lifetime: f32,
+    owner: Entity,
+}
+
+fn spawn_projectile(
+    world: &amp;mut World,
+    position: Vec3,
+    direction: Vec3,
+    speed: f32,
+    damage: f32,
+    owner: Entity,
+) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | MESH_COMPONENT,
+        1
+    )[0];
+
+    world.set_local_transform(entity, LocalTransform {
+        translation: position,
+        scale: Vec3::new(0.1, 0.1, 0.5),
+        ..Default::default()
+    });
+
+    entity
+}
+
+fn update_projectiles(
+    world: &amp;mut World,
+    projectiles: &amp;mut Vec&lt;(Entity, Projectile)&gt;,
+) {
+    let dt = world.resources.window.timing.delta_time;
+
+    projectiles.retain_mut(|(entity, projectile)| {
+        projectile.lifetime -= dt;
+
+        if projectile.lifetime &lt;= 0.0 {
+            world.despawn(*entity);
+            return false;
+        }
+
+        if let Some(transform) = world.get_local_transform_mut(*entity) {
+            transform.translation += projectile.velocity * dt;
+        }
+
+        true
+    });
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="object-pooling"><a class="header" href="#object-pooling">Object Pooling</a></h2>
+<h3 id="entity-pool"><a class="header" href="#entity-pool">Entity Pool</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct EntityPool {
+    available: Vec&lt;Entity&gt;,
+    active: Vec&lt;Entity&gt;,
+    prefab_spawn_fn: fn(&amp;mut World) -&gt; Entity,
+}
+
+impl EntityPool {
+    fn new(world: &amp;mut World, initial_size: usize, spawn_fn: fn(&amp;mut World) -&gt; Entity) -&gt; Self {
+        let mut available = Vec::with_capacity(initial_size);
+
+        for _ in 0..initial_size {
+            let entity = spawn_fn(world);
+            set_entity_active(world, entity, false);
+            available.push(entity);
+        }
+
+        Self {
+            available,
+            active: Vec::new(),
+            prefab_spawn_fn: spawn_fn,
+        }
+    }
+
+    fn acquire(&amp;mut self, world: &amp;mut World) -&gt; Entity {
+        let entity = self.available.pop().unwrap_or_else(|| {
+            (self.prefab_spawn_fn)(world)
+        });
+
+        set_entity_active(world, entity, true);
+        self.active.push(entity);
+        entity
+    }
+
+    fn release(&amp;mut self, world: &amp;mut World, entity: Entity) {
+        if let Some(index) = self.active.iter().position(|&amp;e| e == entity) {
+            self.active.swap_remove(index);
+            set_entity_active(world, entity, false);
+            self.available.push(entity);
+        }
+    }
+}
+
+fn set_entity_active(world: &amp;mut World, entity: Entity, active: bool) {
+    world.set_visible(entity, Visible(active));
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="state-machines"><a class="header" href="#state-machines">State Machines</a></h2>
+<h3 id="simple-state-machine"><a class="header" href="#simple-state-machine">Simple State Machine</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Clone, Copy, PartialEq, Eq)]
+enum PlayerState {
+    Idle,
+    Walking,
+    Running,
+    Jumping,
+    Falling,
+    Attacking,
+}
+
+struct StateMachine {
+    current: PlayerState,
+    state_timer: f32,
+}
+
+impl StateMachine {
+    fn transition(&amp;mut self, new_state: PlayerState) {
+        if self.current != new_state {
+            self.current = new_state;
+            self.state_timer = 0.0;
+        }
+    }
+
+    fn update(&amp;mut self, dt: f32) {
+        self.state_timer += dt;
+    }
+
+    fn can_interrupt(&amp;self) -&gt; bool {
+        match self.current {
+            PlayerState::Attacking =&gt; self.state_timer &gt; 0.5,
+            _ =&gt; true,
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="ui-patterns"><a class="header" href="#ui-patterns">UI Patterns</a></h2>
+<h3 id="health-bar"><a class="header" href="#health-bar">Health Bar</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_health_bar(world: &amp;mut World, health_text: Entity, current: f32, max: f32) {
+    let percentage = (current / max * 100.0) as u32;
+    let bar_length = 20;
+    let filled = (percentage as usize * bar_length / 100).min(bar_length);
+
+    let bar = format!(
+        "[{}{}] {}/{}",
+        "█".repeat(filled),
+        "░".repeat(bar_length - filled),
+        current as u32,
+        max as u32,
+    );
+
+    if let Some(text) = world.get_hud_text_mut(health_text) {
+        text.text = bar;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="fps-counter-1"><a class="header" href="#fps-counter-1">FPS Counter</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct FpsCounter {
+    samples: Vec&lt;f32&gt;,
+    text_entity: Entity,
+}
+
+impl FpsCounter {
+    fn update(&amp;mut self, world: &amp;mut World) {
+        let fps = world.resources.window.timing.frames_per_second;
+        self.samples.push(fps);
+
+        if self.samples.len() &gt; 60 {
+            self.samples.remove(0);
+        }
+
+        let avg: f32 = self.samples.iter().sum::&lt;f32&gt;() / self.samples.len() as f32;
+
+        if let Some(text) = world.get_hud_text_mut(self.text_entity) {
+            text.text = format!("FPS: {:.0}", avg);
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="spawning-patterns"><a class="header" href="#spawning-patterns">Spawning Patterns</a></h2>
+<h3 id="random-position-in-area"><a class="header" href="#random-position-in-area">Random Position in Area</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn random_position_in_box(center: Vec3, half_extents: Vec3) -&gt; Vec3 {
+    Vec3::new(
+        center.x + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.x,
+        center.y + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.y,
+        center.z + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.z,
+    )
+}
+
+fn random_position_on_circle(center: Vec3, radius: f32) -&gt; Vec3 {
+    let angle = rand::random::&lt;f32&gt;() * std::f32::consts::TAU;
+    Vec3::new(
+        center.x + angle.cos() * radius,
+        center.y,
+        center.z + angle.sin() * radius,
+    )
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="wave-spawner"><a class="header" href="#wave-spawner">Wave Spawner</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct WaveSpawner {
+    wave: u32,
+    enemies_remaining: u32,
+    spawn_timer: f32,
+    spawn_interval: f32,
+}
+
+impl WaveSpawner {
+    fn update(&amp;mut self, world: &amp;mut World, dt: f32) {
+        if self.enemies_remaining == 0 {
+            self.start_next_wave();
+            return;
+        }
+
+        self.spawn_timer -= dt;
+
+        if self.spawn_timer &lt;= 0.0 {
+            self.spawn_enemy(world);
+            self.spawn_timer = self.spawn_interval;
+        }
+    }
+
+    fn start_next_wave(&amp;mut self) {
+        self.wave += 1;
+        self.enemies_remaining = 5 + self.wave * 2;
+        self.spawn_interval = (2.0 - self.wave as f32 * 0.1).max(0.3);
+    }
+
+    fn spawn_enemy(&amp;mut self, world: &amp;mut World) {
+        let position = random_position_on_circle(Vec3::zeros(), 20.0);
+        spawn_primitive(world, Primitive::Cube);
+        self.enemies_remaining -= 1;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="audio-patterns"><a class="header" href="#audio-patterns">Audio Patterns</a></h2>
+<h3 id="footstep-system-1"><a class="header" href="#footstep-system-1">Footstep System</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct FootstepSystem {
+    step_timer: f32,
+    step_interval: f32,
+    sounds: Vec&lt;String&gt;,
+    last_index: usize,
+}
+
+impl FootstepSystem {
+    fn update(&amp;mut self, world: &amp;mut World, is_moving: bool, is_running: bool, dt: f32) {
+        if !is_moving {
+            self.step_timer = 0.0;
+            return;
+        }
+
+        let interval = if is_running {
+            self.step_interval * 0.6
+        } else {
+            self.step_interval
+        };
+
+        self.step_timer += dt;
+
+        if self.step_timer &gt;= interval {
+            self.step_timer = 0.0;
+            self.play_footstep(world);
+        }
+    }
+
+    fn play_footstep(&amp;mut self, world: &amp;mut World) {
+        let mut index = rand::random::&lt;usize&gt;() % self.sounds.len();
+        if index == self.last_index &amp;&amp; self.sounds.len() &gt; 1 {
+            index = (index + 1) % self.sounds.len();
+        }
+        self.last_index = index;
+
+        play_sound(world, &amp;self.sounds[index]);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="savingloading"><a class="header" href="#savingloading">Saving/Loading</a></h2>
+<h3 id="simple-save-data"><a class="header" href="#simple-save-data">Simple Save Data</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+struct SaveData {
+    player_position: [f32; 3],
+    player_health: f32,
+    score: u32,
+    level: u32,
+}
+
+fn save_game(data: &amp;SaveData, path: &amp;str) -&gt; std::io::Result&lt;()&gt; {
+    let json = serde_json::to_string_pretty(data)?;
+    std::fs::write(path, json)?;
+    Ok(())
+}
+
+fn load_game(path: &amp;str) -&gt; std::io::Result&lt;SaveData&gt; {
+    let json = std::fs::read_to_string(path)?;
+    let data: SaveData = serde_json::from_str(&amp;json)?;
+    Ok(data)
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="debug-visualization-2"><a class="header" href="#debug-visualization-2">Debug Visualization</a></h2>
+<h3 id="draw-collision-shapes"><a class="header" href="#draw-collision-shapes">Draw Collision Shapes</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn debug_draw_colliders(world: &amp;mut World, lines_entity: Entity) {
+    let mut lines = vec![];
+
+    for entity in world.query(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
+        let Some(collider) = world.get_collider(entity) else { continue };
+        let Some(transform) = world.get_global_transform(entity) else { continue };
+
+        let pos = transform.translation();
+        let color = [0.0, 1.0, 0.0, 1.0];
+
+        match &amp;collider.shape {
+            ColliderShape::Box { half_extents } =&gt; {
+                draw_wire_box(&amp;mut lines, pos, *half_extents, color);
+            }
+            ColliderShape::Sphere { radius } =&gt; {
+                draw_wire_sphere(&amp;mut lines, pos, *radius, color);
+            }
+            _ =&gt; {}
+        }
+    }
+
+    world.set_lines(lines_entity, LinesComponent { lines });
+}
+
+fn draw_wire_box(lines: &amp;mut Vec&lt;Line&gt;, center: Vec3, half: Vec3, color: [f32; 4]) {
+    let corners = [
+        center + Vec3::new(-half.x, -half.y, -half.z),
+        center + Vec3::new( half.x, -half.y, -half.z),
+        center + Vec3::new( half.x, -half.y,  half.z),
+        center + Vec3::new(-half.x, -half.y,  half.z),
+        center + Vec3::new(-half.x,  half.y, -half.z),
+        center + Vec3::new( half.x,  half.y, -half.z),
+        center + Vec3::new( half.x,  half.y,  half.z),
+        center + Vec3::new(-half.x,  half.y,  half.z),
+    ];
+
+    let edges = [
+        (0,1), (1,2), (2,3), (3,0),
+        (4,5), (5,6), (6,7), (7,4),
+        (0,4), (1,5), (2,6), (3,7),
+    ];
+
+    for (a, b) in edges {
+        lines.push(Line { start: corners[a], end: corners[b], color });
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="timer-utilities"><a class="header" href="#timer-utilities">Timer Utilities</a></h2>
+<h3 id="cooldown-timer"><a class="header" href="#cooldown-timer">Cooldown Timer</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct Cooldown {
+    duration: f32,
+    remaining: f32,
+}
+
+impl Cooldown {
+    fn new(duration: f32) -&gt; Self {
+        Self { duration, remaining: 0.0 }
+    }
+
+    fn update(&amp;mut self, dt: f32) {
+        self.remaining = (self.remaining - dt).max(0.0);
+    }
+
+    fn ready(&amp;self) -&gt; bool {
+        self.remaining &lt;= 0.0
+    }
+
+    fn trigger(&amp;mut self) {
+        self.remaining = self.duration;
+    }
+
+    fn progress(&amp;self) -&gt; f32 {
+        1.0 - (self.remaining / self.duration)
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="repeating-timer"><a class="header" href="#repeating-timer">Repeating Timer</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct RepeatingTimer {
+    interval: f32,
+    elapsed: f32,
+}
+
+impl RepeatingTimer {
+    fn new(interval: f32) -&gt; Self {
+        Self { interval, elapsed: 0.0 }
+    }
+
+    fn tick(&amp;mut self, dt: f32) -&gt; bool {
+        self.elapsed += dt;
+
+        if self.elapsed &gt;= self.interval {
+            self.elapsed -= self.interval;
+            true
+        } else {
+            false
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h1>
 <p>Common issues and their solutions.</p>
 <h2 id="compilation-errors"><a class="header" href="#compilation-errors">Compilation Errors</a></h2>
