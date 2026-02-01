@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Physics Overview - Nightshade Game Engine</title>
+        <title>Water - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,149 +175,232 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
-<p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
-<h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
-<p>Physics is enabled with the <code>physics</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
-</code></pre>
-<h2 id="physics-world"><a class="header" href="#physics-world">Physics World</a></h2>
-<p>The physics world is accessed through resources:</p>
+                        <h1 id="water"><a class="header" href="#water">Water</a></h1>
+<p>Nightshade includes a procedural water system supporting both planar water surfaces and volumetric water bodies.</p>
+<h2 id="water-component"><a class="header" href="#water-component">Water Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let physics = &amp;mut world.resources.physics;
-
-// Configuration
-physics.gravity = Vec3::new(0.0, -9.81, 0.0);
-physics.fixed_timestep = 1.0 / 60.0;
+</span>pub struct Water {
+    pub water_type: WaterType,
+    pub base_color: Vec3,
+    pub water_color: Vec3,
+    pub wave_height: f32,
+    pub wave_speed: f32,
+    pub wave_frequency: f32,
+    pub choppiness: f32,
+    pub foam_threshold: f32,
+    pub reflectivity: f32,
+    pub edge_softness: f32,
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="core-concepts"><a class="header" href="#core-concepts">Core Concepts</a></h2>
-<h3 id="rigid-bodies"><a class="header" href="#rigid-bodies">Rigid Bodies</a></h3>
-<p>Objects that can move and be affected by forces:</p>
-<ul>
-<li><strong>Dynamic</strong>: Affected by gravity and forces</li>
-<li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
-</ul>
-<h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
-<p>Shapes used for collision detection:</p>
-<ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
-<li>Triangle mesh, Heightfield</li>
-<li>Compound shapes</li>
-</ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
-<p>Kinematic bodies with special handling for player movement.</p>
-<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h2 id="water-types"><a class="header" href="#water-types">Water Types</a></h2>
+<h3 id="planar-water"><a class="header" href="#planar-water">Planar Water</a></h3>
+<p>Flat water surface extending infinitely in X and Z:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>pub enum WaterType {
+    Planar,
+    Volumetric { shape: VolumetricShape },
+}
 
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+let water_entity = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | WATER,
+    1
+)[0];
 
-    // Dynamic cubes
-    for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+world.set_local_transform(water_entity, LocalTransform {
+    position: Vec3::new(0.0, 0.0, 0.0),
+    ..Default::default()
+});
+
+world.set_water(water_entity, Water {
+    water_type: WaterType::Planar,
+    base_color: Vec3::new(0.0, 0.1, 0.2),
+    water_color: Vec3::new(0.0, 0.3, 0.5),
+    wave_height: 0.5,
+    wave_speed: 1.0,
+    wave_frequency: 0.5,
+    choppiness: 1.0,
+    foam_threshold: 0.8,
+    reflectivity: 0.5,
+    edge_softness: 1.0,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="volumetric-water"><a class="header" href="#volumetric-water">Volumetric Water</a></h3>
+<p>Water contained within a shape:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum VolumetricShape {
+    Box { half_extents: Vec3 },
+    Sphere { radius: f32 },
+    Cylinder { radius: f32, height: f32 },
+}
+
+world.set_water(pool_entity, Water {
+    water_type: WaterType::Volumetric {
+        shape: VolumetricShape::Box {
+            half_extents: Vec3::new(5.0, 2.0, 5.0),
+        },
+    },
+    base_color: Vec3::new(0.0, 0.15, 0.25),
+    water_color: Vec3::new(0.1, 0.4, 0.6),
+    wave_height: 0.1,
+    wave_speed: 0.5,
+    wave_frequency: 2.0,
+    choppiness: 0.3,
+    foam_threshold: 0.9,
+    reflectivity: 0.3,
+    edge_softness: 0.5,
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="wave-properties"><a class="header" href="#wave-properties">Wave Properties</a></h2>
+<h3 id="wave-height"><a class="header" href="#wave-height">Wave Height</a></h3>
+<p>Controls the amplitude of waves:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.wave_height = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="wave-speed"><a class="header" href="#wave-speed">Wave Speed</a></h3>
+<p>How fast waves travel:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.wave_speed = 1.0;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="wave-frequency"><a class="header" href="#wave-frequency">Wave Frequency</a></h3>
+<p>Number of waves per unit distance:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.wave_frequency = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="choppiness"><a class="header" href="#choppiness">Choppiness</a></h3>
+<p>How peaked the wave crests are:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.choppiness = 1.0;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="visual-properties"><a class="header" href="#visual-properties">Visual Properties</a></h2>
+<h3 id="colors"><a class="header" href="#colors">Colors</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.base_color = Vec3::new(0.0, 0.1, 0.2);
+water.water_color = Vec3::new(0.0, 0.3, 0.5);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="foam"><a class="header" href="#foam">Foam</a></h3>
+<p>White foam appears on wave crests above the threshold:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.foam_threshold = 0.8;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="reflectivity"><a class="header" href="#reflectivity">Reflectivity</a></h3>
+<p>How much the water reflects the environment:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.reflectivity = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="edge-softness"><a class="header" href="#edge-softness">Edge Softness</a></h3>
+<p>Soft blending at water edges (shore):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>water.edge_softness = 1.0;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="ocean-preset"><a class="header" href="#ocean-preset">Ocean Preset</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_ocean(world: &amp;mut World) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | WATER,
+        1
+    )[0];
+
+    world.set_water(entity, Water {
+        water_type: WaterType::Planar,
+        base_color: Vec3::new(0.0, 0.05, 0.1),
+        water_color: Vec3::new(0.0, 0.2, 0.4),
+        wave_height: 1.5,
+        wave_speed: 0.8,
+        wave_frequency: 0.3,
+        choppiness: 1.5,
+        foam_threshold: 0.7,
+        reflectivity: 0.6,
+        edge_softness: 2.0,
+    });
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="pool-preset"><a class="header" href="#pool-preset">Pool Preset</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_pool(world: &amp;mut World, position: Vec3, size: Vec3) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | WATER,
+        1
+    )[0];
+
+    world.set_local_transform(entity, LocalTransform {
+        position,
+        ..Default::default()
+    });
+
+    world.set_water(entity, Water {
+        water_type: WaterType::Volumetric {
+            shape: VolumetricShape::Box {
+                half_extents: size * 0.5,
+            },
+        },
+        base_color: Vec3::new(0.1, 0.2, 0.3),
+        water_color: Vec3::new(0.2, 0.5, 0.7),
+        wave_height: 0.05,
+        wave_speed: 0.3,
+        wave_frequency: 3.0,
+        choppiness: 0.1,
+        foam_threshold: 0.95,
+        reflectivity: 0.4,
+        edge_softness: 0.3,
+    });
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="animating-water"><a class="header" href="#animating-water">Animating Water</a></h2>
+<p>Water animates automatically based on elapsed time. You can dynamically adjust properties:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn stormy_weather(world: &amp;mut World, water: Entity) {
+    if let Some(w) = world.get_water_mut(water) {
+        w.wave_height = 3.0;
+        w.wave_speed = 2.0;
+        w.choppiness = 2.5;
+        w.foam_threshold = 0.5;
+    }
+}
+
+fn calm_weather(world: &amp;mut World, water: Entity) {
+    if let Some(w) = world.get_water_mut(water) {
+        w.wave_height = 0.3;
+        w.wave_speed = 0.5;
+        w.choppiness = 0.5;
+        w.foam_threshold = 0.9;
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-synchronization"><a class="header" href="#physics-synchronization">Physics Synchronization</a></h2>
-<p>Physics runs at a fixed timestep. Transforms are automatically synchronized:</p>
-<ol>
-<li>Game logic updates entity transforms</li>
-<li>Physics simulation steps (may run multiple times per frame)</li>
-<li>Physics transforms sync back to entities</li>
-<li>Interpolation smooths visual positions</li>
-</ol>
-<h2 id="querying-physics"><a class="header" href="#querying-physics">Querying Physics</a></h2>
-<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::queries::*;
-
-let ray_origin = Vec3::new(0.0, 5.0, 0.0);
-let ray_direction = Vec3::new(0.0, -1.0, 0.0);
-let max_distance = 100.0;
-
-if let Some(hit) = raycast(world, ray_origin, ray_direction, max_distance) {
-    let hit_point = hit.point;
-    let hit_normal = hit.normal;
-    let hit_entity = hit.entity;
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="overlap-tests"><a class="header" href="#overlap-tests">Overlap Tests</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Check if a sphere overlaps any colliders
-let overlaps = sphere_overlap(world, center, radius);
-for entity in overlaps {
-    // Handle collision
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
-<p>Control friction and bounciness:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_physics_material(entity, PhysicsMaterialComponent {
-    friction: 0.5,
-    restitution: 0.3,  // Bounciness
-    density: 1.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Enable physics debug drawing:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.physics.debug_draw = true;
-
-// In run_systems
-physics_debug_draw_system(world);
-<span class="boring">}</span></code></pre></pre>
-<p>This renders:</p>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
 <ul>
-<li>Collider shapes (wireframe)</li>
-<li>Contact points</li>
-<li>Collision normals</li>
+<li>Planar water is cheaper than volumetric</li>
+<li>Reduce <code>wave_frequency</code> for better performance</li>
+<li>Lower <code>reflectivity</code> reduces reflection calculations</li>
+<li>Water rendering uses a dedicated render pass</li>
 </ul>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ol>
-<li>Use simple collider shapes (boxes, spheres) when possible</li>
-<li>Disable collision between groups that don't need it</li>
-<li>Use compound colliders instead of many small colliders</li>
-<li>Set bodies to sleep when inactive</li>
-<li>Use appropriate fixed timestep (60 Hz is standard)</li>
-</ol>
-<h2 id="joints"><a class="header" href="#joints">Joints</a></h2>
-<p>Connect bodies with joints for:</p>
-<ul>
-<li>Doors (revolute)</li>
-<li>Drawers (prismatic)</li>
-<li>Ropes (rope/spring)</li>
-<li>Chains (spherical)</li>
-</ul>
-<p>See <a href="physics-joints.html">Physics Joints</a> for details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="decals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="render-graph.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="rigid-bodies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="decals.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -327,11 +410,11 @@ physics_debug_draw_system(world);
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="decals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="render-graph.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="rigid-bodies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="decals.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -1,5 +1,7 @@
 # Meshes & Models
 
+> **Live Demo:** [Prefabs](https://matthewberger.dev/nightshade/prefabs)
+
 ## Built-in Primitives
 
 Nightshade provides basic geometric primitives:

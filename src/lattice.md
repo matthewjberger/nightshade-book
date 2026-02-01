@@ -1,5 +1,7 @@
 # Lattice Deformation
 
+> **Live Demo:** [Lattice](https://matthewberger.dev/nightshade/lattice)
+
 Lattice deformation (also called Free-Form Deformation or FFD) allows you to deform meshes by manipulating a grid of control points surrounding the mesh.
 
 ## Enabling Lattice

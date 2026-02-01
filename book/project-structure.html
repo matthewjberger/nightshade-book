@@ -209,7 +209,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 use nightshade::prelude::*;
 
 fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    launch(game::MyGame::default())
+    nightshade::run(game::MyGame::default())
 }</code></pre></pre>
 <h2 id="game-state-gamers"><a class="header" href="#game-state-gamers">Game State (game.rs)</a></h2>
 <p>Implement your game logic:</p>

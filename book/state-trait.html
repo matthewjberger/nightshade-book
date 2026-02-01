@@ -309,9 +309,9 @@
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="launching-your-game"><a class="header" href="#launching-your-game">Launching Your Game</a></h2>
-<p>Use the <code>launch</code> function to run your game:</p>
+<p>Use the <code>nightshade::run</code> function to run your game:</p>
 <pre><pre class="playground"><code class="language-rust edition2024">fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    launch(MyGame::default())
+    nightshade::run(MyGame::default())
 }</code></pre></pre>
 <p>Or with an HDR skybox:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]

@@ -1,5 +1,7 @@
 # Materials
 
+> **Live Demos:** [Textures](https://matthewberger.dev/nightshade/textures) | [Alpha Blending](https://matthewberger.dev/nightshade/alpha_blending)
+
 Materials define the visual appearance of meshes using PBR (Physically Based Rendering).
 
 ## Material Structure

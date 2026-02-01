@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Physics Overview - Nightshade Game Engine</title>
+        <title>SDF Sculpting - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,149 +175,271 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
-<p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
-<h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
-<p>Physics is enabled with the <code>physics</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
-</code></pre>
-<h2 id="physics-world"><a class="header" href="#physics-world">Physics World</a></h2>
-<p>The physics world is accessed through resources:</p>
+                        <h1 id="sdf-sculpting"><a class="header" href="#sdf-sculpting">SDF Sculpting</a></h1>
+<p>Nightshade includes a voxel-based Signed Distance Field (SDF) system for real-time terrain sculpting and procedural geometry.</p>
+<h2 id="sdf-world"><a class="header" href="#sdf-world">SDF World</a></h2>
+<p>The SDF system uses a sparse brick map for efficient storage:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let physics = &amp;mut world.resources.physics;
-
-// Configuration
-physics.gravity = Vec3::new(0.0, -9.81, 0.0);
-physics.fixed_timestep = 1.0 / 60.0;
+</span>pub struct SdfWorld {
+    pub brick_map: SparseBrickMap,
+    pub materials: Vec&lt;SdfMaterial&gt;,
+    pub clipmap: SdfClipmap,
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="core-concepts"><a class="header" href="#core-concepts">Core Concepts</a></h2>
-<h3 id="rigid-bodies"><a class="header" href="#rigid-bodies">Rigid Bodies</a></h3>
-<p>Objects that can move and be affected by forces:</p>
-<ul>
-<li><strong>Dynamic</strong>: Affected by gravity and forces</li>
-<li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
-</ul>
-<h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
-<p>Shapes used for collision detection:</p>
-<ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
-<li>Triangle mesh, Heightfield</li>
-<li>Compound shapes</li>
-</ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
-<p>Kinematic bodies with special handling for player movement.</p>
-<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h2 id="enabling-sdf"><a class="header" href="#enabling-sdf">Enabling SDF</a></h2>
+<p>Add the <code>sdf_sculpt</code> feature:</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "sdf_sculpt"] }
+</code></pre>
+<h2 id="sdf-operations"><a class="header" href="#sdf-operations">SDF Operations</a></h2>
+<h3 id="union"><a class="header" href="#union">Union</a></h3>
+<p>Add material:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>sdf_sculpt(
+    world,
+    position,
+    SdfPrimitive::Sphere { radius: 2.0 },
+    SdfOperation::Union,
+    material_index
+);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="subtraction"><a class="header" href="#subtraction">Subtraction</a></h3>
+<p>Remove material (carve):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>sdf_sculpt(
+    world,
+    position,
+    SdfPrimitive::Sphere { radius: 1.5 },
+    SdfOperation::Subtraction,
+    0
+);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="intersection"><a class="header" href="#intersection">Intersection</a></h3>
+<p>Keep only overlapping regions:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>sdf_sculpt(
+    world,
+    position,
+    SdfPrimitive::Box { half_extents: Vec3::new(2.0, 2.0, 2.0) },
+    SdfOperation::Intersection,
+    material_index
+);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="smooth-operations"><a class="header" href="#smooth-operations">Smooth Operations</a></h3>
+<p>Blend operations for organic shapes:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>sdf_sculpt(
+    world,
+    position,
+    SdfPrimitive::Sphere { radius: 1.0 },
+    SdfOperation::SmoothUnion { smoothness: 0.5 },
+    material_index
+);
 
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+sdf_sculpt(
+    world,
+    position,
+    SdfPrimitive::Sphere { radius: 0.8 },
+    SdfOperation::SmoothSubtraction { smoothness: 0.3 },
+    0
+);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="sdf-primitives"><a class="header" href="#sdf-primitives">SDF Primitives</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum SdfPrimitive {
+    Sphere { radius: f32 },
+    Box { half_extents: Vec3 },
+    Capsule { radius: f32, height: f32 },
+    Cylinder { radius: f32, height: f32 },
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="sphere"><a class="header" href="#sphere">Sphere</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Sphere { radius: 1.0 }
+<span class="boring">}</span></code></pre></pre>
+<h3 id="box"><a class="header" href="#box">Box</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Box {
+    half_extents: Vec3::new(1.0, 2.0, 0.5)
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="capsule"><a class="header" href="#capsule">Capsule</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Capsule {
+    radius: 0.5,
+    height: 2.0
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="cylinder"><a class="header" href="#cylinder">Cylinder</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Cylinder {
+    radius: 1.0,
+    height: 3.0
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="sdf-materials"><a class="header" href="#sdf-materials">SDF Materials</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct SdfMaterial {
+    pub color: Vec3,
+    pub roughness: f32,
+    pub metallic: f32,
+}
 
-    // Dynamic cubes
-    for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+world.resources.sdf_world.materials.push(SdfMaterial {
+    color: Vec3::new(0.5, 0.3, 0.2),
+    roughness: 0.8,
+    metallic: 0.0,
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="sculpting-tool-example"><a class="header" href="#sculpting-tool-example">Sculpting Tool Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct SculptTool {
+    brush_size: f32,
+    material: usize,
+    operation: SdfOperation,
+}
+
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let input = &amp;world.resources.input;
+
+    if input.mouse_buttons.left {
+        let ray = screen_to_ray(world, input.mouse_position.x, input.mouse_position.y);
+
+        if let Some(hit) = sdf_raycast(world, ray) {
+            let sculpt_pos = match self.tool.operation {
+                SdfOperation::Union =&gt; hit.point + hit.normal * self.tool.brush_size * 0.5,
+                SdfOperation::Subtraction =&gt; hit.point - hit.normal * self.tool.brush_size * 0.5,
+                _ =&gt; hit.point,
+            };
+
+            sdf_sculpt(
+                world,
+                sculpt_pos,
+                SdfPrimitive::Sphere { radius: self.tool.brush_size },
+                self.tool.operation.clone(),
+                self.tool.material
+            );
+        }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-synchronization"><a class="header" href="#physics-synchronization">Physics Synchronization</a></h2>
-<p>Physics runs at a fixed timestep. Transforms are automatically synchronized:</p>
-<ol>
-<li>Game logic updates entity transforms</li>
-<li>Physics simulation steps (may run multiple times per frame)</li>
-<li>Physics transforms sync back to entities</li>
-<li>Interpolation smooths visual positions</li>
-</ol>
-<h2 id="querying-physics"><a class="header" href="#querying-physics">Querying Physics</a></h2>
-<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
+<h2 id="procedural-generation"><a class="header" href="#procedural-generation">Procedural Generation</a></h2>
+<h3 id="terrain"><a class="header" href="#terrain">Terrain</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::queries::*;
+</span>fn generate_sdf_terrain(world: &amp;mut World, size: f32, height: f32) {
+    let noise = FastNoise::new();
+    noise.set_noise_type(NoiseType::Perlin);
+    noise.set_frequency(0.02);
 
-let ray_origin = Vec3::new(0.0, 5.0, 0.0);
-let ray_direction = Vec3::new(0.0, -1.0, 0.0);
-let max_distance = 100.0;
+    for x in (-size as i32)..(size as i32) {
+        for z in (-size as i32)..(size as i32) {
+            let fx = x as f32;
+            let fz = z as f32;
+            let h = noise.get_noise(fx, fz) * height;
 
-if let Some(hit) = raycast(world, ray_origin, ray_direction, max_distance) {
-    let hit_point = hit.point;
-    let hit_normal = hit.normal;
-    let hit_entity = hit.entity;
+            sdf_sculpt(
+                world,
+                Vec3::new(fx, h * 0.5, fz),
+                SdfPrimitive::Box {
+                    half_extents: Vec3::new(0.5, h.abs() * 0.5 + 0.1, 0.5)
+                },
+                SdfOperation::Union,
+                0
+            );
+        }
+    }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="overlap-tests"><a class="header" href="#overlap-tests">Overlap Tests</a></h3>
+<h3 id="cave-system"><a class="header" href="#cave-system">Cave System</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Check if a sphere overlaps any colliders
-let overlaps = sphere_overlap(world, center, radius);
-for entity in overlaps {
-    // Handle collision
+</span>fn carve_cave(world: &amp;mut World, path: &amp;[Vec3], radius: f32) {
+    for window in path.windows(2) {
+        let start = window[0];
+        let end = window[1];
+        let mid = (start + end) * 0.5;
+
+        sdf_sculpt(
+            world,
+            start,
+            SdfPrimitive::Sphere { radius },
+            SdfOperation::SmoothSubtraction { smoothness: 0.5 },
+            0
+        );
+
+        sdf_sculpt(
+            world,
+            mid,
+            SdfPrimitive::Sphere { radius: radius * 1.2 },
+            SdfOperation::SmoothSubtraction { smoothness: 0.5 },
+            0
+        );
+    }
+
+    sdf_sculpt(
+        world,
+        *path.last().unwrap(),
+        SdfPrimitive::Sphere { radius },
+        SdfOperation::SmoothSubtraction { smoothness: 0.5 },
+        0
+    );
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
-<p>Control friction and bounciness:</p>
+<h2 id="sdf-raycast"><a class="header" href="#sdf-raycast">SDF Raycast</a></h2>
+<p>Query the SDF for intersections:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_physics_material(entity, PhysicsMaterialComponent {
-    friction: 0.5,
-    restitution: 0.3,  // Bounciness
-    density: 1.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Enable physics debug drawing:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.physics.debug_draw = true;
+</span>pub struct SdfHit {
+    pub point: Vec3,
+    pub normal: Vec3,
+    pub material: usize,
+}
 
-// In run_systems
-physics_debug_draw_system(world);
+if let Some(hit) = sdf_raycast(world, ray) {
+    spawn_particle_effect(world, hit.point);
+}
 <span class="boring">}</span></code></pre></pre>
-<p>This renders:</p>
+<h2 id="clipmap-lod"><a class="header" href="#clipmap-lod">Clipmap LOD</a></h2>
+<p>The SDF uses a clipmap for level-of-detail:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct SdfClipmap {
+    pub center: Vec3,
+    pub levels: u32,
+    pub base_resolution: u32,
+}
+
+world.resources.sdf_world.clipmap.center = camera_position;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
 <ul>
-<li>Collider shapes (wireframe)</li>
-<li>Contact points</li>
-<li>Collision normals</li>
+<li>Use smooth operations sparingly (more expensive)</li>
+<li>Batch multiple sculpt operations</li>
+<li>Adjust clipmap resolution for performance vs quality</li>
+<li>SDF rendering uses a dedicated compute shader pass</li>
 </ul>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ol>
-<li>Use simple collider shapes (boxes, spheres) when possible</li>
-<li>Disable collision between groups that don't need it</li>
-<li>Use compound colliders instead of many small colliders</li>
-<li>Set bodies to sleep when inactive</li>
-<li>Use appropriate fixed timestep (60 Hz is standard)</li>
-</ol>
-<h2 id="joints"><a class="header" href="#joints">Joints</a></h2>
-<p>Connect bodies with joints for:</p>
-<ul>
-<li>Doors (revolute)</li>
-<li>Drawers (prismatic)</li>
-<li>Ropes (rope/spring)</li>
-<li>Chains (spherical)</li>
-</ul>
-<p>See <a href="physics-joints.html">Physics Joints</a> for details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="decals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="picking.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="rigid-bodies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="lattice.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -327,11 +449,11 @@ physics_debug_draw_system(world);
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="decals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="picking.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="rigid-bodies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="lattice.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

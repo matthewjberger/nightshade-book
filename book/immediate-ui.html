@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Terrain - Nightshade Game Engine</title>
+        <title>Immediate Mode UI - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,219 +175,277 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="terrain"><a class="header" href="#terrain">Terrain</a></h1>
-<p>Nightshade supports procedural terrain generation with LOD and tessellation.</p>
-<h2 id="enabling-terrain"><a class="header" href="#enabling-terrain">Enabling Terrain</a></h2>
-<p>Terrain requires the <code>terrain</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "terrain"] }
-</code></pre>
-<h2 id="basic-terrain"><a class="header" href="#basic-terrain">Basic Terrain</a></h2>
+                        <h1 id="immediate-mode-ui"><a class="header" href="#immediate-mode-ui">Immediate Mode UI</a></h1>
+<p>In addition to egui, Nightshade provides a lightweight custom immediate-mode UI system for simple in-game interfaces.</p>
+<h2 id="the-immediate_ui-method"><a class="header" href="#the-immediate_ui-method">The immediate_ui() Method</a></h2>
+<p>Implement the <code>immediate_ui()</code> method on your <code>State</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::terrain::*;
-
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    let config = TerrainConfig::default();
-    spawn_terrain(world, config, Vec3::zeros());
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="terrain-configuration"><a class="header" href="#terrain-configuration">Terrain Configuration</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct TerrainConfig {
-    pub chunk_size: f32,         // Size of each terrain chunk
-    pub view_distance: u32,      // How many chunks to render
-    pub patches_per_chunk: u32,  // Subdivision level
-    pub max_tessellation: u32,   // Maximum tessellation level
-    pub min_tessellation: u32,   // Minimum tessellation level
-    pub height_scale: f32,       // Vertical scale
-    pub noise_frequency: f32,    // Noise detail frequency
-    pub noise_octaves: u32,      // Noise layers
-    pub lod_distances: [f32; 5], // LOD transition distances
-}
-
-impl Default for TerrainConfig {
-    fn default() -&gt; Self {
-        Self {
-            chunk_size: 64.0,
-            view_distance: 8,
-            patches_per_chunk: 8,
-            max_tessellation: 16,
-            min_tessellation: 1,
-            height_scale: 50.0,
-            noise_frequency: 0.01,
-            noise_octaves: 6,
-            lod_distances: [50.0, 150.0, 400.0, 800.0, 1600.0],
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="terrain-with-custom-material"><a class="header" href="#terrain-with-custom-material">Terrain with Custom Material</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let snow_material = Material {
-    base_color: [0.95, 0.97, 1.0, 1.0],
-    roughness: 0.85,
-    metallic: 0.0,
-    ..Default::default()
-};
-
-spawn_terrain_with_material(world, config, Vec3::zeros(), snow_material);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="sampling-terrain-height"><a class="header" href="#sampling-terrain-height">Sampling Terrain Height</a></h2>
-<p>Get the terrain height at any position:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn get_ground_height(config: &amp;TerrainConfig, x: f32, z: f32) -&gt; f32 {
-    sample_terrain_height(x, z, config)
-}
-
-// Place object on terrain
-fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, config: &amp;TerrainConfig) {
-    let y = sample_terrain_height(x, z, config);
-
-    if let Some(transform) = world.get_local_transform_mut(entity) {
-        transform.translation = Vec3::new(x, y, z);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="terrain-physics"><a class="header" href="#terrain-physics">Terrain Physics</a></h2>
-<p>Add collision to terrain:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn add_terrain_collision(world: &amp;mut World, config: &amp;TerrainConfig) {
-    // Generate heightfield data
-    let resolution = 64;
-    let mut heights = Vec::new();
-
-    for z in 0..resolution {
-        let mut row = Vec::new();
-        for x in 0..resolution {
-            let world_x = (x as f32 / resolution as f32) * config.chunk_size;
-            let world_z = (z as f32 / resolution as f32) * config.chunk_size;
-            row.push(sample_terrain_height(world_x, world_z, config));
-        }
-        heights.push(row);
-    }
-
-    // Create heightfield collider
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | COLLIDER_COMPONENT,
-        1
-    )[0];
-
-    world.set_collider(entity, ColliderComponent {
-        shape: ColliderShape::Heightfield {
-            heights,
-            scale: Vec3::new(config.chunk_size, 1.0, config.chunk_size),
-        },
-        handle: None,
-    });
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="custom-terrain-pass"><a class="header" href="#custom-terrain-pass">Custom Terrain Pass</a></h2>
-<p>For advanced terrain rendering:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>impl State for TerrainDemo {
-    fn configure_render_graph(
-        &amp;mut self,
-        graph: &amp;mut RenderGraph&lt;World&gt;,
-        device: &amp;wgpu::Device,
-        surface_format: wgpu::TextureFormat,
-        resources: RenderResources,
-    ) {
-        let terrain_pass = TerrainPass::new(
-            device,
-            self.config.clone(),
-            wgpu::TextureFormat::Rgba16Float,
-        );
-
-        graph
-            .pass(Box::new(terrain_pass))
-            .slot("color", resources.scene_color)
-            .slot("depth", resources.depth);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="chunk-management"><a class="header" href="#chunk-management">Chunk Management</a></h2>
-<p>Terrain chunks load/unload based on camera position:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct ChunkManager {
-    loaded_chunks: HashMap&lt;(i32, i32), Entity&gt;,
-    config: TerrainConfig,
-}
-
-impl ChunkManager {
-    fn update(&amp;mut self, world: &amp;mut World, camera_pos: Vec3) {
-        let chunk_x = (camera_pos.x / self.config.chunk_size) as i32;
-        let chunk_z = (camera_pos.z / self.config.chunk_size) as i32;
-
-        // Load nearby chunks
-        for dz in -self.config.view_distance as i32..=self.config.view_distance as i32 {
-            for dx in -self.config.view_distance as i32..=self.config.view_distance as i32 {
-                let key = (chunk_x + dx, chunk_z + dz);
-                if !self.loaded_chunks.contains_key(&amp;key) {
-                    self.load_chunk(world, key);
-                }
-            }
-        }
-
-        // Unload distant chunks
-        self.loaded_chunks.retain(|&amp;(cx, cz), entity| {
-            let dist = ((cx - chunk_x).abs().max((cz - chunk_z).abs())) as u32;
-            if dist &gt; self.config.view_distance + 1 {
-                world.despawn(*entity);
-                false
-            } else {
-                true
+</span>impl State for MyGame {
+    fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+        ui.panel(PanelPosition::Left, 200.0, |ui| {
+            ui.label("Left Panel");
+            if ui.button("Click me") {
+                self.counter += 1;
             }
         });
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="lod-system"><a class="header" href="#lod-system">LOD System</a></h2>
-<p>Terrain automatically adjusts detail based on distance:</p>
+<h2 id="panel-positions"><a class="header" href="#panel-positions">Panel Positions</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// LOD levels are determined by distance from camera
-// lod_distances[0] = highest detail
-// lod_distances[4] = lowest detail
-
-let config = TerrainConfig {
-    lod_distances: [50.0, 150.0, 400.0, 800.0, 1600.0],
-    max_tessellation: 16,
-    min_tessellation: 1,
-    ..Default::default()
-};
+</span>pub enum PanelPosition {
+    Left,
+    Right,
+    Top,
+    Bottom,
+    Central,
+    Floating { x: f32, y: f32 },
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="wireframe-toggle"><a class="header" href="#wireframe-toggle">Wireframe Toggle</a></h2>
-<p>Debug terrain with wireframe:</p>
+<h3 id="side-panels"><a class="header" href="#side-panels">Side Panels</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use std::sync::atomic::{AtomicBool, Ordering};
+</span>ui.panel(PanelPosition::Left, 250.0, |ui| {
+    ui.label("Tools");
+});
 
-static WIREFRAME: AtomicBool = AtomicBool::new(false);
+ui.panel(PanelPosition::Right, 300.0, |ui| {
+    ui.label("Inspector");
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="topbottom-panels"><a class="header" href="#topbottom-panels">Top/Bottom Panels</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.panel(PanelPosition::Top, 50.0, |ui| {
+    ui.horizontal(|ui| {
+        ui.label("Menu Bar");
+    });
+});
 
-fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed &amp;&amp; key == KeyCode::KeyT {
-        let current = WIREFRAME.load(Ordering::Relaxed);
-        WIREFRAME.store(!current, Ordering::Relaxed);
+ui.panel(PanelPosition::Bottom, 100.0, |ui| {
+    ui.label("Status Bar");
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="floating-panels"><a class="header" href="#floating-panels">Floating Panels</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.panel(PanelPosition::Floating { x: 100.0, y: 100.0 }, 200.0, |ui| {
+    ui.label("Floating Window");
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="central-panel"><a class="header" href="#central-panel">Central Panel</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.panel(PanelPosition::Central, 0.0, |ui| {
+    ui.label("Main content area");
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="widgets"><a class="header" href="#widgets">Widgets</a></h2>
+<h3 id="labels"><a class="header" href="#labels">Labels</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.label("Simple text");
+ui.label(format!("Score: {}", self.score));
+<span class="boring">}</span></code></pre></pre>
+<h3 id="buttons"><a class="header" href="#buttons">Buttons</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if ui.button("Start Game") {
+    self.start_game();
+}
+
+if ui.button("Exit") {
+    std::process::exit(0);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="sliders"><a class="header" href="#sliders">Sliders</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.slider("Volume", &amp;mut self.volume, 0.0..100.0);
+ui.slider("Brightness", &amp;mut self.brightness, 0.0..2.0);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="text-input"><a class="header" href="#text-input">Text Input</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.horizontal(|ui| {
+    ui.label("Name:");
+    ui.text_input(&amp;mut self.player_name);
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="checkboxes"><a class="header" href="#checkboxes">Checkboxes</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.checkbox("Fullscreen", &amp;mut self.fullscreen);
+ui.checkbox("VSync", &amp;mut self.vsync);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="layouts"><a class="header" href="#layouts">Layouts</a></h2>
+<h3 id="horizontal-layout"><a class="header" href="#horizontal-layout">Horizontal Layout</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.horizontal(|ui| {
+    if ui.button("Previous") {
+        self.page -= 1;
+    }
+    ui.label(format!("Page {}", self.page));
+    if ui.button("Next") {
+        self.page += 1;
+    }
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="vertical-layout"><a class="header" href="#vertical-layout">Vertical Layout</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.vertical(|ui| {
+    ui.label("Option 1");
+    ui.label("Option 2");
+    ui.label("Option 3");
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="spacing"><a class="header" href="#spacing">Spacing</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ui.space(10.0);
+ui.separator();
+<span class="boring">}</span></code></pre></pre>
+<h2 id="pause-menu-example"><a class="header" href="#pause-menu-example">Pause Menu Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+    if self.paused {
+        ui.panel(PanelPosition::Central, 300.0, |ui| {
+            ui.label("PAUSED");
+            ui.space(20.0);
+
+            if ui.button("Resume") {
+                self.paused = false;
+            }
+
+            if ui.button("Settings") {
+                self.show_settings = true;
+            }
+
+            if ui.button("Quit to Menu") {
+                self.quit_to_menu();
+            }
+        });
     }
 }
 <span class="boring">}</span></code></pre></pre>
+<h2 id="settings-menu-example"><a class="header" href="#settings-menu-example">Settings Menu Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+    if self.show_settings {
+        ui.panel(PanelPosition::Central, 400.0, |ui| {
+            ui.label("Settings");
+            ui.separator();
+
+            ui.label("Audio");
+            ui.slider("Master Volume", &amp;mut self.master_volume, 0.0..100.0);
+            ui.slider("Music Volume", &amp;mut self.music_volume, 0.0..100.0);
+            ui.slider("SFX Volume", &amp;mut self.sfx_volume, 0.0..100.0);
+
+            ui.separator();
+
+            ui.label("Graphics");
+            ui.checkbox("Fullscreen", &amp;mut self.fullscreen);
+            ui.checkbox("VSync", &amp;mut self.vsync);
+            ui.slider("Brightness", &amp;mut self.brightness, 0.5..1.5);
+
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                if ui.button("Apply") {
+                    self.apply_settings(world);
+                }
+                if ui.button("Cancel") {
+                    self.show_settings = false;
+                }
+            });
+        });
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="inventory-ui-example"><a class="header" href="#inventory-ui-example">Inventory UI Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+    ui.panel(PanelPosition::Right, 250.0, |ui| {
+        ui.label("Inventory");
+        ui.separator();
+
+        for (index, item) in self.inventory.items.iter().enumerate() {
+            ui.horizontal(|ui| {
+                ui.label(&amp;item.name);
+                ui.label(format!("x{}", item.quantity));
+                if ui.button("Use") {
+                    self.use_item(index);
+                }
+            });
+        }
+
+        ui.separator();
+        ui.label(format!("Gold: {}", self.gold));
+    });
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="dialog-box-example"><a class="header" href="#dialog-box-example">Dialog Box Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+    if let Some(dialog) = &amp;self.current_dialog {
+        ui.panel(PanelPosition::Bottom, 150.0, |ui| {
+            ui.label(&amp;dialog.speaker);
+            ui.separator();
+            ui.label(&amp;dialog.text);
+            ui.space(10.0);
+
+            ui.horizontal(|ui| {
+                for (index, choice) in dialog.choices.iter().enumerate() {
+                    if ui.button(choice) {
+                        self.select_dialog_choice(index);
+                    }
+                }
+            });
+        });
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="styling"><a class="header" href="#styling">Styling</a></h2>
+<p>The immediate UI uses the engine's built-in styling. Colors and fonts are controlled through the <code>UserInterface</code> resource:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.user_interface.text_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
+world.resources.user_interface.background_color = Vec4::new(0.1, 0.1, 0.1, 0.9);
+world.resources.user_interface.button_color = Vec4::new(0.2, 0.2, 0.2, 1.0);
+world.resources.user_interface.button_hover_color = Vec4::new(0.3, 0.3, 0.3, 1.0);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="when-to-use"><a class="header" href="#when-to-use">When to Use</a></h2>
+<p>Use the immediate UI for:</p>
+<ul>
+<li>Simple in-game menus (pause, settings)</li>
+<li>HUD elements that don't need complex layouts</li>
+<li>Quick prototyping</li>
+</ul>
+<p>Use egui for:</p>
+<ul>
+<li>Complex debug tools</li>
+<li>Editor interfaces</li>
+<li>Forms with many input types</li>
+<li>Dockable windows</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="hud-text.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="egui.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="particles.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="hud-text.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -397,11 +455,11 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="hud-text.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="egui.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="particles.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="hud-text.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

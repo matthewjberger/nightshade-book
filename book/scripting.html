@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Cameras - Nightshade Game Engine</title>
+        <title>Scripting - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,177 +175,328 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="cameras"><a class="header" href="#cameras">Cameras</a></h1>
-<p>Cameras define what the player sees in your game.</p>
-<h2 id="camera-components"><a class="header" href="#camera-components">Camera Components</a></h2>
-<p>A camera entity needs these components:</p>
+                        <h1 id="scripting"><a class="header" href="#scripting">Scripting</a></h1>
+<p>Nightshade supports runtime scripting using <a href="https://rhai.rs/">Rhai</a>, an embedded scripting language for Rust.</p>
+<h2 id="enabling-scripting"><a class="header" href="#enabling-scripting">Enabling Scripting</a></h2>
+<p>Add the <code>scripting</code> feature:</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "scripting"] }
+</code></pre>
+<h2 id="script-component"><a class="header" href="#script-component">Script Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let camera = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA | PERSPECTIVE_CAMERA,
-    1
-)[0];
-<span class="boring">}</span></code></pre></pre>
-<h2 id="spawning-cameras"><a class="header" href="#spawning-cameras">Spawning Cameras</a></h2>
-<h3 id="basic-camera"><a class="header" href="#basic-camera">Basic Camera</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let camera = spawn_camera(
-    world,
-    Vec3::new(0.0, 5.0, 10.0),
-    "Main Camera".to_string(),
-);
-world.resources.active_camera = Some(camera);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="pan-orbit-camera"><a class="header" href="#pan-orbit-camera">Pan-Orbit Camera</a></h3>
-<p>For editor-style camera controls:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use nightshade::ecs::camera::commands::spawn_pan_orbit_camera;
-
-let camera = spawn_pan_orbit_camera(
-    world,
-    Vec3::new(0.0, 2.0, 0.0),  // focus point
-    10.0,                       // radius (distance)
-    0.5,                        // yaw (horizontal angle)
-    0.4,                        // pitch (vertical angle)
-    "Orbit Camera".to_string(),
-);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="camera-systems"><a class="header" href="#camera-systems">Camera Systems</a></h2>
-<h3 id="fly-camera"><a class="header" href="#fly-camera">Fly Camera</a></h3>
-<p>Free-flying camera with WASD controls:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    fly_camera_system(world);
+</span>pub struct Script {
+    pub code: String,
+    pub compiled: Option&lt;rhai::AST&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="pan-orbit-camera-1"><a class="header" href="#pan-orbit-camera-1">Pan-Orbit Camera</a></h3>
-<p>Orbit around a focus point:</p>
+<h2 id="attaching-scripts-to-entities"><a class="header" href="#attaching-scripts-to-entities">Attaching Scripts to Entities</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::camera::systems::pan_orbit_camera_system;
+</span>let entity = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | SCRIPT, 1)[0];
 
-fn run_systems(&amp;mut self, world: &amp;mut World) {
-    pan_orbit_camera_system(world);
-}
+world.set_script(entity, Script {
+    code: r#"
+        fn update(dt) {
+            let pos = get_position(self);
+            set_position(self, pos.x + dt, pos.y, pos.z);
+        }
+    "#.to_string(),
+    compiled: None,
+});
 <span class="boring">}</span></code></pre></pre>
-<h3 id="follow-camera"><a class="header" href="#follow-camera">Follow Camera</a></h3>
-<p>Make camera follow a target:</p>
+<h2 id="script-api"><a class="header" href="#script-api">Script API</a></h2>
+<p>Scripts have access to engine functions:</p>
+<h3 id="transform-functions"><a class="header" href="#transform-functions">Transform Functions</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn follow_camera_system(world: &amp;mut World, target: Entity, camera: Entity) {
-    let Some(target_pos) = world.get_local_transform(target).map(|t| t.translation) else {
-        return;
-    };
+</span>let pos = get_position(entity);
+set_position(entity, x, y, z);
 
-    let offset = Vec3::new(0.0, 5.0, -10.0);
-    let camera_pos = target_pos + offset;
+let rot = get_rotation(entity);
+set_rotation(entity, x, y, z, w);
 
-    if let Some(transform) = world.get_local_transform_mut(camera) {
-        transform.translation = camera_pos;
+let scale = get_scale(entity);
+set_scale(entity, x, y, z);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="entity-functions"><a class="header" href="#entity-functions">Entity Functions</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let new_entity = spawn_entity("cube", x, y, z);
+
+despawn_entity(entity);
+
+let parent = get_parent(entity);
+set_parent(child, parent);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="component-access"><a class="header" href="#component-access">Component Access</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let health = get_component(entity, "health");
+set_component(entity, "health", health - 10);
+
+let has_enemy = has_component(entity, "enemy");
+<span class="boring">}</span></code></pre></pre>
+<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>play_sound("explosion");
+play_sound_at(entity, "footstep");
+stop_sound(entity);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="physics"><a class="header" href="#physics">Physics</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>apply_impulse(entity, x, y, z);
+apply_force(entity, x, y, z);
+set_velocity(entity, x, y, z);
+let vel = get_velocity(entity);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="input"><a class="header" href="#input">Input</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let pressed = is_key_pressed("W");
+let just_pressed = is_key_just_pressed("Space");
+let mouse_x = get_mouse_x();
+let mouse_y = get_mouse_y();
+let left_click = is_mouse_pressed("Left");
+<span class="boring">}</span></code></pre></pre>
+<h3 id="math"><a class="header" href="#math">Math</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let dist = distance(x1, y1, z1, x2, y2, z2);
+let lerped = lerp(a, b, t);
+let clamped = clamp(value, min, max);
+let rand = random();
+let rand_range = random_range(min, max);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="script-lifecycle"><a class="header" href="#script-lifecycle">Script Lifecycle</a></h2>
+<h3 id="updatedt"><a class="header" href="#updatedt">update(dt)</a></h3>
+<p>Called every frame:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_script(entity, Script {
+    code: r#"
+        fn update(dt) {
+            // Move forward
+            let pos = get_position(self);
+            let speed = 5.0;
+            set_position(self, pos.x + speed * dt, pos.y, pos.z);
+        }
+    "#.to_string(),
+    compiled: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="on_collisionother"><a class="header" href="#on_collisionother">on_collision(other)</a></h3>
+<p>Called when colliding with another entity:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_script(entity, Script {
+    code: r#"
+        fn on_collision(other) {
+            if has_component(other, "player") {
+                play_sound("pickup");
+                despawn_entity(self);
+            }
+        }
+    "#.to_string(),
+    compiled: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="on_trigger_enterother--on_trigger_exitother"><a class="header" href="#on_trigger_enterother--on_trigger_exitother">on_trigger_enter(other) / on_trigger_exit(other)</a></h3>
+<p>Called when entering/exiting a trigger volume:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_script(trigger, Script {
+    code: r#"
+        fn on_trigger_enter(other) {
+            if has_component(other, "player") {
+                open_door();
+            }
+        }
+
+        fn on_trigger_exit(other) {
+            if has_component(other, "player") {
+                close_door();
+            }
+        }
+    "#.to_string(),
+    compiled: None,
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="example-scripts"><a class="header" href="#example-scripts">Example Scripts</a></h2>
+<h3 id="rotating-object"><a class="header" href="#rotating-object">Rotating Object</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>r#"
+    let rotation_speed = 1.0;
+
+    fn update(dt) {
+        let rot = get_rotation(self);
+        let angle = rotation_speed * dt;
+        rotate_y(self, angle);
     }
-}
+"#
 <span class="boring">}</span></code></pre></pre>
-<h2 id="perspective-vs-orthographic"><a class="header" href="#perspective-vs-orthographic">Perspective vs Orthographic</a></h2>
-<h3 id="perspective-camera"><a class="header" href="#perspective-camera">Perspective Camera</a></h3>
-<p>Standard 3D perspective with depth:</p>
+<h3 id="follow-player"><a class="header" href="#follow-player">Follow Player</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_perspective_camera(camera, PerspectiveCamera {
-    fov: 1.0,        // ~57 degrees
-    aspect: 16.0 / 9.0,
-    near: 0.1,
-    far: 1000.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h3 id="orthographic-camera"><a class="header" href="#orthographic-camera">Orthographic Camera</a></h3>
-<p>No perspective distortion (useful for 2D or isometric):</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_camera(camera, Camera {
-    projection: ProjectionMode::Orthographic,
-    smoothing: None,
-});
+</span>r#"
+    let speed = 3.0;
+    let player = null;
 
-world.set_orthographic_camera(camera, OrthographicCamera {
-    size: 10.0,
-    near: 0.1,
-    far: 100.0,
-});
+    fn init() {
+        player = find_entity("Player");
+    }
+
+    fn update(dt) {
+        if player == null { return; }
+
+        let my_pos = get_position(self);
+        let player_pos = get_position(player);
+
+        let dx = player_pos.x - my_pos.x;
+        let dz = player_pos.z - my_pos.z;
+        let dist = sqrt(dx * dx + dz * dz);
+
+        if dist &gt; 1.0 {
+            let nx = dx / dist;
+            let nz = dz / dist;
+            set_position(self,
+                my_pos.x + nx * speed * dt,
+                my_pos.y,
+                my_pos.z + nz * speed * dt
+            );
+        }
+    }
+"#
 <span class="boring">}</span></code></pre></pre>
-<h2 id="controlling-pan-orbit-camera"><a class="header" href="#controlling-pan-orbit-camera">Controlling Pan-Orbit Camera</a></h2>
-<p>Modify pan-orbit camera at runtime:</p>
+<h3 id="patrol-between-points"><a class="header" href="#patrol-between-points">Patrol Between Points</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>if let Some(pan_orbit) = world.get_pan_orbit_camera_mut(camera) {
-    // Change focus point
-    pan_orbit.target_focus = Vec3::new(0.0, 2.0, 0.0);
+</span>r#"
+    let waypoints = [];
+    let current_waypoint = 0;
+    let speed = 2.0;
+    let threshold = 0.5;
 
-    // Zoom in/out
-    pan_orbit.target_radius = 5.0;
+    fn init() {
+        waypoints = [
+            [0.0, 0.0, 0.0],
+            [10.0, 0.0, 0.0],
+            [10.0, 0.0, 10.0],
+            [0.0, 0.0, 10.0]
+        ];
+    }
 
-    // Rotate
-    pan_orbit.target_yaw += 0.1;
-    pan_orbit.target_pitch += 0.05;
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="camera-smoothing"><a class="header" href="#camera-smoothing">Camera Smoothing</a></h2>
-<p>Add smoothing for smoother camera movement:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_camera(camera, Camera {
-    projection: ProjectionMode::Perspective,
-    smoothing: Some(CameraSmoothing {
-        position_smoothing: 5.0,
-        rotation_smoothing: 10.0,
-    }),
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="screen-to-world-conversion"><a class="header" href="#screen-to-world-conversion">Screen-to-World Conversion</a></h2>
-<p>Convert screen coordinates to world ray:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use nightshade::ecs::picking::PickingRay;
+    fn update(dt) {
+        let pos = get_position(self);
+        let target = waypoints[current_waypoint];
 
-let screen_pos = Vec2::new(mouse_x, mouse_y);
-if let Some(ray) = PickingRay::from_screen_position(world, screen_pos) {
-    let origin = ray.origin;
-    let direction = ray.direction;
-    // Use ray for picking, projectiles, etc.
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="multiple-cameras"><a class="header" href="#multiple-cameras">Multiple Cameras</a></h2>
-<p>Switch between cameras:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct MyGame {
-    main_camera: Entity,
-    debug_camera: Entity,
-}
+        let dx = target[0] - pos.x;
+        let dz = target[2] - pos.z;
+        let dist = sqrt(dx * dx + dz * dz);
 
-fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed &amp;&amp; key == KeyCode::Tab {
-        let current = world.resources.active_camera;
-        world.resources.active_camera = if current == Some(self.main_camera) {
-            Some(self.debug_camera)
+        if dist &lt; threshold {
+            current_waypoint = (current_waypoint + 1) % waypoints.len();
         } else {
-            Some(self.main_camera)
-        };
+            let nx = dx / dist;
+            let nz = dz / dist;
+            set_position(self,
+                pos.x + nx * speed * dt,
+                pos.y,
+                pos.z + nz * speed * dt
+            );
+        }
     }
+"#
+<span class="boring">}</span></code></pre></pre>
+<h3 id="health-pickup"><a class="header" href="#health-pickup">Health Pickup</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>r#"
+    let heal_amount = 25;
+    let respawn_time = 10.0;
+    let timer = 0.0;
+    let active = true;
+
+    fn update(dt) {
+        if !active {
+            timer -= dt;
+            if timer &lt;= 0.0 {
+                active = true;
+                set_visible(self, true);
+            }
+        }
+    }
+
+    fn on_trigger_enter(other) {
+        if !active { return; }
+
+        if has_component(other, "player") {
+            let health = get_component(other, "health");
+            set_component(other, "health", health + heal_amount);
+            play_sound("heal");
+
+            active = false;
+            timer = respawn_time;
+            set_visible(self, false);
+        }
+    }
+"#
+<span class="boring">}</span></code></pre></pre>
+<h2 id="script-runtime"><a class="header" href="#script-runtime">Script Runtime</a></h2>
+<p>The script runtime manages compilation and execution:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct ScriptRuntime {
+    engine: rhai::Engine,
+    scope: rhai::Scope&lt;'static&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="registering-custom-functions"><a class="header" href="#registering-custom-functions">Registering Custom Functions</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>runtime.engine.register_fn("custom_function", |x: i64, y: i64| {
+    x + y
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="global-variables"><a class="header" href="#global-variables">Global Variables</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>runtime.scope.push("game_difficulty", 1);
+runtime.scope.push("player_score", 0);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="debugging-scripts"><a class="header" href="#debugging-scripts">Debugging Scripts</a></h2>
+<h3 id="print-statements"><a class="header" href="#print-statements">Print Statements</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>r#"
+    fn update(dt) {
+        print("Entity position: " + get_position(self).x);
+    }
+"#
+<span class="boring">}</span></code></pre></pre>
+<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
+<p>Script errors are logged to the console:</p>
+<pre><code>[ERROR] Script error in entity 42: Variable 'undefined_var' not found
+</code></pre>
+<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
+<ul>
+<li>Scripts are compiled once and reused</li>
+<li>Avoid heavy computation in update()</li>
+<li>Use native Rust for performance-critical code</li>
+<li>Minimize entity queries in scripts</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="main-loop.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="lattice.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="meshes-models.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="example-minimal.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -355,11 +506,11 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="main-loop.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="lattice.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="meshes-models.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="example-minimal.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

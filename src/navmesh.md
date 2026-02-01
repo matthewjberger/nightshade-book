@@ -1,5 +1,7 @@
 # Navigation Mesh
 
+> **Live Demo:** [NavMesh](https://matthewberger.dev/nightshade/navmesh)
+
 AI pathfinding using Recast navigation mesh generation.
 
 ## Enabling NavMesh

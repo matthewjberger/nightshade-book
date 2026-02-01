@@ -1,5 +1,7 @@
 # egui Integration
 
+> **Live Demo:** [UI](https://matthewberger.dev/nightshade/ui)
+
 Nightshade integrates [egui](https://github.com/emilk/egui), a popular immediate-mode GUI library for Rust. Use it for debug interfaces, tools, and in-game menus.
 
 ## Enabling egui

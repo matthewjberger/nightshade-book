@@ -1,5 +1,7 @@
 # Physics Playground
 
+> **Live Demo:** [Physics](https://matthewberger.dev/nightshade/physics)
+
 An interactive physics sandbox demonstrating rigid bodies, colliders, joints, and forces.
 
 ## Complete Example

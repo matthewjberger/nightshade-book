@@ -1,5 +1,7 @@
 # Picking System
 
+> **Live Demo:** [Picking](https://matthewberger.dev/nightshade/picking)
+
 Picking allows you to select entities in the 3D world using mouse clicks or screen positions. Nightshade supports both CPU ray-based picking and GPU pixel-perfect picking.
 
 ## Ray Picking

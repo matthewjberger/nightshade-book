@@ -1,5 +1,7 @@
 # Scripting
 
+> **Live Demo:** [Block Breaker with Scripts](https://matthewberger.dev/nightshade/block_breaker_scripts)
+
 Nightshade supports runtime scripting using [Rhai](https://rhai.rs/), an embedded scripting language for Rust.
 
 ## Enabling Scripting

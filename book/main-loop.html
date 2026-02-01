@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Physics Overview - Nightshade Game Engine</title>
+        <title>Main Loop - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,149 +175,213 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
-<p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
-<h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
-<p>Physics is enabled with the <code>physics</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
+                        <h1 id="main-loop"><a class="header" href="#main-loop">Main Loop</a></h1>
+<p>Understanding the frame lifecycle helps you structure game logic correctly and debug timing issues.</p>
+<h2 id="frame-execution-order"><a class="header" href="#frame-execution-order">Frame Execution Order</a></h2>
+<p>Each frame executes in this order:</p>
+<pre><code>1.  Process window/input events (winit)
+2.  Update input state from events
+3.  Calculate delta time
+4.  Begin egui frame (if enabled)
+5.  Call State::run_systems() - Your game logic
+6.  Dispatch EventBus messages
+7.  Update animation players
+8.  Apply animations to transforms
+9.  Propagate transform hierarchy
+10. Step physics simulation (fixed timestep)
+11. Sync physics transforms to ECS
+12. Update audio listener positions
+13. Execute render graph passes
+14. End egui frame
+15. Present to swapchain
 </code></pre>
-<h2 id="physics-world"><a class="header" href="#physics-world">Physics World</a></h2>
-<p>The physics world is accessed through resources:</p>
+<h2 id="timing-resources"><a class="header" href="#timing-resources">Timing Resources</a></h2>
+<h3 id="time"><a class="header" href="#time">Time</a></h3>
+<p>Current frame timing:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let physics = &amp;mut world.resources.physics;
+</span>pub struct Time {
+    pub delta_seconds: f32,
+    pub elapsed_seconds: f32,
+    pub frame_count: u64,
+}
 
-// Configuration
-physics.gravity = Vec3::new(0.0, -9.81, 0.0);
-physics.fixed_timestep = 1.0 / 60.0;
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let dt = world.resources.time.delta_seconds;
+    let total = world.resources.time.elapsed_seconds;
+    let frame = world.resources.time.frame_count;
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="core-concepts"><a class="header" href="#core-concepts">Core Concepts</a></h2>
-<h3 id="rigid-bodies"><a class="header" href="#rigid-bodies">Rigid Bodies</a></h3>
-<p>Objects that can move and be affected by forces:</p>
-<ul>
-<li><strong>Dynamic</strong>: Affected by gravity and forces</li>
-<li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
-</ul>
-<h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
-<p>Shapes used for collision detection:</p>
-<ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
-<li>Triangle mesh, Heightfield</li>
-<li>Compound shapes</li>
-</ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
-<p>Kinematic bodies with special handling for player movement.</p>
-<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h3 id="window-timing"><a class="header" href="#window-timing">Window Timing</a></h3>
+<p>More detailed timing information:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>pub struct WindowTiming {
+    pub frame_count: u64,
+    pub total_time: f32,
+    pub frame_time: f32,
+    pub fps: f32,
+}
 
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+fn show_fps(world: &amp;World) {
+    let fps = world.resources.window.timing.fps;
+    println!("FPS: {:.1}", fps);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="fixed-timestep-physics"><a class="header" href="#fixed-timestep-physics">Fixed Timestep Physics</a></h2>
+<p>Physics runs at a fixed 60 Hz regardless of frame rate:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const PHYSICS_TIMESTEP: f32 = 1.0 / 60.0;
 
-    // Dynamic cubes
-    for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+fn update_physics(world: &amp;mut World, dt: f32) {
+    world.resources.physics_accumulator += dt;
+
+    while world.resources.physics_accumulator &gt;= PHYSICS_TIMESTEP {
+        store_physics_state(world);
+        world.resources.physics.step(PHYSICS_TIMESTEP);
+        world.resources.physics_accumulator -= PHYSICS_TIMESTEP;
+    }
+
+    let alpha = world.resources.physics_accumulator / PHYSICS_TIMESTEP;
+    interpolate_physics_transforms(world, alpha);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="physics-interpolation"><a class="header" href="#physics-interpolation">Physics Interpolation</a></h3>
+<p>For smooth rendering between physics steps:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct PhysicsInterpolation {
+    pub previous_position: Vec3,
+    pub previous_rotation: UnitQuaternion&lt;f32&gt;,
+    pub current_position: Vec3,
+    pub current_rotation: UnitQuaternion&lt;f32&gt;,
+}
+
+fn interpolate_physics_transforms(world: &amp;mut World, alpha: f32) {
+    for entity in world.query(PHYSICS_INTERPOLATION) {
+        let interp = world.get_physics_interpolation(entity).unwrap();
+        let position = interp.previous_position.lerp(&amp;interp.current_position, alpha);
+        let rotation = interp.previous_rotation.slerp(&amp;interp.current_rotation, alpha);
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-synchronization"><a class="header" href="#physics-synchronization">Physics Synchronization</a></h2>
-<p>Physics runs at a fixed timestep. Transforms are automatically synchronized:</p>
-<ol>
-<li>Game logic updates entity transforms</li>
-<li>Physics simulation steps (may run multiple times per frame)</li>
-<li>Physics transforms sync back to entities</li>
-<li>Interpolation smooths visual positions</li>
-</ol>
-<h2 id="querying-physics"><a class="header" href="#querying-physics">Querying Physics</a></h2>
-<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
+<h2 id="system-ordering"><a class="header" href="#system-ordering">System Ordering</a></h2>
+<h3 id="before-physics"><a class="header" href="#before-physics">Before Physics</a></h3>
+<p>Place movement and input handling before physics:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::queries::*;
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    handle_input(world);
 
-let ray_origin = Vec3::new(0.0, 5.0, 0.0);
-let ray_direction = Vec3::new(0.0, -1.0, 0.0);
-let max_distance = 100.0;
+    player_movement_system(world);
 
-if let Some(hit) = raycast(world, ray_origin, ray_direction, max_distance) {
-    let hit_point = hit.point;
-    let hit_normal = hit.normal;
-    let hit_entity = hit.entity;
+    ai_decision_system(world);
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="overlap-tests"><a class="header" href="#overlap-tests">Overlap Tests</a></h3>
+<h3 id="after-physics"><a class="header" href="#after-physics">After Physics</a></h3>
+<p>Query physics results after the step:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Check if a sphere overlaps any colliders
-let overlaps = sphere_overlap(world, center, radius);
-for entity in overlaps {
-    // Handle collision
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let contacts = get_all_contacts(world);
+    for contact in contacts {
+        handle_collision(world, contact);
+    }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
-<p>Control friction and bounciness:</p>
+<h2 id="delta-time-usage"><a class="header" href="#delta-time-usage">Delta Time Usage</a></h2>
+<p>Always multiply movement by delta time for frame-rate independence:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_physics_material(entity, PhysicsMaterialComponent {
-    friction: 0.5,
-    restitution: 0.3,  // Bounciness
-    density: 1.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Enable physics debug drawing:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.physics.debug_draw = true;
+</span>fn move_entity(world: &amp;mut World, entity: Entity, velocity: Vec3) {
+    let dt = world.resources.time.delta_seconds;
 
-// In run_systems
-physics_debug_draw_system(world);
+    if let Some(transform) = world.get_local_transform_mut(entity) {
+        transform.position += velocity * dt;
+    }
+}
 <span class="boring">}</span></code></pre></pre>
-<p>This renders:</p>
-<ul>
-<li>Collider shapes (wireframe)</li>
-<li>Contact points</li>
-<li>Collision normals</li>
-</ul>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
+<h3 id="accumulating-time"><a class="header" href="#accumulating-time">Accumulating Time</a></h3>
+<p>For periodic actions:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct MyGame {
+    spawn_timer: f32,
+}
+
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let dt = world.resources.time.delta_seconds;
+
+    self.spawn_timer += dt;
+    if self.spawn_timer &gt;= 2.0 {
+        spawn_enemy(world);
+        self.spawn_timer = 0.0;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="entry-points"><a class="header" href="#entry-points">Entry Points</a></h2>
+<h3 id="desktop"><a class="header" href="#desktop">Desktop</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024">fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    nightshade::run(MyGame::default())
+}</code></pre></pre>
+<h3 id="wasm"><a class="header" href="#wasm">WASM</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[wasm_bindgen(start)]
+pub async fn start() {
+    nightshade::run_wasm::&lt;MyGame&gt;(WindowConfig::default()).await;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="vr-openxr"><a class="header" href="#vr-openxr">VR (OpenXR)</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024">fn main() {
+    nightshade::launch_xr::&lt;MyGame&gt;(XrConfig::default());
+}</code></pre></pre>
+<h2 id="debugging-frame-issues"><a class="header" href="#debugging-frame-issues">Debugging Frame Issues</a></h2>
+<h3 id="frame-spikes"><a class="header" href="#frame-spikes">Frame Spikes</a></h3>
+<p>If you see occasional stuttering:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let dt = world.resources.time.delta_seconds;
+    if dt &gt; 0.1 {
+        tracing::warn!("Long frame: {:.3}s", dt);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="consistent-slowdown"><a class="header" href="#consistent-slowdown">Consistent Slowdown</a></h3>
+<p>Profile your systems:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let start = std::time::Instant::now();
+
+    expensive_system(world);
+
+    let elapsed = start.elapsed();
+    if elapsed.as_millis() &gt; 5 {
+        tracing::debug!("expensive_system took {:?}", elapsed);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
 <ol>
-<li>Use simple collider shapes (boxes, spheres) when possible</li>
-<li>Disable collision between groups that don't need it</li>
-<li>Use compound colliders instead of many small colliders</li>
-<li>Set bodies to sleep when inactive</li>
-<li>Use appropriate fixed timestep (60 Hz is standard)</li>
+<li><strong>Don't block the main thread</strong>: Use async for file I/O</li>
+<li><strong>Batch similar operations</strong>: Process all enemies together, not interleaved</li>
+<li><strong>Use spatial partitioning</strong>: For collision checks with many entities</li>
+<li><strong>Profile before optimizing</strong>: Measure, don't guess</li>
+<li><strong>Consider fixed timestep for gameplay</strong>: Not just physics</li>
 </ol>
-<h2 id="joints"><a class="header" href="#joints">Joints</a></h2>
-<p>Connect bodies with joints for:</p>
-<ul>
-<li>Doors (revolute)</li>
-<li>Drawers (prismatic)</li>
-<li>Ropes (rope/spring)</li>
-<li>Chains (spherical)</li>
-</ul>
-<p>See <a href="physics-joints.html">Physics Joints</a> for details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="decals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="event-system.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="rigid-bodies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="cameras.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -327,11 +391,11 @@ physics_debug_draw_system(world);
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="decals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="event-system.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="rigid-bodies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="cameras.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -1,5 +1,7 @@
 # Blending & Transitions
 
+> **Live Demos:** [Dance](https://matthewberger.dev/nightshade/dance) | [Morph Targets](https://matthewberger.dev/nightshade/morph)
+
 Smooth transitions between animations using cross-fading.
 
 ## Cross-Fade Transition

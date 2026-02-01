@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Physics Overview - Nightshade Game Engine</title>
+        <title>Lattice Deformation - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,149 +175,238 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
-<p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
-<h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
-<p>Physics is enabled with the <code>physics</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
+                        <h1 id="lattice-deformation"><a class="header" href="#lattice-deformation">Lattice Deformation</a></h1>
+<p>Lattice deformation (also called Free-Form Deformation or FFD) allows you to deform meshes by manipulating a grid of control points surrounding the mesh.</p>
+<h2 id="enabling-lattice"><a class="header" href="#enabling-lattice">Enabling Lattice</a></h2>
+<p>Add the <code>lattice</code> feature:</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "lattice"] }
 </code></pre>
-<h2 id="physics-world"><a class="header" href="#physics-world">Physics World</a></h2>
-<p>The physics world is accessed through resources:</p>
+<h2 id="lattice-component"><a class="header" href="#lattice-component">Lattice Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let physics = &amp;mut world.resources.physics;
+</span>pub struct Lattice {
+    pub resolution: UVec3,
+    pub bounds: Aabb,
+    pub control_points: Vec&lt;Vec3&gt;,
+    pub interpolation: LatticeInterpolation,
+}
 
-// Configuration
-physics.gravity = Vec3::new(0.0, -9.81, 0.0);
-physics.fixed_timestep = 1.0 / 60.0;
+pub enum LatticeInterpolation {
+    Linear,
+    Bezier,
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="core-concepts"><a class="header" href="#core-concepts">Core Concepts</a></h2>
-<h3 id="rigid-bodies"><a class="header" href="#rigid-bodies">Rigid Bodies</a></h3>
-<p>Objects that can move and be affected by forces:</p>
-<ul>
-<li><strong>Dynamic</strong>: Affected by gravity and forces</li>
-<li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
-</ul>
-<h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
-<p>Shapes used for collision detection:</p>
-<ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
-<li>Triangle mesh, Heightfield</li>
-<li>Compound shapes</li>
-</ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
-<p>Kinematic bodies with special handling for player movement.</p>
-<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h2 id="creating-a-lattice"><a class="header" href="#creating-a-lattice">Creating a Lattice</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>fn spawn_lattice(world: &amp;mut World, bounds: Aabb, resolution: UVec3) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LATTICE,
+        1
+    )[0];
 
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+    let total_points = (resolution.x * resolution.y * resolution.z) as usize;
+    let mut control_points = Vec::with_capacity(total_points);
 
-    // Dynamic cubes
-    for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+    for z in 0..resolution.z {
+        for y in 0..resolution.y {
+            for x in 0..resolution.x {
+                let t = Vec3::new(
+                    x as f32 / (resolution.x - 1) as f32,
+                    y as f32 / (resolution.y - 1) as f32,
+                    z as f32 / (resolution.z - 1) as f32,
+                );
+                let pos = bounds.min + (bounds.max - bounds.min).component_mul(&amp;t);
+                control_points.push(pos);
+            }
+        }
+    }
+
+    world.set_lattice(entity, Lattice {
+        resolution,
+        bounds,
+        control_points,
+        interpolation: LatticeInterpolation::Bezier,
+    });
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="influenced-meshes"><a class="header" href="#influenced-meshes">Influenced Meshes</a></h2>
+<p>Mark meshes to be deformed by a lattice:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LatticeInfluenced {
+    pub lattice_entity: Entity,
+    pub original_positions: Vec&lt;Vec3&gt;,
+}
+
+world.set_lattice_influenced(mesh_entity, LatticeInfluenced {
+    lattice_entity: lattice,
+    original_positions: mesh_positions.clone(),
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="manipulating-control-points"><a class="header" href="#manipulating-control-points">Manipulating Control Points</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn bend_lattice(world: &amp;mut World, lattice: Entity, amount: f32) {
+    if let Some(lat) = world.get_lattice_mut(lattice) {
+        let res = lat.resolution;
+
+        for z in 0..res.z {
+            for y in 0..res.y {
+                for x in 0..res.x {
+                    let index = (z * res.y * res.x + y * res.x + x) as usize;
+
+                    let t = x as f32 / (res.x - 1) as f32;
+                    let bend = (t * std::f32::consts::PI).sin() * amount;
+
+                    lat.control_points[index].y += bend;
+                }
+            }
+        }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-synchronization"><a class="header" href="#physics-synchronization">Physics Synchronization</a></h2>
-<p>Physics runs at a fixed timestep. Transforms are automatically synchronized:</p>
-<ol>
-<li>Game logic updates entity transforms</li>
-<li>Physics simulation steps (may run multiple times per frame)</li>
-<li>Physics transforms sync back to entities</li>
-<li>Interpolation smooths visual positions</li>
-</ol>
-<h2 id="querying-physics"><a class="header" href="#querying-physics">Querying Physics</a></h2>
-<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
+<h2 id="deformation-system"><a class="header" href="#deformation-system">Deformation System</a></h2>
+<p>The deformation is applied automatically each frame:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::queries::*;
+</span>fn lattice_deformation_system(world: &amp;mut World) {
+    for entity in world.query(LATTICE_INFLUENCED | RENDER_MESH) {
+        let influenced = world.get_lattice_influenced(entity).unwrap();
+        let lattice = world.get_lattice(influenced.lattice_entity).unwrap();
 
-let ray_origin = Vec3::new(0.0, 5.0, 0.0);
-let ray_direction = Vec3::new(0.0, -1.0, 0.0);
-let max_distance = 100.0;
+        let deformed_positions = compute_deformed_positions(
+            &amp;influenced.original_positions,
+            lattice
+        );
 
-if let Some(hit) = raycast(world, ray_origin, ray_direction, max_distance) {
-    let hit_point = hit.point;
-    let hit_normal = hit.normal;
-    let hit_entity = hit.entity;
+        update_mesh_positions(world, entity, &amp;deformed_positions);
+    }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="overlap-tests"><a class="header" href="#overlap-tests">Overlap Tests</a></h3>
+<h2 id="interpolation-modes"><a class="header" href="#interpolation-modes">Interpolation Modes</a></h2>
+<h3 id="linear"><a class="header" href="#linear">Linear</a></h3>
+<p>Faster but produces faceted results:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Check if a sphere overlaps any colliders
-let overlaps = sphere_overlap(world, center, radius);
-for entity in overlaps {
-    // Handle collision
+</span>lattice.interpolation = LatticeInterpolation::Linear;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="bezier"><a class="header" href="#bezier">Bezier</a></h3>
+<p>Smoother results using Bernstein polynomials:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>lattice.interpolation = LatticeInterpolation::Bezier;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="common-effects"><a class="header" href="#common-effects">Common Effects</a></h2>
+<h3 id="bulge"><a class="header" href="#bulge">Bulge</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn bulge_center(world: &amp;mut World, lattice: Entity, strength: f32) {
+    if let Some(lat) = world.get_lattice_mut(lattice) {
+        let center = (lat.bounds.min + lat.bounds.max) * 0.5;
+        let max_dist = (lat.bounds.max - lat.bounds.min).magnitude() * 0.5;
+
+        for point in &amp;mut lat.control_points {
+            let to_center = center - *point;
+            let dist = to_center.magnitude();
+            let factor = 1.0 - (dist / max_dist).min(1.0);
+            let displacement = to_center.normalize() * factor * factor * strength;
+            *point -= displacement;
+        }
+    }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
-<p>Control friction and bounciness:</p>
+<h3 id="twist"><a class="header" href="#twist">Twist</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_physics_material(entity, PhysicsMaterialComponent {
-    friction: 0.5,
-    restitution: 0.3,  // Bounciness
-    density: 1.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Enable physics debug drawing:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.physics.debug_draw = true;
+</span>fn twist_lattice(world: &amp;mut World, lattice: Entity, angle: f32) {
+    if let Some(lat) = world.get_lattice_mut(lattice) {
+        let height = lat.bounds.max.y - lat.bounds.min.y;
 
-// In run_systems
-physics_debug_draw_system(world);
+        for point in &amp;mut lat.control_points {
+            let t = (point.y - lat.bounds.min.y) / height;
+            let twist_angle = t * angle;
+
+            let x = point.x;
+            let z = point.z;
+            point.x = x * twist_angle.cos() - z * twist_angle.sin();
+            point.z = x * twist_angle.sin() + z * twist_angle.cos();
+        }
+    }
+}
 <span class="boring">}</span></code></pre></pre>
-<p>This renders:</p>
-<ul>
-<li>Collider shapes (wireframe)</li>
-<li>Contact points</li>
-<li>Collision normals</li>
-</ul>
+<h3 id="taper"><a class="header" href="#taper">Taper</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn taper_lattice(world: &amp;mut World, lattice: Entity, top_scale: f32) {
+    if let Some(lat) = world.get_lattice_mut(lattice) {
+        let center_x = (lat.bounds.min.x + lat.bounds.max.x) * 0.5;
+        let center_z = (lat.bounds.min.z + lat.bounds.max.z) * 0.5;
+        let height = lat.bounds.max.y - lat.bounds.min.y;
+
+        for point in &amp;mut lat.control_points {
+            let t = (point.y - lat.bounds.min.y) / height;
+            let scale = 1.0 + (top_scale - 1.0) * t;
+
+            point.x = center_x + (point.x - center_x) * scale;
+            point.z = center_z + (point.z - center_z) * scale;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="wave"><a class="header" href="#wave">Wave</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn wave_lattice(world: &amp;mut World, lattice: Entity, amplitude: f32, frequency: f32, time: f32) {
+    if let Some(lat) = world.get_lattice_mut(lattice) {
+        for point in &amp;mut lat.control_points {
+            let wave = (point.x * frequency + time).sin() * amplitude;
+            point.y += wave;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="animated-deformation"><a class="header" href="#animated-deformation">Animated Deformation</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct BreathingEffect {
+    lattice: Entity,
+    time: f32,
+}
+
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let dt = world.resources.time.delta_seconds;
+    self.breathing.time += dt;
+
+    if let Some(lat) = world.get_lattice_mut(self.breathing.lattice) {
+        let breath = (self.breathing.time * 2.0).sin() * 0.1 + 1.0;
+
+        for point in &amp;mut lat.control_points {
+            let original = get_original_point(point);
+            *point = original * breath;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
 <h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ol>
-<li>Use simple collider shapes (boxes, spheres) when possible</li>
-<li>Disable collision between groups that don't need it</li>
-<li>Use compound colliders instead of many small colliders</li>
-<li>Set bodies to sleep when inactive</li>
-<li>Use appropriate fixed timestep (60 Hz is standard)</li>
-</ol>
-<h2 id="joints"><a class="header" href="#joints">Joints</a></h2>
-<p>Connect bodies with joints for:</p>
 <ul>
-<li>Doors (revolute)</li>
-<li>Drawers (prismatic)</li>
-<li>Ropes (rope/spring)</li>
-<li>Chains (spherical)</li>
+<li>Use lower lattice resolutions (4x4x4 is often sufficient)</li>
+<li>Linear interpolation is faster than Bezier</li>
+<li>Cache original positions to avoid recomputation</li>
+<li>Only update lattice when control points actually change</li>
 </ul>
-<p>See <a href="physics-joints.html">Physics Joints</a> for details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="decals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="sdf-sculpting.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="rigid-bodies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="scripting.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -327,11 +416,11 @@ physics_debug_draw_system(world);
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="decals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="sdf-sculpting.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="rigid-bodies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="scripting.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

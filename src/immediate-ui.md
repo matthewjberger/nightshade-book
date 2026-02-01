@@ -1,5 +1,7 @@
 # Immediate Mode UI
 
+> **Live Demo:** [Menu](https://matthewberger.dev/nightshade/menu)
+
 In addition to egui, Nightshade provides a lightweight custom immediate-mode UI system for simple in-game interfaces.
 
 ## The immediate_ui() Method

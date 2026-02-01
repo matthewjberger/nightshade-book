@@ -1,5 +1,7 @@
 # Lighting
 
+> **Live Demos:** [Lights](https://matthewberger.dev/nightshade/lights) | [Shadows](https://matthewberger.dev/nightshade/shadows) | [Spotlight Shadows](https://matthewberger.dev/nightshade/spotlight_shadows)
+
 Nightshade supports three types of lights: directional, point, and spot lights.
 
 ## Light Types

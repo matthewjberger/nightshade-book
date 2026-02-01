@@ -1,5 +1,7 @@
 # Animation Playback
 
+> **Live Demo:** [Dance](https://matthewberger.dev/nightshade/dance)
+
 Control animation playback through the `AnimationPlayer` component.
 
 ## AnimationPlayer Component

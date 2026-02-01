@@ -1,5 +1,7 @@
 # Introduction
 
+> **[View the Gallery](https://matthewberger.dev/nightshade)** - See live demos of Nightshade's features running in your browser.
+
 **Nightshade** is a modern game engine written in Rust, designed for creating 3D games and interactive applications. It provides a complete toolkit for game development including rendering, physics, audio, animation, and more.
 
 ## What is Nightshade?

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Physics Overview - Nightshade Game Engine</title>
+        <title>Picking System - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,149 +175,243 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
-<p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
-<h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
-<p>Physics is enabled with the <code>physics</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
-</code></pre>
-<h2 id="physics-world"><a class="header" href="#physics-world">Physics World</a></h2>
-<p>The physics world is accessed through resources:</p>
+                        <h1 id="picking-system"><a class="header" href="#picking-system">Picking System</a></h1>
+<p>Picking allows you to select entities in the 3D world using mouse clicks or screen positions. Nightshade supports both CPU ray-based picking and GPU pixel-perfect picking.</p>
+<h2 id="ray-picking"><a class="header" href="#ray-picking">Ray Picking</a></h2>
+<p>Convert a screen position to a ray and test against entity bounds.</p>
+<h3 id="screen-to-ray"><a class="header" href="#screen-to-ray">Screen to Ray</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let physics = &amp;mut world.resources.physics;
+</span>pub struct PickingRay {
+    pub origin: Vec3,
+    pub direction: Vec3,
+}
 
-// Configuration
-physics.gravity = Vec3::new(0.0, -9.81, 0.0);
-physics.fixed_timestep = 1.0 / 60.0;
+let ray = screen_to_ray(world, screen_x, screen_y);
 <span class="boring">}</span></code></pre></pre>
-<h2 id="core-concepts"><a class="header" href="#core-concepts">Core Concepts</a></h2>
-<h3 id="rigid-bodies"><a class="header" href="#rigid-bodies">Rigid Bodies</a></h3>
-<p>Objects that can move and be affected by forces:</p>
-<ul>
-<li><strong>Dynamic</strong>: Affected by gravity and forces</li>
-<li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
-</ul>
-<h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
-<p>Shapes used for collision detection:</p>
-<ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
-<li>Triangle mesh, Heightfield</li>
-<li>Compound shapes</li>
-</ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
-<p>Kinematic bodies with special handling for player movement.</p>
-<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h3 id="pick-closest-entity-aabb"><a class="header" href="#pick-closest-entity-aabb">Pick Closest Entity (AABB)</a></h3>
+<p>Fast picking using axis-aligned bounding boxes:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>if let Some(hit) = pick_closest_entity(world, ray) {
+    let entity = hit.entity;
+    let distance = hit.distance;
+    let point = hit.point;
 
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+    select_entity(world, entity);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="pick-closest-entity-trimesh"><a class="header" href="#pick-closest-entity-trimesh">Pick Closest Entity (Trimesh)</a></h3>
+<p>Precise picking using actual mesh geometry:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(hit) = pick_closest_entity_trimesh(world, ray) {
+    let entity = hit.entity;
+    let point = hit.point;
+    let normal = hit.normal;
 
-    // Dynamic cubes
-    for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+    spawn_decal(world, point, normal);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="pick-result"><a class="header" href="#pick-result">Pick Result</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct PickResult {
+    pub entity: Entity,
+    pub distance: f32,
+    pub point: Vec3,
+    pub normal: Option&lt;Vec3&gt;,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="gpu-picking"><a class="header" href="#gpu-picking">GPU Picking</a></h2>
+<p>Pixel-perfect picking using a dedicated render pass. More accurate but requires a frame delay.</p>
+<h3 id="request-pick"><a class="header" href="#request-pick">Request Pick</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.gpu_picking.request_pick(screen_x, screen_y);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="get-result"><a class="header" href="#get-result">Get Result</a></h3>
+<p>Check for results in the next frame:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(result) = world.resources.gpu_picking.take_result() {
+    let world_position = result.position;
+    let normal = result.normal;
+    let depth = result.depth;
+    let entity_id = result.entity_id;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="gpu-pick-result"><a class="header" href="#gpu-pick-result">GPU Pick Result</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct GpuPickResult {
+    pub entity_id: u32,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub depth: f32,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="mouse-click-selection"><a class="header" href="#mouse-click-selection">Mouse Click Selection</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+    if button == MouseButton::Left &amp;&amp; state == ElementState::Pressed {
+        let mouse_pos = world.resources.input.mouse_position;
+        let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
+
+        if let Some(hit) = pick_closest_entity(world, ray) {
+            self.selected_entity = Some(hit.entity);
+            mark_as_selected(world, hit.entity);
+        } else {
+            self.selected_entity = None;
+            clear_selection(world);
+        }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-synchronization"><a class="header" href="#physics-synchronization">Physics Synchronization</a></h2>
-<p>Physics runs at a fixed timestep. Transforms are automatically synchronized:</p>
-<ol>
-<li>Game logic updates entity transforms</li>
-<li>Physics simulation steps (may run multiple times per frame)</li>
-<li>Physics transforms sync back to entities</li>
-<li>Interpolation smooths visual positions</li>
-</ol>
-<h2 id="querying-physics"><a class="header" href="#querying-physics">Querying Physics</a></h2>
-<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
+<h2 id="hover-detection"><a class="header" href="#hover-detection">Hover Detection</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::queries::*;
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let mouse_pos = world.resources.input.mouse_position;
+    let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
 
-let ray_origin = Vec3::new(0.0, 5.0, 0.0);
-let ray_direction = Vec3::new(0.0, -1.0, 0.0);
-let max_distance = 100.0;
+    for entity in world.query(HOVERED) {
+        world.remove_hovered(entity);
+    }
 
-if let Some(hit) = raycast(world, ray_origin, ray_direction, max_distance) {
-    let hit_point = hit.point;
-    let hit_normal = hit.normal;
-    let hit_entity = hit.entity;
+    if let Some(hit) = pick_closest_entity(world, ray) {
+        world.set_hovered(hit.entity, Hovered);
+    }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="overlap-tests"><a class="header" href="#overlap-tests">Overlap Tests</a></h3>
+<h2 id="raycast-filtering"><a class="header" href="#raycast-filtering">Raycast Filtering</a></h2>
+<p>Pick only specific entity types:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Check if a sphere overlaps any colliders
-let overlaps = sphere_overlap(world, center, radius);
-for entity in overlaps {
-    // Handle collision
+</span>fn pick_enemies_only(world: &amp;World, ray: PickingRay) -&gt; Option&lt;PickResult&gt; {
+    let mut closest: Option&lt;PickResult&gt; = None;
+
+    for entity in world.query(ENEMY | BOUNDING_VOLUME) {
+        let bounds = world.get_bounding_volume(entity).unwrap();
+        if let Some(distance) = ray_aabb_intersection(&amp;ray, &amp;bounds.aabb) {
+            let point = ray.origin + ray.direction * distance;
+            if closest.is_none() || distance &lt; closest.as_ref().unwrap().distance {
+                closest = Some(PickResult {
+                    entity,
+                    distance,
+                    point,
+                    normal: None,
+                });
+            }
+        }
+    }
+
+    closest
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
-<p>Control friction and bounciness:</p>
+<h2 id="drag-selection-box-select"><a class="header" href="#drag-selection-box-select">Drag Selection (Box Select)</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_physics_material(entity, PhysicsMaterialComponent {
-    friction: 0.5,
-    restitution: 0.3,  // Bounciness
-    density: 1.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Enable physics debug drawing:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.physics.debug_draw = true;
+</span>struct BoxSelect {
+    start: Option&lt;Vec2&gt;,
+    end: Option&lt;Vec2&gt;,
+}
 
-// In run_systems
-physics_debug_draw_system(world);
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let input = &amp;world.resources.input;
+
+    if input.mouse_buttons.left_just_pressed {
+        self.box_select.start = Some(input.mouse_position);
+    }
+
+    if input.mouse_buttons.left {
+        self.box_select.end = Some(input.mouse_position);
+    }
+
+    if input.mouse_buttons.left_just_released {
+        if let (Some(start), Some(end)) = (self.box_select.start, self.box_select.end) {
+            let selected = entities_in_screen_rect(world, start, end);
+            self.selected_entities = selected;
+        }
+        self.box_select.start = None;
+        self.box_select.end = None;
+    }
+}
+
+fn entities_in_screen_rect(world: &amp;World, start: Vec2, end: Vec2) -&gt; Vec&lt;Entity&gt; {
+    let min_x = start.x.min(end.x);
+    let max_x = start.x.max(end.x);
+    let min_y = start.y.min(end.y);
+    let max_y = start.y.max(end.y);
+
+    let mut result = Vec::new();
+
+    for entity in world.query(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
+        let screen_pos = world_to_screen(world, entity);
+        if let Some(pos) = screen_pos {
+            if pos.x &gt;= min_x &amp;&amp; pos.x &lt;= max_x &amp;&amp; pos.y &gt;= min_y &amp;&amp; pos.y &lt;= max_y {
+                result.push(entity);
+            }
+        }
+    }
+
+    result
+}
 <span class="boring">}</span></code></pre></pre>
-<p>This renders:</p>
-<ul>
-<li>Collider shapes (wireframe)</li>
-<li>Contact points</li>
-<li>Collision normals</li>
-</ul>
+<h2 id="3d-gizmo-interaction"><a class="header" href="#3d-gizmo-interaction">3D Gizmo Interaction</a></h2>
+<p>Pick transform gizmo handles:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum GizmoHandle {
+    None,
+    TranslateX,
+    TranslateY,
+    TranslateZ,
+    RotateX,
+    RotateY,
+    RotateZ,
+    ScaleX,
+    ScaleY,
+    ScaleZ,
+}
+
+fn pick_gizmo_handle(world: &amp;World, ray: PickingRay, gizmo_position: Vec3) -&gt; GizmoHandle {
+    let x_axis = create_axis_collider(gizmo_position, Vec3::x_axis());
+    let y_axis = create_axis_collider(gizmo_position, Vec3::y_axis());
+    let z_axis = create_axis_collider(gizmo_position, Vec3::z_axis());
+
+    if ray_cylinder_intersection(&amp;ray, &amp;x_axis).is_some() {
+        return GizmoHandle::TranslateX;
+    }
+    if ray_cylinder_intersection(&amp;ray, &amp;y_axis).is_some() {
+        return GizmoHandle::TranslateY;
+    }
+    if ray_cylinder_intersection(&amp;ray, &amp;z_axis).is_some() {
+        return GizmoHandle::TranslateZ;
+    }
+
+    GizmoHandle::None
+}
+<span class="boring">}</span></code></pre></pre>
 <h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
 <ol>
-<li>Use simple collider shapes (boxes, spheres) when possible</li>
-<li>Disable collision between groups that don't need it</li>
-<li>Use compound colliders instead of many small colliders</li>
-<li>Set bodies to sleep when inactive</li>
-<li>Use appropriate fixed timestep (60 Hz is standard)</li>
+<li><strong>Use AABB picking first</strong>: Only use trimesh for precision when needed</li>
+<li><strong>Spatial partitioning</strong>: Use octrees or grids for many entities</li>
+<li><strong>Layer filtering</strong>: Skip entities that can't be picked</li>
+<li><strong>GPU picking for complex scenes</strong>: Better for dense geometry</li>
+<li><strong>Cache bounding volumes</strong>: Don't recompute every frame</li>
 </ol>
-<h2 id="joints"><a class="header" href="#joints">Joints</a></h2>
-<p>Connect bodies with joints for:</p>
-<ul>
-<li>Doors (revolute)</li>
-<li>Drawers (prismatic)</li>
-<li>Ropes (rope/spring)</li>
-<li>Chains (spherical)</li>
-</ul>
-<p>See <a href="physics-joints.html">Physics Joints</a> for details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="decals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="effects-pass.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="rigid-bodies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="sdf-sculpting.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -327,11 +421,11 @@ physics_debug_draw_system(world);
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="decals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="effects-pass.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="rigid-bodies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="sdf-sculpting.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -1,5 +1,7 @@
 # Particle Systems
 
+> **Live Demo:** [Fireworks](https://matthewberger.dev/nightshade/fireworks)
+
 GPU-accelerated particle systems for fire, smoke, snow, and other effects.
 
 ## Creating a Particle Emitter

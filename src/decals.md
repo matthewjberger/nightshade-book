@@ -1,5 +1,7 @@
 # Decals
 
+> **Live Demo:** [Decals](https://matthewberger.dev/nightshade/decals)
+
 Decals are textures projected onto scene geometry, commonly used for bullet holes, blood splatters, footprints, and environmental details.
 
 ## Decal Component

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Physics Overview - Nightshade Game Engine</title>
+        <title>Event System - Nightshade Game Engine</title>
 
 
         <!-- Custom HTML head -->
@@ -175,149 +175,197 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="physics-overview"><a class="header" href="#physics-overview">Physics Overview</a></h1>
-<p>Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.</p>
-<h2 id="enabling-physics"><a class="header" href="#enabling-physics">Enabling Physics</a></h2>
-<p>Physics is enabled with the <code>physics</code> feature:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
-</code></pre>
-<h2 id="physics-world"><a class="header" href="#physics-world">Physics World</a></h2>
-<p>The physics world is accessed through resources:</p>
+                        <h1 id="event-system"><a class="header" href="#event-system">Event System</a></h1>
+<p>Nightshade provides an event bus for decoupled communication between systems. Events are published to a queue and consumed by interested systems.</p>
+<h2 id="eventbus"><a class="header" href="#eventbus">EventBus</a></h2>
+<p>The event bus is accessible through <code>world.resources.event_bus</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let physics = &amp;mut world.resources.physics;
+</span>pub struct EventBus {
+    pub messages: VecDeque&lt;Message&gt;,
+}
 
-// Configuration
-physics.gravity = Vec3::new(0.0, -9.81, 0.0);
-physics.fixed_timestep = 1.0 / 60.0;
+pub enum Message {
+    Input(InputMessage),
+    App(Box&lt;dyn Any + Send + Sync&gt;),
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="core-concepts"><a class="header" href="#core-concepts">Core Concepts</a></h2>
-<h3 id="rigid-bodies"><a class="header" href="#rigid-bodies">Rigid Bodies</a></h3>
-<p>Objects that can move and be affected by forces:</p>
-<ul>
-<li><strong>Dynamic</strong>: Affected by gravity and forces</li>
-<li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
-</ul>
-<h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
-<p>Shapes used for collision detection:</p>
-<ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
-<li>Triangle mesh, Heightfield</li>
-<li>Compound shapes</li>
-</ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
-<p>Kinematic bodies with special handling for player movement.</p>
-<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h2 id="defining-custom-events"><a class="header" href="#defining-custom-events">Defining Custom Events</a></h2>
+<p>Create a struct for your event:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>pub struct EnemyDied {
+    pub entity: Entity,
+    pub position: Vec3,
+    pub killer: Option&lt;Entity&gt;,
+}
 
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+pub struct PlayerLeveledUp {
+    pub new_level: u32,
+    pub skills_unlocked: Vec&lt;String&gt;,
+}
 
-    // Dynamic cubes
-    for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+pub struct ItemPickedUp {
+    pub item_type: ItemType,
+    pub quantity: u32,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="publishing-events"><a class="header" href="#publishing-events">Publishing Events</a></h2>
+<p>Use <code>publish_app_event</code> to send events:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn combat_system(world: &amp;mut World, game: &amp;mut GameState) {
+    for enemy in world.query(ENEMY | HEALTH) {
+        let health = world.get_health(enemy).unwrap();
+        if health.current &lt;= 0 {
+            let position = world.get_global_transform(enemy)
+                .map(|t| t.matrix.column(3).xyz())
+                .unwrap_or(Vec3::zeros());
+
+            publish_app_event(world, EnemyDied {
+                entity: enemy,
+                position,
+                killer: game.last_attacker,
+            });
+
+            world.despawn(enemy);
+        }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-synchronization"><a class="header" href="#physics-synchronization">Physics Synchronization</a></h2>
-<p>Physics runs at a fixed timestep. Transforms are automatically synchronized:</p>
-<ol>
-<li>Game logic updates entity transforms</li>
-<li>Physics simulation steps (may run multiple times per frame)</li>
-<li>Physics transforms sync back to entities</li>
-<li>Interpolation smooths visual positions</li>
-</ol>
-<h2 id="querying-physics"><a class="header" href="#querying-physics">Querying Physics</a></h2>
-<h3 id="raycasting"><a class="header" href="#raycasting">Raycasting</a></h3>
+<h2 id="consuming-events"><a class="header" href="#consuming-events">Consuming Events</a></h2>
+<p>Process events in your game loop:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::queries::*;
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    while let Some(msg) = world.resources.event_bus.messages.pop_front() {
+        match msg {
+            Message::App(event) =&gt; {
+                if let Some(died) = event.downcast_ref::&lt;EnemyDied&gt;() {
+                    self.handle_enemy_death(world, died);
+                }
+                if let Some(levelup) = event.downcast_ref::&lt;PlayerLeveledUp&gt;() {
+                    self.show_levelup_ui(levelup);
+                }
+                if let Some(pickup) = event.downcast_ref::&lt;ItemPickedUp&gt;() {
+                    self.update_inventory(pickup);
+                }
+            }
+            Message::Input(input_msg) =&gt; {
+                self.handle_input_message(input_msg);
+            }
+        }
+    }
+}
 
-let ray_origin = Vec3::new(0.0, 5.0, 0.0);
-let ray_direction = Vec3::new(0.0, -1.0, 0.0);
-let max_distance = 100.0;
-
-if let Some(hit) = raycast(world, ray_origin, ray_direction, max_distance) {
-    let hit_point = hit.point;
-    let hit_normal = hit.normal;
-    let hit_entity = hit.entity;
+fn handle_enemy_death(&amp;mut self, world: &amp;mut World, event: &amp;EnemyDied) {
+    spawn_explosion_effect(world, event.position);
+    play_sound(world, "enemy_death", PlaybackSettings::default());
+    self.score += 100;
+    self.enemies_killed += 1;
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="overlap-tests"><a class="header" href="#overlap-tests">Overlap Tests</a></h3>
+<h2 id="event-patterns"><a class="header" href="#event-patterns">Event Patterns</a></h2>
+<h3 id="one-to-many-communication"><a class="header" href="#one-to-many-communication">One-to-Many Communication</a></h3>
+<p>Events allow one system to notify multiple listeners without direct coupling:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Check if a sphere overlaps any colliders
-let overlaps = sphere_overlap(world, center, radius);
-for entity in overlaps {
-    // Handle collision
+</span>publish_app_event(world, DoorOpened { door_id: 42 });
+<span class="boring">}</span></code></pre></pre>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(door) = event.downcast_ref::&lt;DoorOpened&gt;() {
+    trigger_cutscene(world, door.door_id);
+}
+
+if let Some(door) = event.downcast_ref::&lt;DoorOpened&gt;() {
+    play_door_sound(world, door.door_id);
+}
+
+if let Some(door) = event.downcast_ref::&lt;DoorOpened&gt;() {
+    update_minimap(world, door.door_id);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>
-<p>Control friction and bounciness:</p>
+<h3 id="deferred-actions"><a class="header" href="#deferred-actions">Deferred Actions</a></h3>
+<p>Events let you schedule actions without immediate execution:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_physics_material(entity, PhysicsMaterialComponent {
-    friction: 0.5,
-    restitution: 0.3,  // Bounciness
-    density: 1.0,
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Enable physics debug drawing:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.physics.debug_draw = true;
+</span>pub struct SpawnEnemy {
+    pub enemy_type: EnemyType,
+    pub position: Vec3,
+    pub delay_frames: u32,
+}
 
-// In run_systems
-physics_debug_draw_system(world);
+fn wave_spawner_system(world: &amp;mut World, pending: &amp;mut Vec&lt;SpawnEnemy&gt;) {
+    pending.retain_mut(|spawn| {
+        if spawn.delay_frames == 0 {
+            spawn_enemy(world, spawn.enemy_type, spawn.position);
+            false
+        } else {
+            spawn.delay_frames -= 1;
+            true
+        }
+    });
+}
 <span class="boring">}</span></code></pre></pre>
-<p>This renders:</p>
-<ul>
-<li>Collider shapes (wireframe)</li>
-<li>Contact points</li>
-<li>Collision normals</li>
-</ul>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
+<h3 id="request-response-pattern"><a class="header" href="#request-response-pattern">Request-Response Pattern</a></h3>
+<p>For queries that need responses, use a shared resource:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct DamageRequest {
+    pub target: Entity,
+    pub amount: f32,
+    pub damage_type: DamageType,
+}
+
+pub struct DamageResult {
+    pub target: Entity,
+    pub actual_damage: f32,
+    pub killed: bool,
+}
+
+fn damage_system(world: &amp;mut World, requests: &amp;[DamageRequest]) -&gt; Vec&lt;DamageResult&gt; {
+    requests.iter().map(|req| {
+        let actual = apply_damage(world, req.target, req.amount, req.damage_type);
+        let killed = is_dead(world, req.target);
+        DamageResult {
+            target: req.target,
+            actual_damage: actual,
+            killed,
+        }
+    }).collect()
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="input-messages"><a class="header" href="#input-messages">Input Messages</a></h2>
+<p>The event bus also handles input-related messages:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum InputMessage {
+    KeyPressed(KeyCode),
+    KeyReleased(KeyCode),
+    MouseMoved { x: f32, y: f32 },
+    MouseButton { button: MouseButton, pressed: bool },
+    GamepadButton { button: GamepadButton, pressed: bool },
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
 <ol>
-<li>Use simple collider shapes (boxes, spheres) when possible</li>
-<li>Disable collision between groups that don't need it</li>
-<li>Use compound colliders instead of many small colliders</li>
-<li>Set bodies to sleep when inactive</li>
-<li>Use appropriate fixed timestep (60 Hz is standard)</li>
+<li><strong>Keep events small</strong>: Only include necessary data</li>
+<li><strong>Use descriptive names</strong>: <code>PlayerDied</code> not <code>Event1</code></li>
+<li><strong>Process events each frame</strong>: Don't let the queue grow unbounded</li>
+<li><strong>Consider event ordering</strong>: Events are processed in FIFO order</li>
+<li><strong>Avoid circular events</strong>: A handling B which triggers A can cause infinite loops</li>
 </ol>
-<h2 id="joints"><a class="header" href="#joints">Joints</a></h2>
-<p>Connect bodies with joints for:</p>
-<ul>
-<li>Doors (revolute)</li>
-<li>Drawers (prismatic)</li>
-<li>Ropes (rope/spring)</li>
-<li>Chains (spherical)</li>
-</ul>
-<p>See <a href="physics-joints.html">Physics Joints</a> for details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="decals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="scene-hierarchy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="rigid-bodies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="main-loop.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -327,11 +375,11 @@ physics_debug_draw_system(world);
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="decals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="scene-hierarchy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="rigid-bodies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="main-loop.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

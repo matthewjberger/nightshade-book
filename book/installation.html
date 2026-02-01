@@ -205,7 +205,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git", feature
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 
 fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    launch(MyGame::default())
+    nightshade::run(MyGame::default())
 }
 
 #[derive(Default)]

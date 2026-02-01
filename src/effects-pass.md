@@ -1,5 +1,7 @@
 # Effects Pass
 
+> **Live Demo:** [PSX Retro Effects](https://matthewberger.dev/nightshade/psx)
+
 The EffectsPass is a configurable post-processing system with 38 shader parameters for visual effects. It includes distortions, color grading, raymarched overlays, retro effects, and more.
 
 ## Overview

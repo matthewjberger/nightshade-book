@@ -1,5 +1,7 @@
 # Physics Overview
 
+> **Live Demo:** [Physics](https://matthewberger.dev/nightshade/physics)
+
 Nightshade integrates Rapier3D for physics simulation, providing rigid body dynamics, collision detection, and character controllers.
 
 ## Enabling Physics
