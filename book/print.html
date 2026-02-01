@@ -10620,6 +10620,229 @@ impl RepeatingTimer {
     }
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
+<p>Common terms used in game development and Nightshade.</p>
+<h2 id="a"><a class="header" href="#a">A</a></h2>
+<p><strong>Alpha Blending</strong>
+Technique for rendering transparent objects by mixing colors based on alpha (transparency) values.</p>
+<p><strong>Alpha Cutoff</strong>
+Threshold for alpha testing. Pixels with alpha below this value are discarded entirely.</p>
+<p><strong>Ambient Light</strong>
+Constant, directionless light that illuminates all surfaces equally. Simulates indirect illumination.</p>
+<p><strong>Ambient Occlusion (AO)</strong>
+Technique that darkens creases and corners where ambient light would be blocked. See SSAO.</p>
+<p><strong>Animation Blending</strong>
+Smoothly transitioning between two animations by interpolating their transforms.</p>
+<p><strong>Animation Clip</strong>
+A single named animation (e.g., "walk", "run", "idle") containing keyframed transforms.</p>
+<p><strong>Aspect Ratio</strong>
+Width divided by height of the viewport (e.g., 16:9 = 1.777).</p>
+<h2 id="b"><a class="header" href="#b">B</a></h2>
+<p><strong>Billboard</strong>
+A sprite that always faces the camera, commonly used for particles and distant objects.</p>
+<p><strong>Bind Pose</strong>
+The default pose of a skeletal mesh before any animation is applied.</p>
+<p><strong>Bloom</strong>
+Post-processing effect that creates a glow around bright areas.</p>
+<p><strong>Bone</strong>
+A joint in a skeletal hierarchy used for animation. Also called a joint.</p>
+<h2 id="c"><a class="header" href="#c">C</a></h2>
+<p><strong>Cascaded Shadow Maps (CSM)</strong>
+Technique using multiple shadow maps at different resolutions for different distances.</p>
+<p><strong>CCD (Continuous Collision Detection)</strong>
+Physics technique to prevent fast-moving objects from passing through thin surfaces.</p>
+<p><strong>Character Controller</strong>
+A kinematic physics body designed for player movement with special handling for steps and slopes.</p>
+<p><strong>Collider</strong>
+A simplified shape used for physics collision detection (box, sphere, capsule, etc.).</p>
+<p><strong>Component</strong>
+Data attached to an entity in an ECS. Contains no logic, only state.</p>
+<p><strong>Culling</strong>
+Excluding objects from rendering if they're outside the view or occluded.</p>
+<h2 id="d"><a class="header" href="#d">D</a></h2>
+<p><strong>Delta Time (dt)</strong>
+Time elapsed since the previous frame. Used to make movement frame-rate independent.</p>
+<p><strong>Depth Buffer (Z-Buffer)</strong>
+Texture storing the distance of each pixel from the camera. Used for depth testing.</p>
+<p><strong>Diffuse</strong>
+The base color of a surface, independent of view angle.</p>
+<p><strong>Dynamic Body</strong>
+A physics body affected by forces, gravity, and collisions.</p>
+<h2 id="e"><a class="header" href="#e">E</a></h2>
+<p><strong>ECS (Entity Component System)</strong>
+Architecture where entities are IDs, components are data, and systems are logic.</p>
+<p><strong>Emission/Emissive</strong>
+Light that a surface produces itself, independent of external lighting.</p>
+<p><strong>Entity</strong>
+A unique identifier that groups related components together. Has no data itself.</p>
+<p><strong>Euler Angles</strong>
+Representation of rotation as three angles (pitch, yaw, roll). Can suffer from gimbal lock.</p>
+<p><strong>Exposure</strong>
+Brightness adjustment simulating camera exposure settings.</p>
+<h2 id="f"><a class="header" href="#f">F</a></h2>
+<p><strong>Far Plane</strong>
+Maximum distance from the camera at which objects are rendered.</p>
+<p><strong>FFT (Fast Fourier Transform)</strong>
+Algorithm to convert audio from time domain to frequency domain.</p>
+<p><strong>Field of View (FOV)</strong>
+Angle of the visible area. Typically 60-90 degrees for games.</p>
+<p><strong>Forward Rendering</strong>
+Rendering each object completely in one pass. Simple but expensive with many lights.</p>
+<p><strong>Frame</strong>
+One complete update and render cycle.</p>
+<p><strong>Frustum</strong>
+The 3D region visible to the camera, shaped like a truncated pyramid.</p>
+<h2 id="g"><a class="header" href="#g">G</a></h2>
+<p><strong>G-Buffer</strong>
+Textures storing geometry information (normals, depth, albedo) for deferred rendering.</p>
+<p><strong>Gimbal Lock</strong>
+Loss of one degree of freedom when two rotation axes align. Quaternions avoid this.</p>
+<p><strong>glTF/GLB</strong>
+Standard 3D model format. glTF is JSON + binary, GLB is single binary file.</p>
+<p><strong>Global Transform</strong>
+World-space transformation after parent transforms are applied.</p>
+<h2 id="h"><a class="header" href="#h">H</a></h2>
+<p><strong>HDR (High Dynamic Range)</strong>
+Color values exceeding 0-1 range, allowing for realistic lighting before tonemapping.</p>
+<p><strong>Heightfield</strong>
+A 2D grid of height values representing terrain or other surfaces.</p>
+<p><strong>Hierarchy</strong>
+Parent-child relationships between entities where child transforms are relative to parents.</p>
+<h2 id="i"><a class="header" href="#i">I</a></h2>
+<p><strong>Index Buffer</strong>
+List of vertex indices defining triangles. Allows vertex reuse.</p>
+<p><strong>Instancing</strong>
+Rendering many copies of the same mesh efficiently in a single draw call.</p>
+<p><strong>Interpolation</strong>
+Smoothly blending between two values. Linear interpolation (lerp) is most common.</p>
+<h2 id="j"><a class="header" href="#j">J</a></h2>
+<p><strong>Joint</strong>
+Connection point between physics bodies with constraints on movement.</p>
+<h2 id="k"><a class="header" href="#k">K</a></h2>
+<p><strong>Keyframe</strong>
+A specific value at a specific time in an animation. Values are interpolated between keyframes.</p>
+<p><strong>Kinematic Body</strong>
+A physics body moved by code that affects dynamic bodies but isn't affected by physics.</p>
+<h2 id="l"><a class="header" href="#l">L</a></h2>
+<p><strong>LDR (Low Dynamic Range)</strong>
+Standard 0-1 color range suitable for display.</p>
+<p><strong>Lerp (Linear Interpolation)</strong>
+Blending between two values: <code>result = a + (b - a) * t</code> where t is 0-1.</p>
+<p><strong>LOD (Level of Detail)</strong>
+Using simpler meshes for distant objects to improve performance.</p>
+<p><strong>Local Transform</strong>
+Position, rotation, scale relative to the parent entity (or world if no parent).</p>
+<h2 id="m"><a class="header" href="#m">M</a></h2>
+<p><strong>Material</strong>
+Defines how a surface looks: color, roughness, metallic, textures, etc.</p>
+<p><strong>Mesh</strong>
+Geometry defined by vertices and indices forming triangles.</p>
+<p><strong>Metallic</strong>
+PBR property indicating whether a surface is metal (1.0) or dielectric (0.0).</p>
+<p><strong>Mipmaps</strong>
+Pre-calculated, progressively smaller versions of a texture for efficient sampling at distance.</p>
+<p><strong>Morph Targets</strong>
+Vertex positions for blending between shapes (facial expressions, etc.). Also called blend shapes.</p>
+<h2 id="n"><a class="header" href="#n">N</a></h2>
+<p><strong>NavMesh (Navigation Mesh)</strong>
+Simplified geometry representing walkable areas for AI pathfinding.</p>
+<p><strong>Near Plane</strong>
+Minimum distance from camera at which objects are rendered. Objects closer are clipped.</p>
+<p><strong>Normal Map</strong>
+Texture encoding surface direction variations to simulate detail without geometry.</p>
+<h2 id="o"><a class="header" href="#o">O</a></h2>
+<p><strong>Occlusion</strong>
+When one object blocks another from view or light.</p>
+<p><strong>Orthographic Projection</strong>
+Parallel projection with no perspective. Objects don't get smaller with distance.</p>
+<h2 id="p"><a class="header" href="#p">P</a></h2>
+<p><strong>PBR (Physically Based Rendering)</strong>
+Material model based on real-world physics for consistent, realistic lighting.</p>
+<p><strong>Perspective Projection</strong>
+Projection where distant objects appear smaller, simulating human vision.</p>
+<p><strong>Pitch</strong>
+Rotation around the X (left-right) axis. Looking up/down.</p>
+<p><strong>Point Light</strong>
+Light emitting equally in all directions from a point.</p>
+<p><strong>Prefab</strong>
+Pre-configured entity template that can be instantiated multiple times.</p>
+<h2 id="q"><a class="header" href="#q">Q</a></h2>
+<p><strong>Quaternion</strong>
+4D number representing rotation without gimbal lock. Used for smooth interpolation.</p>
+<p><strong>Query</strong>
+Finding entities that have specific components.</p>
+<h2 id="r"><a class="header" href="#r">R</a></h2>
+<p><strong>Raycast</strong>
+Tracing a line through space to find intersections with geometry.</p>
+<p><strong>Render Graph</strong>
+Declarative system for defining rendering passes and their dependencies.</p>
+<p><strong>Render Pass</strong>
+A single stage of rendering (shadow pass, color pass, post-processing pass).</p>
+<p><strong>Rigid Body</strong>
+Physics object that doesn't deform. Can be dynamic, kinematic, or static.</p>
+<p><strong>Roll</strong>
+Rotation around the Z (forward) axis. Tilting sideways.</p>
+<p><strong>Roughness</strong>
+PBR property controlling how scattered light reflections are. 0=mirror, 1=diffuse.</p>
+<h2 id="s"><a class="header" href="#s">S</a></h2>
+<p><strong>Skinning</strong>
+Deforming mesh vertices based on bone positions. Used for character animation.</p>
+<p><strong>Skybox</strong>
+Cubemap texture surrounding the scene representing distant environment.</p>
+<p><strong>Slerp (Spherical Linear Interpolation)</strong>
+Interpolation for quaternions that maintains constant angular velocity.</p>
+<p><strong>Specular</strong>
+Mirror-like reflection of light. Intensity depends on view angle.</p>
+<p><strong>Spot Light</strong>
+Light emitting in a cone shape, like a flashlight.</p>
+<p><strong>SSAO (Screen-Space Ambient Occlusion)</strong>
+Post-processing technique approximating ambient occlusion from depth buffer.</p>
+<p><strong>Static Body</strong>
+Physics body that never moves. Used for floors, walls, terrain.</p>
+<p><strong>System</strong>
+Logic that operates on entities with specific components.</p>
+<h2 id="t"><a class="header" href="#t">T</a></h2>
+<p><strong>Tessellation</strong>
+Subdividing geometry into smaller triangles for detail.</p>
+<p><strong>Texture</strong>
+2D image mapped onto 3D geometry.</p>
+<p><strong>Tonemapping</strong>
+Converting HDR colors to displayable LDR range.</p>
+<p><strong>Transform</strong>
+Position, rotation, and scale of an object in 3D space.</p>
+<p><strong>Transparency</strong>
+See Alpha Blending.</p>
+<p><strong>Trimesh (Triangle Mesh)</strong>
+Collision shape using actual mesh geometry. Accurate but expensive.</p>
+<h2 id="u"><a class="header" href="#u">U</a></h2>
+<p><strong>UV Coordinates</strong>
+2D texture coordinates mapping texture pixels to mesh vertices.</p>
+<p><strong>Uniform</strong>
+Shader constant that's the same for all vertices/pixels in a draw call.</p>
+<h2 id="v"><a class="header" href="#v">V</a></h2>
+<p><strong>Vertex</strong>
+Point in 3D space with position, normal, texture coordinates, etc.</p>
+<p><strong>Vertex Buffer</strong>
+GPU memory containing vertex data.</p>
+<p><strong>Vignette</strong>
+Post-processing effect darkening screen edges.</p>
+<p><strong>Vulkan</strong>
+Low-level graphics API. Used by wgpu on Windows/Linux.</p>
+<h2 id="w"><a class="header" href="#w">W</a></h2>
+<p><strong>WebGPU</strong>
+Modern web graphics API. Used by wgpu for cross-platform rendering.</p>
+<p><strong>World Space</strong>
+Global coordinate system. Contrast with local/object space.</p>
+<p><strong>wgpu</strong>
+Rust graphics library providing cross-platform GPU access.</p>
+<h2 id="y"><a class="header" href="#y">Y</a></h2>
+<p><strong>Yaw</strong>
+Rotation around the Y (up) axis. Looking left/right.</p>
+<h2 id="z"><a class="header" href="#z">Z</a></h2>
+<p><strong>Z-Buffer</strong>
+See Depth Buffer.</p>
+<p><strong>Z-Fighting</strong>
+Visual artifacts when two surfaces are at nearly the same depth.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h1>
 <p>Common issues and their solutions.</p>
 <h2 id="compilation-errors"><a class="header" href="#compilation-errors">Compilation Errors</a></h2>

@@ -94,4 +94,5 @@
 - [Platform Support](appendix-platforms.md)
 - [API Quick Reference](appendix-api.md)
 - [Cookbook](appendix-cookbook.md)
+- [Glossary](appendix-glossary.md)
 - [Troubleshooting](appendix-troubleshooting.md)
