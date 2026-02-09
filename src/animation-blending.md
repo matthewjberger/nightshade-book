@@ -114,7 +114,7 @@ fn update_locomotion(world: &mut World, entity: Entity, speed: f32, indices: &An
 
     if let Some(index) = target_anim {
         if let Some(player) = world.get_animation_player_mut(entity) {
-            if player.current_clip != index {
+            if player.current_clip != Some(index) {
                 player.blend_to(index, 0.2);
             }
 
@@ -148,8 +148,10 @@ fn try_attack(world: &mut World, entity: Entity, attack_anim: usize, current_sta
 fn check_attack_finished(world: &World, entity: Entity) -> bool {
     if let Some(player) = world.get_animation_player(entity) {
         if !player.looping {
-            let clip = &player.clips[player.current_clip];
-            return player.time >= clip.duration * 0.9;  // 90% complete
+            if let Some(index) = player.current_clip {
+                let clip = &player.clips[index];
+                return player.time >= clip.duration * 0.9;
+            }
         }
     }
     false
@@ -176,7 +178,8 @@ When animations include movement:
 fn apply_root_motion(world: &mut World, entity: Entity) {
     let Some(player) = world.get_animation_player(entity) else { return };
 
-    let clip = &player.clips[player.current_clip];
+    let Some(current_index) = player.current_clip else { return };
+    let clip = &player.clips[current_index];
     // Extract root bone translation from animation
     // Apply to character controller
 

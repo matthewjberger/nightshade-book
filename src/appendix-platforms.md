@@ -166,7 +166,7 @@ Game.app/
 ### Requirements
 
 - Modern browser with WebGPU support
-- Chrome 113+, Edge 113+, Firefox (Nightly with flag)
+- Chrome 113+, Edge 113+, Firefox 141+
 
 ### Building
 

@@ -10,15 +10,15 @@ The easiest way to get started:
 use nightshade::ecs::physics::character::*;
 
 fn initialize(&mut self, world: &mut World) {
-    let (player_entity, camera_entity) = spawn_first_person_player(
+    let player_entity = spawn_first_person_player(
         world,
-        Vec3::new(0.0, 2.0, 0.0),  // Spawn position
+        Vec3::new(0.0, 2.0, 0.0),
+        1.8,
+        0.3,
     );
 
     self.player = Some(player_entity);
-    world.resources.active_camera = Some(camera_entity);
 
-    // Customize controller
     if let Some(controller) = world.get_character_controller_mut(player_entity) {
         controller.max_speed = 5.0;
         controller.sprint_speed_multiplier = 2.0;

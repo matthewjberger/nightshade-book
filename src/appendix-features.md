@@ -2,77 +2,198 @@
 
 Nightshade uses Cargo feature flags to enable optional functionality. This allows you to include only the features you need, reducing compile times and binary size.
 
-## Core Features
+## Default Features
 
-### `engine`
+Nightshade defaults to `["engine", "wgpu"]`:
 
-The main engine feature. Required for all applications.
+```toml
+[dependencies]
+nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
+```
+
+This gives you the full engine with the wgpu rendering backend. You only need to specify features explicitly if you want additional optional features or a minimal configuration.
+
+## Aggregate Features
+
+### `engine` (default)
+
+The main engine feature. Includes everything needed for building games.
 
 ```toml
 nightshade = { git = "...", features = ["engine"] }
 ```
 
-**Includes:**
+**Includes:** `runtime`, `assets`, `scene_graph`, `picking`, `file_dialog`, `async_runtime`, `terrain`, `screenshot`, plus rand, rayon, ehttp, and WASM support libraries.
+
+**Provides:**
 - Window creation and event loop
 - wgpu rendering backend
 - ECS (freecs)
 - Transform hierarchy
 - Camera systems
-- Mesh rendering
-- Material system
-- Lighting (directional, point, spot)
-- Post-processing (bloom, tonemapping)
+- Mesh rendering and GPU instancing
+- PBR material system
+- Lighting (directional, point, spot) with shadows
+- Post-processing (bloom, SSAO, depth of field, tonemapping)
+- Procedural atmospheres (sky, clouds, space, nebula)
 - glTF/GLB model loading
-- Input handling (keyboard, mouse)
-- Timing system
+- Scene save/load
+- Input handling (keyboard, mouse, touch)
+- Procedural terrain
+- Picking (bounding box ray casting)
+- File dialogs
+- Screenshot capture
+
+### `runtime`
+
+Minimal rendering without asset loading. Use for lightweight apps that don't need glTF/image loading.
+
+```toml
+nightshade = { default-features = false, features = ["runtime", "wgpu", "egui"] }
+```
+
+**Includes:** `core`, `text`, `behaviors`.
+
+### `full`
+
+Everything in `engine` plus all major optional features.
+
+```toml
+nightshade = { git = "...", features = ["full"] }
+```
+
+**Includes:** `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `plugins`.
+
+## Granular Features
+
+These provide fine-grained control over dependencies:
+
+### `core`
+
+Foundation: ECS (freecs), math (nalgebra, nalgebra-glm), windowing (winit), time (web-time), graph (petgraph), tracing, UUIDs.
+
+### `text`
+
+3D text rendering using fontdue. Requires `core`.
+
+### `assets`
+
+Asset loading: gltf, image, half, bincode, serde_json, lz4 compression. Requires `core`.
+
+### `scene_graph`
+
+Scene hierarchy system with save/load. Requires `assets`.
+
+### `terrain`
+
+Procedural terrain generation using noise. Requires `core`.
+
+### `file_dialog`
+
+Native file dialogs using rfd and dirs. Requires `core`.
+
+### `async_runtime`
+
+Tokio async runtime for non-blocking asset loading. Requires `core`. Falls back to pollster if disabled.
+
+### `screenshot`
+
+PNG screenshot saving using image.
+
+### `picking`
+
+Ray-based entity picking with bounding box intersection. Trimesh picking requires `physics`.
+
+### `behaviors`
+
+Built-in behavior components and systems.
+
+## Rendering
+
+### `wgpu` (default)
+
+WebGPU-based rendering backend supporting DirectX 12, Metal, Vulkan, and WebGPU.
+
+## Optional Features
+
+### `egui`
+
+Immediate mode GUI framework. Enables `fn ui()` on the State trait.
+
+```toml
+nightshade = { git = "...", features = ["egui"] }
+```
+
+**Additional Dependencies:** egui, egui-winit, egui-wgpu, egui_tiles
+
+### `shell`
+
+Developer console with command registration. Press backtick to open. Requires `egui`.
+
+```toml
+nightshade = { git = "...", features = ["shell"] }
+```
+
+### `audio`
+
+Audio playback using Kira.
+
+```toml
+nightshade = { git = "...", features = ["audio"] }
+```
+
+**Provides:**
+- Sound loading (WAV, OGG, MP3, FLAC)
+- Sound playback with volume, pitch, panning
+- Spatial/3D audio with distance attenuation
+- Audio listener and source components
+- Looping and one-shot sounds
+
+### `fft`
+
+FFT-based audio analysis for music-reactive applications. Requires `audio`.
+
+```toml
+nightshade = { git = "...", features = ["audio", "fft"] }
+```
+
+**Provides:**
+- Real-time FFT spectral analysis
+- Six-band frequency decomposition (sub-bass to highs)
+- Beat detection (kick, snare, hi-hat)
+- BPM estimation and beat phase tracking
+- Spectral features (centroid, flatness, rolloff, flux)
+- Onset detection with adaptive thresholding
+
+**Additional Dependencies:** rustfft
 
 ### `physics`
 
 Rapier3D physics integration.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "physics"] }
+nightshade = { git = "...", features = ["physics"] }
 ```
 
-**Includes:**
+**Provides:**
 - Rigid body simulation (dynamic, kinematic, static)
 - Collider shapes (box, sphere, capsule, cylinder, cone, convex hull, trimesh, heightfield)
-- Collision detection and callbacks
-- Physics joints (fixed, revolute, prismatic, spherical, rope, spring)
+- Collision detection
 - Character controllers
-- Raycasting
-- Continuous collision detection (CCD)
+- Physics interpolation for smooth rendering
+- Trimesh picking (when combined with `picking`)
 
 **Additional Dependencies:** rapier3d
-
-### `audio`
-
-Kira audio engine integration.
-
-```toml
-nightshade = { git = "...", features = ["engine", "audio"] }
-```
-
-**Includes:**
-- Sound loading (WAV, OGG, MP3, FLAC)
-- Sound playback with volume, pitch, panning
-- Spatial/3D audio
-- Audio listener component
-- Sound emitter components
-- Looping and one-shot sounds
-- Sound pooling
-
-**Additional Dependencies:** kira
 
 ### `gamepad`
 
 Gamepad/controller support via gilrs.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "gamepad"] }
+nightshade = { git = "...", features = ["gamepad"] }
 ```
 
-**Includes:**
+**Provides:**
 - Gamepad detection and hot-plugging
 - Button input (face buttons, triggers, bumpers, D-pad)
 - Analog stick input with deadzone handling
@@ -80,182 +201,198 @@ nightshade = { git = "...", features = ["engine", "gamepad"] }
 - Rumble/vibration
 - Multiple gamepad support
 
-**Additional Dependencies:** gilrs
-
-## Advanced Features
-
-### `terrain`
-
-Procedural terrain generation with LOD.
-
-```toml
-nightshade = { git = "...", features = ["engine", "terrain"] }
-```
-
-**Includes:**
-- Procedural noise-based terrain
-- GPU tessellation
-- Level-of-detail (LOD) system
-- Chunk streaming
-- Terrain height sampling
-- Custom terrain materials
-
-### `grass`
-
-GPU-accelerated grass rendering.
-
-```toml
-nightshade = { git = "...", features = ["engine", "grass"] }
-```
-
-**Includes:**
-- Instanced grass blades (up to 500,000)
-- Wind animation
-- Grass interaction/bending
-- Multiple grass species
-- LOD-based density
-- Terrain integration
-- Subsurface scattering
-- Anisotropic specular
-
-**Requires:** `terrain` feature for terrain integration
-
 ### `navmesh`
 
 AI navigation mesh generation via Recast.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "navmesh"] }
+nightshade = { git = "...", features = ["navmesh"] }
 ```
 
-**Includes:**
-- Navigation mesh generation from geometry
-- Pathfinding queries
-- NavMesh agent component
-- Off-mesh connections (ladders, teleports)
-- Area costs/weights
-- Dynamic obstacle avoidance
+**Provides:**
+- Navigation mesh generation from world geometry
+- A* and Dijkstra pathfinding
+- NavMesh agent component with autonomous movement
+- Height sampling on navigation mesh
+- Debug visualization
 
-**Additional Dependencies:** recast-rs
+**Additional Dependencies:** rerecast, glam
 
-### `screenshot`
+### `scripting`
 
-Screenshot capture functionality.
+Rhai scripting runtime for dynamic behavior.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "screenshot"] }
+nightshade = { git = "...", features = ["scripting"] }
 ```
 
-**Includes:**
-- Frame capture to PNG
-- Custom resolution screenshots
-- HDR capture
+### `fbx`
 
-## Rendering Features
-
-### `psx`
-
-PlayStation 1-style retro rendering.
+FBX model loading using ufbx. Requires `assets`.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "psx"] }
+nightshade = { git = "...", features = ["fbx"] }
 ```
 
-**Includes:**
-- Vertex snapping (wobbly vertices)
-- Affine texture mapping
-- Low-resolution rendering
-- Dithering
-- Limited color palette
+### `lattice`
 
-### `ssao`
-
-Screen-space ambient occlusion.
+Lattice deformation system for free-form mesh deformation.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "ssao"] }
+nightshade = { git = "...", features = ["lattice"] }
 ```
 
-**Includes:**
-- SSAO render pass
-- Configurable radius and intensity
-- Blur pass for soft shadows
+### `sdf_sculpt`
 
-### `fft`
-
-FFT-based audio analysis for music-reactive applications.
+Signed Distance Field sculpting system.
 
 ```toml
-nightshade = { git = "...", features = ["engine", "audio", "fft"] }
+nightshade = { git = "...", features = ["sdf_sculpt"] }
 ```
 
-**Includes:**
-- Real-time FFT spectral analysis
-- Six-band frequency decomposition (sub-bass to highs)
-- Beat detection (kick, snare, hi-hat)
-- BPM estimation and beat phase tracking
-- Music structure detection (buildups, drops, breakdowns)
-- Spectral features (centroid, flatness, rolloff, flux)
-- Onset detection with adaptive thresholding
+## Platform Features
 
-**Additional Dependencies:** rustfft
+### `openxr`
 
-**Requires:** `audio` feature
+OpenXR VR support. Uses Vulkan backend. Provides `launch_xr()` entry point, VR input (head/hand tracking, controllers), and locomotion.
+
+```toml
+nightshade = { git = "...", features = ["openxr"] }
+```
+
+**Additional Dependencies:** openxr, ash, wgpu-hal, gpu-allocator
+
+### `steam`
+
+Steamworks integration for achievements, stats, multiplayer, and friends.
+
+```toml
+nightshade = { git = "...", features = ["steam"] }
+```
+
+**Additional Dependencies:** steamworks, steamworks-sys
+
+### `webview`
+
+Bidirectional IPC for hosting web frontends (Leptos, Yew, etc.) inside a nightshade window.
+
+```toml
+nightshade = { git = "...", features = ["webview"] }
+```
+
+**Additional Dependencies:** wry, tiny_http, include_dir
+
+### `mosaic`
+
+Multi-pane desktop application framework with dockable tile-based layouts, services, themes, and built-in viewport widgets.
+
+```toml
+nightshade = { git = "...", features = ["mosaic"] }
+```
+
+### `mcp`
+
+Model Context Protocol server for AI-driven scene manipulation.
+
+```toml
+nightshade = { git = "...", features = ["mcp"] }
+```
+
+**Additional Dependencies:** axum, rmcp, schemars
+
+### `windows-app-icon`
+
+Embed a custom icon into Windows executables at build time.
+
+## Profiling Features
+
+### `tracing`
+
+Rolling log files and `RUST_LOG` support via tracing-appender.
+
+### `tracy`
+
+Real-time profiling with Tracy. Implies `tracing`.
+
+### `chrome`
+
+Chrome tracing output for `chrome://tracing`. Implies `tracing`.
+
+## Plugin Features
+
+### `plugins`
+
+Guest-side WASM plugin API for creating plugins.
+
+### `plugin_runtime`
+
+WASM plugin hosting via Wasmtime. Requires `assets`.
+
+## Terminal Features
+
+### `tui`
+
+Terminal UI framework built on the engine's rendering. Requires `runtime`.
+
+### `terminal`
+
+Crossterm-based terminal applications without the full rendering pipeline.
 
 ## Feature Combinations
 
-### Minimal Game
+### Minimal Rendering App
 
 ```toml
-[dependencies]
-nightshade = { git = "...", features = ["engine"] }
+nightshade = { default-features = false, features = ["runtime", "wgpu", "egui"] }
 ```
 
-Just rendering and input. Good for simple visualizations.
+Lightweight egui app without asset loading.
 
 ### Standard Game
 
 ```toml
-[dependencies]
-nightshade = { git = "...", features = ["engine", "physics", "audio", "gamepad"] }
+nightshade = { git = "...", features = ["egui", "physics", "audio", "gamepad"] }
 ```
 
-Full game features without terrain/grass.
+Full game features with UI, physics, audio, and gamepad.
 
 ### Open World Game
 
 ```toml
-[dependencies]
 nightshade = { git = "...", features = [
-    "engine",
+    "egui",
     "physics",
     "audio",
     "gamepad",
-    "terrain",
-    "grass",
     "navmesh",
 ] }
 ```
 
-Everything for large outdoor environments.
+Everything for large outdoor environments with AI pathfinding.
 
-### Retro Game
+### VR Game
 
 ```toml
-[dependencies]
-nightshade = { git = "...", features = ["engine", "physics", "psx"] }
+nightshade = { git = "...", features = ["openxr", "physics", "audio"] }
 ```
 
-PlayStation 1-style rendering with physics.
+Virtual reality with physics and audio.
 
 ### Music Visualizer
 
 ```toml
-[dependencies]
-nightshade = { git = "...", features = ["engine", "audio", "fft"] }
+nightshade = { git = "...", features = ["audio", "fft"] }
 ```
 
 Audio-reactive visualizations with FFT analysis.
+
+### Desktop Tool
+
+```toml
+nightshade = { git = "...", features = ["mosaic", "egui"] }
+```
+
+Multi-pane desktop application with dockable widgets.
 
 ## Feature Dependencies
 
@@ -263,111 +400,45 @@ Some features have implicit dependencies:
 
 | Feature | Depends On |
 |---------|------------|
-| `grass` | Optionally uses `terrain` |
-| `navmesh` | None |
-| `terrain` | None |
-| `psx` | None |
-| `ssao` | None |
-| `audio` | None |
-| `physics` | None |
-| `gamepad` | None |
-| `fft` | Requires `audio` |
-
-## Compile-Time Impact
-
-Features affect compile times and binary sizes:
-
-| Feature | Compile Time | Binary Size |
-|---------|-------------|-------------|
-| `engine` | Base | Base |
-| `physics` | +15-20% | +2-3 MB |
-| `audio` | +10-15% | +1-2 MB |
-| `gamepad` | +5-10% | +0.5 MB |
-| `terrain` | +5% | +0.5 MB |
-| `grass` | +5% | +0.5 MB |
-| `navmesh` | +10-15% | +1-2 MB |
-| `screenshot` | +2% | +0.2 MB |
-| `psx` | +2% | +0.1 MB |
-| `ssao` | +2% | +0.1 MB |
-| `fft` | +5% | +0.5 MB |
+| `engine` | `runtime`, `assets`, `scene_graph`, `picking`, `terrain`, `file_dialog`, `async_runtime`, `screenshot` |
+| `runtime` | `core`, `text`, `behaviors` |
+| `full` | `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `plugins` |
+| `shell` | `egui` |
+| `fbx` | `assets` |
+| `scene_graph` | `assets` |
+| `assets` | `core` |
+| `text` | `core` |
+| `terrain` | `core` |
+| `plugin_runtime` | `assets` |
+| `mcp` | `async_runtime`, `behaviors` |
+| `tracy` | `tracing` |
+| `chrome` | `tracing` |
+| `openxr` | `wgpu` (Vulkan backend) |
 
 ## Checking Enabled Features
 
-At runtime, check if features are enabled:
-
-```rust
-#[cfg(feature = "physics")]
-fn setup_physics(world: &mut World) {
-    // Physics-specific code
-}
-
-#[cfg(feature = "audio")]
-fn setup_audio(world: &mut World) {
-    // Audio-specific code
-}
-```
-
-## Conditional Compilation
-
-Write code that works with or without features:
+Use `cfg` attributes for conditional compilation:
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
-    spawn_fly_camera(world);
-    spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+    let camera = spawn_camera(world, Vec3::new(5.0, 3.0, 5.0), "Camera".to_string());
+    world.resources.active_camera = Some(camera);
+    spawn_sun(world);
 
     #[cfg(feature = "physics")]
     {
-        let cube = spawn_primitive(world, Primitive::Cube);
-        add_rigid_body(world, cube, RigidBodyType::Dynamic, 1.0);
-        add_collider(world, cube, ColliderShape::Box {
-            half_extents: Vec3::new(0.5, 0.5, 0.5),
-        });
+        let entity = world.spawn_entities(
+            RIGID_BODY | COLLIDER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | RENDER_MESH,
+            1,
+        )[0];
+        world.set_rigid_body(entity, RigidBodyComponent::new_dynamic());
+        world.set_collider(entity, ColliderComponent::cuboid(0.5, 0.5, 0.5));
     }
 
     #[cfg(feature = "audio")]
     {
-        load_sound(world, "music", "assets/audio/background.ogg");
-        play_sound(world, "music");
-    }
-
-    #[cfg(feature = "terrain")]
-    {
-        spawn_terrain(world, TerrainConfig::default(), Vec3::zeros());
+        let source = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+        world.set_audio_source(source, AudioSource::new("music").with_looping(true).playing());
     }
 }
 ```
-
-## Default Features
-
-Nightshade has no default features. You must explicitly enable what you need:
-
-```toml
-# This won't compile - no features enabled
-nightshade = { git = "..." }
-
-# This works - engine feature enabled
-nightshade = { git = "...", features = ["engine"] }
-```
-
-## All Features
-
-Enable everything:
-
-```toml
-nightshade = { git = "...", features = [
-    "engine",
-    "physics",
-    "audio",
-    "gamepad",
-    "terrain",
-    "grass",
-    "navmesh",
-    "screenshot",
-    "psx",
-    "ssao",
-    "fft",
-] }
-```
-
-This is only recommended for development/experimentation. For release builds, enable only what you need.

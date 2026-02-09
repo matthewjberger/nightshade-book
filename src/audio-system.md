@@ -80,17 +80,17 @@ fade_sound(world, "music", 0.0, 2.0);  // Fade to 0 volume over 2 seconds
 ### Master Volume
 
 ```rust
-world.resources.audio_engine.set_master_volume(0.8);
+world.resources.audio.set_master_volume(0.8);
 ```
 
 ### Category Volumes
 
 ```rust
 // Music volume
-world.resources.audio_engine.set_music_volume(0.7);
+world.resources.audio.set_music_volume(0.7);
 
 // Effects volume
-world.resources.audio_engine.set_sfx_volume(1.0);
+world.resources.audio.set_sfx_volume(1.0);
 ```
 
 ## Sound Variations
@@ -126,13 +126,11 @@ Attach sounds to entities:
 ```rust
 let entity = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
 
-world.set_audio_source(entity, AudioSource {
-    sound_name: "engine_loop".to_string(),
-    spatial: true,
-    volume: 1.0,
-    loop_sound: true,
-    playing: true,
-});
+world.set_audio_source(entity, AudioSource::new("engine_loop")
+    .with_spatial(true)
+    .with_looping(true)
+    .playing(),
+);
 ```
 
 ## Audio Listener

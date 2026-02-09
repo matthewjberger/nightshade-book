@@ -42,7 +42,7 @@ impl State for FirstPersonGame {
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
 
         self.update_player_movement(world, dt);
         self.update_weapon_sway(world, dt);
@@ -53,8 +53,8 @@ impl State for FirstPersonGame {
         update_character_controller(world);
     }
 
-    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-        if state == KeyState::Pressed {
+    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+        if state == ElementState::Pressed {
             match key {
                 KeyCode::Escape => self.toggle_pause(world),
                 KeyCode::KeyR => self.reload_weapon(),
@@ -63,7 +63,7 @@ impl State for FirstPersonGame {
         }
     }
 
-    fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {
+    fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
         if button == MouseButton::Left && state == ElementState::Pressed {
             self.fire_weapon(world);
         }
@@ -96,13 +96,7 @@ impl FirstPersonGame {
             velocity: Vec3::zeros(),
         });
 
-        world.set_collider(player, ColliderComponent {
-            shape: ColliderShape::Capsule {
-                half_height: 0.6,
-                radius: 0.3,
-            },
-            handle: None,
-        });
+        world.set_collider(player, ColliderComponent::capsule(0.3, 1.2));
 
         let camera = world.spawn_entities(
             LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA | PARENT,
@@ -115,11 +109,13 @@ impl FirstPersonGame {
         });
 
         world.set_camera(camera, Camera {
-            fov: 75.0_f32.to_radians(),
-            near: 0.1,
-            far: 1000.0,
-            active: true,
-            ..Default::default()
+            projection: Projection::Perspective(PerspectiveCamera {
+                y_fov_rad: 75.0_f32.to_radians(),
+                z_near: 0.1,
+                z_far: Some(1000.0),
+                aspect_ratio: None,
+            }),
+            smoothing: None,
         });
 
         world.set_parent(camera, Parent(player));
@@ -146,11 +142,7 @@ impl FirstPersonGame {
     }
 
     fn setup_level(&mut self, world: &mut World) {
-        let floor = spawn_primitive(world, Primitive::Plane);
-        world.set_local_transform(floor, LocalTransform {
-            scale: Vec3::new(50.0, 1.0, 50.0),
-            ..Default::default()
-        });
+        let floor = spawn_plane_at(world, Vec3::zeros());
         world.set_material(floor, Material {
             base_color: [0.3, 0.3, 0.3, 1.0],
             roughness: 0.9,
@@ -161,7 +153,7 @@ impl FirstPersonGame {
         });
 
         for index in 0..10 {
-            let wall = spawn_primitive(world, Primitive::Cube);
+            let wall = spawn_cube_at(world, Vec3::zeros());
             let angle = index as f32 * std::f32::consts::TAU / 10.0;
             let distance = 20.0;
 
@@ -181,7 +173,7 @@ impl FirstPersonGame {
         }
 
         for index in 0..5 {
-            let crate_entity = spawn_primitive(world, Primitive::Cube);
+            let crate_entity = spawn_cube_at(world, Vec3::zeros());
             world.set_local_transform(crate_entity, LocalTransform {
                 translation: Vec3::new(
                     (index as f32 - 2.0) * 3.0,
@@ -204,7 +196,7 @@ impl FirstPersonGame {
     }
 
     fn setup_lighting(&mut self, world: &mut World) {
-        spawn_directional_light(world, Vec3::new(-0.5, -1.0, -0.3));
+        spawn_sun(world);
 
         world.resources.graphics.ambient_intensity = 0.1;
     }
@@ -399,7 +391,7 @@ impl FirstPersonGame {
 }
 
 fn main() {
-    nightshade::run(FirstPersonGame::default());
+    nightshade::launch(FirstPersonGame::default());
 }
 ```
 
@@ -464,5 +456,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "...", features = ["engine", "physics", "audio"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "physics", "audio"] }
 ```

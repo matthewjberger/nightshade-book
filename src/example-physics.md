@@ -47,7 +47,7 @@ impl State for PhysicsPlayground {
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
 
         self.update_held_object(world);
         self.update_ui(world);
@@ -55,8 +55,8 @@ impl State for PhysicsPlayground {
         update_physics(world, dt);
     }
 
-    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-        if state == KeyState::Pressed {
+    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+        if state == ElementState::Pressed {
             match key {
                 KeyCode::Digit1 => self.spawn_mode = SpawnMode::Cube,
                 KeyCode::Digit2 => self.spawn_mode = SpawnMode::Sphere,
@@ -71,7 +71,7 @@ impl State for PhysicsPlayground {
         }
     }
 
-    fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {
+    fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
         match (button, state) {
             (MouseButton::Left, ElementState::Pressed) => {
                 self.spawn_object(world);
@@ -92,11 +92,7 @@ impl State for PhysicsPlayground {
 
 impl PhysicsPlayground {
     fn setup_environment(&mut self, world: &mut World) {
-        let floor = spawn_primitive(world, Primitive::Plane);
-        world.set_local_transform(floor, LocalTransform {
-            scale: Vec3::new(50.0, 1.0, 50.0),
-            ..Default::default()
-        });
+        let floor = spawn_plane_at(world, Vec3::zeros());
         world.set_material(floor, Material {
             base_color: [0.3, 0.3, 0.35, 1.0],
             roughness: 0.8,
@@ -108,7 +104,7 @@ impl PhysicsPlayground {
 
         self.spawn_walls(world);
 
-        spawn_directional_light(world, Vec3::new(-0.5, -1.0, -0.3));
+        spawn_sun(world);
         world.resources.graphics.ambient_intensity = 0.2;
     }
 
@@ -121,12 +117,7 @@ impl PhysicsPlayground {
         ];
 
         for (position, half_extents) in wall_positions {
-            let wall = spawn_primitive(world, Primitive::Cube);
-            world.set_local_transform(wall, LocalTransform {
-                translation: position,
-                scale: half_extents * 2.0,
-                ..Default::default()
-            });
+            let wall = spawn_cube_at(world, position);
             world.set_material(wall, Material {
                 base_color: [0.4, 0.4, 0.45, 1.0],
                 roughness: 0.9,
@@ -171,13 +162,11 @@ impl PhysicsPlayground {
     }
 
     fn spawn_cube(&self, world: &mut World, position: Vec3) -> Entity {
-        let cube = spawn_primitive(world, Primitive::Cube);
+        let cube = spawn_cube_at(world, position);
 
-        world.set_local_transform(cube, LocalTransform {
-            translation: position,
-            rotation: random_rotation(),
-            ..Default::default()
-        });
+        if let Some(transform) = world.get_local_transform_mut(cube) {
+            transform.rotation = random_rotation();
+        }
 
         world.set_material(cube, Material {
             base_color: random_color(),
@@ -195,12 +184,7 @@ impl PhysicsPlayground {
     }
 
     fn spawn_sphere(&self, world: &mut World, position: Vec3) -> Entity {
-        let sphere = spawn_primitive(world, Primitive::Sphere);
-
-        world.set_local_transform(sphere, LocalTransform {
-            translation: position,
-            ..Default::default()
-        });
+        let sphere = spawn_sphere_at(world, position);
 
         world.set_material(sphere, Material {
             base_color: random_color(),
@@ -216,13 +200,11 @@ impl PhysicsPlayground {
     }
 
     fn spawn_capsule(&self, world: &mut World, position: Vec3) -> Entity {
-        let capsule = spawn_primitive(world, Primitive::Capsule);
+        let capsule = spawn_capsule_at(world, position);
 
-        world.set_local_transform(capsule, LocalTransform {
-            translation: position,
-            rotation: random_rotation(),
-            ..Default::default()
-        });
+        if let Some(transform) = world.get_local_transform_mut(capsule) {
+            transform.rotation = random_rotation();
+        }
 
         world.set_material(capsule, Material {
             base_color: random_color(),
@@ -248,12 +230,10 @@ impl PhysicsPlayground {
         for index in 0..link_count {
             let position = start_position + Vec3::new(0.0, -(index as f32 * link_spacing), 0.0);
 
-            let link = spawn_primitive(world, Primitive::Capsule);
-            world.set_local_transform(link, LocalTransform {
-                translation: position,
-                scale: Vec3::new(0.2, 0.3, 0.2),
-                ..Default::default()
-            });
+            let link = spawn_capsule_at(world, position);
+            if let Some(transform) = world.get_local_transform_mut(link) {
+                transform.scale = Vec3::new(0.2, 0.3, 0.2);
+            }
 
             world.set_material(link, Material {
                 base_color: [0.7, 0.7, 0.75, 1.0],
@@ -333,13 +313,11 @@ impl PhysicsPlayground {
     }
 
     fn spawn_body_part(&self, world: &mut World, position: Vec3, half_extents: Vec3, color: [f32; 4]) -> Entity {
-        let part = spawn_primitive(world, Primitive::Cube);
+        let part = spawn_cube_at(world, position);
 
-        world.set_local_transform(part, LocalTransform {
-            translation: position,
-            scale: half_extents * 2.0,
-            ..Default::default()
-        });
+        if let Some(transform) = world.get_local_transform_mut(part) {
+            transform.scale = half_extents * 2.0;
+        }
 
         world.set_material(part, Material {
             base_color: color,
@@ -412,7 +390,7 @@ impl PhysicsPlayground {
         let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
 
         if let Some(hit) = raycast(world, origin, direction, 50.0) {
-            world.despawn(hit.entity);
+            world.despawn_entities(&[hit.entity]);
         }
     }
 
@@ -425,7 +403,7 @@ impl PhysicsPlayground {
         let explosion_radius = 10.0;
         let explosion_force = 50.0;
 
-        for entity in world.query(RIGID_BODY_COMPONENT | GLOBAL_TRANSFORM) {
+        for entity in world.query_entities(RIGID_BODY | GLOBAL_TRANSFORM) {
             if let (Some(body), Some(entity_transform)) = (
                 world.get_rigid_body_mut(entity),
                 world.get_global_transform(entity),
@@ -453,7 +431,7 @@ impl PhysicsPlayground {
 
     fn reset_scene(&mut self, world: &mut World) {
         let entities_to_remove: Vec<Entity> = world
-            .query(RIGID_BODY_COMPONENT)
+            .query_entities(RIGID_BODY)
             .filter(|e| {
                 world.get_rigid_body(*e)
                     .map(|b| b.body_type == RigidBodyType::Dynamic)
@@ -461,9 +439,7 @@ impl PhysicsPlayground {
             })
             .collect();
 
-        for entity in entities_to_remove {
-            world.despawn(entity);
-        }
+        world.despawn_entities(&entities_to_remove);
 
         self.holding_entity = None;
         self.selected_entity = None;
@@ -499,7 +475,7 @@ fn pseudo_random() -> f32 {
 }
 
 fn main() {
-    nightshade::run(PhysicsPlayground::default());
+    nightshade::launch(PhysicsPlayground::default());
 }
 ```
 
@@ -551,5 +527,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "physics"] }
 ```

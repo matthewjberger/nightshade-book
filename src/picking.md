@@ -24,7 +24,9 @@ let ray = screen_to_ray(world, screen_x, screen_y);
 Fast picking using axis-aligned bounding boxes:
 
 ```rust
-if let Some(hit) = pick_closest_entity(world, ray) {
+let options = PickingOptions::default();
+
+if let Some(hit) = pick_closest_entity(world, &ray, &options) {
     let entity = hit.entity;
     let distance = hit.distance;
     let point = hit.point;
@@ -35,10 +37,12 @@ if let Some(hit) = pick_closest_entity(world, ray) {
 
 ### Pick Closest Entity (Trimesh)
 
-Precise picking using actual mesh geometry:
+Precise picking using actual mesh geometry. Trimesh picking requires physics registration:
 
 ```rust
-if let Some(hit) = pick_closest_entity_trimesh(world, ray) {
+register_entity_hierarchy_for_trimesh_picking(world, root_entity);
+
+if let Some(hit) = pick_closest_entity_trimesh(world, &ray, &options) {
     let entity = hit.entity;
     let point = hit.point;
     let normal = hit.normal;
@@ -50,7 +54,7 @@ if let Some(hit) = pick_closest_entity_trimesh(world, ray) {
 ### Pick Result
 
 ```rust
-pub struct PickResult {
+pub struct PickingResult {
     pub entity: Entity,
     pub distance: f32,
     pub point: Vec3,
@@ -95,12 +99,13 @@ pub struct GpuPickResult {
 ## Mouse Click Selection
 
 ```rust
-fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {
+fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
     if button == MouseButton::Left && state == ElementState::Pressed {
         let mouse_pos = world.resources.input.mouse_position;
         let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
 
-        if let Some(hit) = pick_closest_entity(world, ray) {
+        let options = PickingOptions::default();
+        if let Some(hit) = pick_closest_entity(world, &ray, &options) {
             self.selected_entity = Some(hit.entity);
             mark_as_selected(world, hit.entity);
         } else {
@@ -118,11 +123,12 @@ fn run_systems(&mut self, world: &mut World) {
     let mouse_pos = world.resources.input.mouse_position;
     let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
 
-    for entity in world.query(HOVERED) {
+    for entity in world.query_entities(HOVERED) {
         world.remove_hovered(entity);
     }
 
-    if let Some(hit) = pick_closest_entity(world, ray) {
+    let options = PickingOptions::default();
+    if let Some(hit) = pick_closest_entity(world, &ray, &options) {
         world.set_hovered(hit.entity, Hovered);
     }
 }
@@ -133,15 +139,15 @@ fn run_systems(&mut self, world: &mut World) {
 Pick only specific entity types:
 
 ```rust
-fn pick_enemies_only(world: &World, ray: PickingRay) -> Option<PickResult> {
-    let mut closest: Option<PickResult> = None;
+fn pick_enemies_only(world: &World, ray: PickingRay) -> Option<PickingResult> {
+    let mut closest: Option<PickingResult> = None;
 
-    for entity in world.query(ENEMY | BOUNDING_VOLUME) {
+    for entity in world.query_entities(ENEMY | BOUNDING_VOLUME) {
         let bounds = world.get_bounding_volume(entity).unwrap();
         if let Some(distance) = ray_aabb_intersection(&ray, &bounds.aabb) {
             let point = ray.origin + ray.direction * distance;
             if closest.is_none() || distance < closest.as_ref().unwrap().distance {
-                closest = Some(PickResult {
+                closest = Some(PickingResult {
                     entity,
                     distance,
                     point,
@@ -192,7 +198,7 @@ fn entities_in_screen_rect(world: &World, start: Vec2, end: Vec2) -> Vec<Entity>
 
     let mut result = Vec::new();
 
-    for entity in world.query(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
+    for entity in world.query_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
         let screen_pos = world_to_screen(world, entity);
         if let Some(pos) = screen_pos {
             if pos.x >= min_x && pos.x <= max_x && pos.y >= min_y && pos.y <= max_y {

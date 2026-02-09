@@ -31,54 +31,18 @@ pub enum LatticeInterpolation {
 ## Creating a Lattice
 
 ```rust
-fn spawn_lattice(world: &mut World, bounds: Aabb, resolution: UVec3) -> Entity {
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LATTICE,
-        1
-    )[0];
-
-    let total_points = (resolution.x * resolution.y * resolution.z) as usize;
-    let mut control_points = Vec::with_capacity(total_points);
-
-    for z in 0..resolution.z {
-        for y in 0..resolution.y {
-            for x in 0..resolution.x {
-                let t = Vec3::new(
-                    x as f32 / (resolution.x - 1) as f32,
-                    y as f32 / (resolution.y - 1) as f32,
-                    z as f32 / (resolution.z - 1) as f32,
-                );
-                let pos = bounds.min + (bounds.max - bounds.min).component_mul(&t);
-                control_points.push(pos);
-            }
-        }
-    }
-
-    world.set_lattice(entity, Lattice {
-        resolution,
-        bounds,
-        control_points,
-        interpolation: LatticeInterpolation::Bezier,
-    });
-
-    entity
-}
+let min = Vec3::new(-1.0, -1.0, -1.0);
+let max = Vec3::new(1.0, 1.0, 1.0);
+let dims = UVec3::new(4, 4, 4);
+let lattice_entity = create_lattice_entity(world, min, max, dims);
 ```
 
 ## Influenced Meshes
 
-Mark meshes to be deformed by a lattice:
+Register a mesh entity for lattice deformation:
 
 ```rust
-pub struct LatticeInfluenced {
-    pub lattice_entity: Entity,
-    pub original_positions: Vec<Vec3>,
-}
-
-world.set_lattice_influenced(mesh_entity, LatticeInfluenced {
-    lattice_entity: lattice,
-    original_positions: mesh_positions.clone(),
-});
+register_entity_for_lattice_deformation(world, mesh_entity, lattice_entity);
 ```
 
 ## Manipulating Control Points
@@ -106,21 +70,11 @@ fn bend_lattice(world: &mut World, lattice: Entity, amount: f32) {
 
 ## Deformation System
 
-The deformation is applied automatically each frame:
+Call the lattice deformation system each frame:
 
 ```rust
-fn lattice_deformation_system(world: &mut World) {
-    for entity in world.query(LATTICE_INFLUENCED | RENDER_MESH) {
-        let influenced = world.get_lattice_influenced(entity).unwrap();
-        let lattice = world.get_lattice(influenced.lattice_entity).unwrap();
-
-        let deformed_positions = compute_deformed_positions(
-            &influenced.original_positions,
-            lattice
-        );
-
-        update_mesh_positions(world, entity, &deformed_positions);
-    }
+fn run_systems(&mut self, world: &mut World) {
+    lattice_deformation_system(world);
 }
 ```
 
@@ -225,7 +179,7 @@ struct BreathingEffect {
 }
 
 fn run_systems(&mut self, world: &mut World) {
-    let dt = world.resources.time.delta_seconds;
+    let dt = world.resources.window.timing.delta_time;
     self.breathing.time += dt;
 
     if let Some(lat) = world.get_lattice_mut(self.breathing.lattice) {

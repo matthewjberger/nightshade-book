@@ -9,7 +9,7 @@ Nightshade integrates [egui](https://github.com/emilk/egui), a popular immediate
 Add the `egui` feature to your `Cargo.toml`:
 
 ```toml
-nightshade = { git = "...", features = ["engine", "egui"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "egui"] }
 ```
 
 ## The ui() Method
@@ -18,7 +18,7 @@ Implement the `ui()` method on your `State` to render egui:
 
 ```rust
 impl State for MyGame {
-    fn ui(&mut self, ctx: &egui::Context, world: &mut World) {
+    fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
         egui::Window::new("Debug")
             .show(ctx, |ui| {
                 ui.label("Hello, World!");
@@ -33,7 +33,7 @@ impl State for MyGame {
 
 ```rust
 ui.label("Static text");
-ui.label(format!("FPS: {:.0}", world.resources.window.timing.fps));
+ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
 ui.colored_label(egui::Color32::RED, "Warning!");
 ```
 
@@ -224,11 +224,11 @@ egui::CentralPanel::default().show(ctx, |ui| {
 ## Debug UI Example
 
 ```rust
-fn ui(&mut self, ctx: &egui::Context, world: &mut World) {
+fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
     egui::Window::new("Debug Info").show(ctx, |ui| {
         ui.heading("Performance");
-        ui.label(format!("FPS: {:.0}", world.resources.window.timing.fps));
-        ui.label(format!("Frame Time: {:.2}ms", world.resources.window.timing.frame_time * 1000.0));
+        ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
+        ui.label(format!("Frame Time: {:.2}ms", world.resources.window.timing.delta_time * 1000.0));
         ui.label(format!("Entities: {}", world.entity_count()));
 
         ui.separator();
@@ -243,9 +243,9 @@ fn ui(&mut self, ctx: &egui::Context, world: &mut World) {
         ui.heading("Player");
         if let Some(transform) = world.get_local_transform(self.player) {
             ui.label(format!("Position: ({:.1}, {:.1}, {:.1})",
-                transform.position.x,
-                transform.position.y,
-                transform.position.z
+                transform.translation.x,
+                transform.translation.y,
+                transform.translation.z
             ));
         }
     });

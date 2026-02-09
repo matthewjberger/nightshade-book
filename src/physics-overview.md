@@ -53,21 +53,10 @@ Kinematic bodies with special handling for player movement.
 use nightshade::ecs::physics::*;
 
 fn initialize(&mut self, world: &mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+    spawn_cube_at(world, Vec3::new(0.0, -0.5, 0.0));
 
-    // Dynamic cubes
     for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+        spawn_cube_at(world, Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0));
     }
 }
 ```

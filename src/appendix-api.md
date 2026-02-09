@@ -12,10 +12,10 @@ let entities = world.spawn_entities(flags, count);
 let entity = world.spawn_entities(LOCAL_TRANSFORM | MESH_COMPONENT, 1)[0];
 
 // Despawn entity
-world.despawn(entity);
+world.despawn_entities(&[entity]);
 
 // Query entities by components
-for entity in world.query(LOCAL_TRANSFORM | MESH_COMPONENT) {
+for entity in world.query_entities(LOCAL_TRANSFORM | MESH_COMPONENT) {
     // Process entity
 }
 ```
@@ -50,8 +50,9 @@ world.set_material(entity, Material { ... })
 ### Resources
 
 ```rust
-world.resources.timing.delta_time        // Frame time in seconds
-world.resources.timing.total_time        // Total elapsed time
+world.resources.window.timing.delta_time           // Frame time in seconds
+world.resources.window.timing.frames_per_second    // Current FPS
+world.resources.window.timing.uptime_milliseconds  // Total elapsed time in ms
 world.resources.input.keyboard           // Keyboard state
 world.resources.input.mouse              // Mouse state
 world.resources.input.cursor_locked      // Lock cursor to window
@@ -69,7 +70,7 @@ GLOBAL_TRANSFORM        // World-space transform
 MESH_COMPONENT          // Renderable mesh
 MATERIAL_COMPONENT      // PBR material
 CAMERA                  // Camera component
-RIGID_BODY_COMPONENT    // Physics rigid body
+RIGID_BODY              // Physics rigid body
 COLLIDER_COMPONENT      // Physics collider
 CHARACTER_CONTROLLER    // Character movement
 ANIMATION_PLAYER        // Skeletal animation
@@ -114,30 +115,37 @@ LocalTransform {
 
 ```rust
 Camera {
-    fov: f32,              // Field of view in radians
-    near: f32,             // Near clip plane
-    far: f32,              // Far clip plane
-    active: bool,          // Is this the active camera
-    clear_color: [f32; 4], // Background color
-    exposure: f32,         // Exposure adjustment
+    projection: Projection,          // Perspective or Orthographic
+    smoothing: Option<Smoothing>,    // Optional camera smoothing
+}
+
+PerspectiveCamera {
+    aspect_ratio: Option<f32>,  // None = auto from window
+    y_fov_rad: f32,             // Vertical field of view in radians
+    z_far: Option<f32>,         // Far clip plane (None = infinite)
+    z_near: f32,                // Near clip plane
+}
+
+OrthographicCamera {
+    x_mag: f32,    // Horizontal magnification
+    y_mag: f32,    // Vertical magnification
+    z_far: f32,    // Far clip plane
+    z_near: f32,   // Near clip plane
 }
 
 // Spawn cameras
+spawn_camera(world, position: Vec3, name: String) -> Entity
 spawn_fly_camera(world) -> Entity
-spawn_pan_orbit_camera(world, target, distance) -> Entity
-spawn_follow_camera(world, target_entity, offset) -> Entity
+spawn_pan_orbit_camera(world, focus: Vec3, radius: f32, yaw: f32, pitch: f32, name: String) -> Entity
 ```
 
 ## Primitives
 
 ```rust
-spawn_primitive(world, Primitive::Cube) -> Entity
-spawn_primitive(world, Primitive::Sphere) -> Entity
-spawn_primitive(world, Primitive::Plane) -> Entity
-spawn_primitive(world, Primitive::Cylinder) -> Entity
-spawn_primitive(world, Primitive::Capsule) -> Entity
-spawn_primitive(world, Primitive::Cone) -> Entity
-spawn_primitive(world, Primitive::Torus) -> Entity
+spawn_cube_at(world, position: Vec3) -> Entity
+spawn_sphere_at(world, position: Vec3) -> Entity
+spawn_plane_at(world, position: Vec3) -> Entity
+spawn_capsule_at(world, position: Vec3) -> Entity
 ```
 
 ## Model Loading
@@ -162,30 +170,24 @@ Material {
     base_color: [f32; 4],        // RGBA
     roughness: f32,              // 0.0 (smooth) to 1.0 (rough)
     metallic: f32,               // 0.0 (dielectric) to 1.0 (metal)
-    emissive: [f32; 3],          // RGB emission
+    emissive_factor: [f32; 3],   // RGB emission
     emissive_strength: f32,      // Emission intensity
     alpha_mode: AlphaMode,       // Opaque, Mask, Blend
     alpha_cutoff: f32,           // For Mask mode
     double_sided: bool,          // Render both faces
-    base_color_texture: Option<Handle>,
-    normal_texture: Option<Handle>,
-    metallic_roughness_texture: Option<Handle>,
-    emissive_texture: Option<Handle>,
-    occlusion_texture: Option<Handle>,
+    base_texture: Option<String>,
+    normal_texture: Option<String>,
+    metallic_roughness_texture: Option<String>,
+    emissive_texture: Option<String>,
+    occlusion_texture: Option<String>,
 }
 ```
 
 ## Lighting
 
 ```rust
-// Directional light (sun)
-spawn_directional_light(world, direction: Vec3) -> Entity
-
-// Point light
-spawn_point_light(world, position: Vec3, color: Vec3, intensity: f32, range: f32) -> Entity
-
-// Spot light
-spawn_spot_light(world, position: Vec3, direction: Vec3, color: Vec3, intensity: f32, range: f32, inner_angle: f32, outer_angle: f32) -> Entity
+// Sun light
+spawn_sun(world) -> Entity
 ```
 
 ## Physics
@@ -378,15 +380,21 @@ nalgebra_glm::lerp(from: &Vec3, to: &Vec3, t: f32) -> Vec3
 
 ```rust
 trait State {
+    fn title(&self) -> &str { "Nightshade" }
     fn initialize(&mut self, world: &mut World) {}
     fn run_systems(&mut self, world: &mut World) {}
-    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {}
-    fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {}
-    fn on_mouse_motion(&mut self, world: &mut World, delta: Vec2) {}
-    fn on_mouse_scroll(&mut self, world: &mut World, delta: Vec2) {}
-    fn on_window_resize(&mut self, world: &mut World, width: u32, height: u32) {}
+    fn ui(&mut self, world: &mut World, ctx: &egui::Context) {}
+    fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {}
+    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {}
+    fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {}
     fn on_gamepad_event(&mut self, world: &mut World, event: gilrs::Event) {}
+    fn handle_event(&mut self, world: &mut World, message: &Message) {}
+    fn on_dropped_file(&mut self, world: &mut World, path: &Path) {}
+    fn on_dropped_file_data(&mut self, world: &mut World, name: &str, data: &[u8]) {}
     fn configure_render_graph(&mut self, graph: &mut RenderGraph<World>, device: &wgpu::Device, surface_format: wgpu::TextureFormat, resources: RenderResources) {}
+    fn update_render_graph(&mut self, graph: &mut RenderGraph<World>, world: &World) {}
+    fn pre_render(&mut self, renderer: &mut dyn Render, world: &mut World) {}
+    fn next_state(&mut self, world: &mut World) -> Option<Box<dyn State>> { None }
 }
 ```
 
@@ -491,6 +499,6 @@ draw_gizmo_ray(world, origin, direction, length, color);
 
 ```rust
 fn main() {
-    nightshade::run(MyGame::default());
+    nightshade::launch(MyGame::default());
 }
 ```

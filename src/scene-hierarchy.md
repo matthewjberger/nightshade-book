@@ -7,7 +7,7 @@ Nightshade supports parent-child relationships between entities, enabling hierar
 ### Setting a Parent
 
 ```rust
-world.set_parent(child_entity, Parent { entity: parent_entity });
+world.set_parent(child_entity, Parent(parent_entity));
 world.set_local_transform_dirty(child_entity, LocalTransformDirty);
 ```
 
@@ -50,8 +50,8 @@ propagate_transforms(world);
 
 ```rust
 pub struct LocalTransform {
-    pub position: Vec3,
-    pub rotation: UnitQuaternion<f32>,
+    pub translation: Vec3,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
@@ -135,29 +135,29 @@ Creates a deep copy of an entity and all its children.
 
 ```rust
 fn spawn_robot_arm(world: &mut World) -> Entity {
-    let base = spawn_cube(world, Vec3::zeros(), 1.0);
+    let base = spawn_cube_at(world, Vec3::zeros());
     world.set_name(base, Name("Base".to_string()));
 
-    let lower_arm = spawn_cube(world, Vec3::new(0.0, 1.5, 0.0), 0.3);
+    let lower_arm = spawn_cube_at(world, Vec3::new(0.0, 1.5, 0.0));
     world.set_name(lower_arm, Name("Lower Arm".to_string()));
-    world.set_parent(lower_arm, Parent { entity: base });
+    world.set_parent(lower_arm, Parent(base));
 
-    let upper_arm = spawn_cube(world, Vec3::new(0.0, 2.0, 0.0), 0.3);
+    let upper_arm = spawn_cube_at(world, Vec3::new(0.0, 2.0, 0.0));
     world.set_name(upper_arm, Name("Upper Arm".to_string()));
-    world.set_parent(upper_arm, Parent { entity: lower_arm });
+    world.set_parent(upper_arm, Parent(lower_arm));
 
-    let hand = spawn_cube(world, Vec3::new(0.0, 1.5, 0.0), 0.2);
+    let hand = spawn_cube_at(world, Vec3::new(0.0, 1.5, 0.0));
     world.set_name(hand, Name("Hand".to_string()));
-    world.set_parent(hand, Parent { entity: upper_arm });
+    world.set_parent(hand, Parent(upper_arm));
 
     base
 }
 
 fn rotate_arm(world: &mut World, lower_arm: Entity, angle: f32) {
     if let Some(transform) = world.get_local_transform_mut(lower_arm) {
-        transform.rotation = UnitQuaternion::from_axis_angle(
-            &Vec3::z_axis(),
-            angle
+        transform.rotation = nalgebra_glm::quat_angle_axis(
+            angle,
+            &Vec3::z(),
         );
     }
     world.set_local_transform_dirty(lower_arm, LocalTransformDirty);

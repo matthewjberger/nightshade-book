@@ -335,7 +335,7 @@ fn show_game_over(world: &mut World) -> Entity {
 
 ```rust
 fn remove_text(world: &mut World, entity: Entity) {
-    world.despawn(entity);
+    world.despawn_entities(&[entity]);
 }
 ```
 

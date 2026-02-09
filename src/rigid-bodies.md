@@ -10,19 +10,13 @@ Fully simulated physics objects:
 
 ```rust
 let entity = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RIGID_BODY_COMPONENT | COLLIDER_COMPONENT,
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RIGID_BODY | COLLIDER,
     1
 )[0];
 
-world.set_rigid_body(entity, RigidBodyComponent {
-    body_type: RigidBodyType::Dynamic,
-    handle: None,  // Set by physics sync
-});
+world.set_rigid_body(entity, RigidBodyComponent::new_dynamic());
 
-world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Ball { radius: 0.5 },
-    handle: None,
-});
+world.set_collider(entity, ColliderComponent::ball(0.5));
 ```
 
 ### Kinematic Bodies
@@ -30,10 +24,7 @@ world.set_collider(entity, ColliderComponent {
 Controlled by code, not affected by forces:
 
 ```rust
-world.set_rigid_body(entity, RigidBodyComponent {
-    body_type: RigidBodyType::Kinematic,
-    handle: None,
-});
+world.set_rigid_body(entity, RigidBodyComponent::new_kinematic());
 ```
 
 Move kinematic bodies by updating their transform:
@@ -50,10 +41,7 @@ world.mark_local_transform_dirty(kinematic_entity);
 Immovable objects (floors, walls):
 
 ```rust
-world.set_rigid_body(entity, RigidBodyComponent {
-    body_type: RigidBodyType::Static,
-    handle: None,
-});
+world.set_rigid_body(entity, RigidBodyComponent::new_static());
 ```
 
 ## Helper Functions
@@ -63,52 +51,13 @@ world.set_rigid_body(entity, RigidBodyComponent {
 ```rust
 use nightshade::ecs::physics::*;
 
-// Dynamic cube
-let cube = spawn_dynamic_physics_cube(
-    world,
-    Vec3::new(0.0, 5.0, 0.0),  // position
-    Vec3::new(1.0, 1.0, 1.0),  // size
-    1.0,                        // mass
-);
-
-// With custom material
-let cube = spawn_dynamic_physics_cube_with_material(
-    world,
-    Vec3::new(0.0, 5.0, 0.0),
-    Vec3::new(1.0, 1.0, 1.0),
-    2.0,
-    my_material,
-);
-
-// Static cube
-spawn_static_physics_cube(
-    world,
-    Vec3::new(0.0, -0.5, 0.0),
-    Vec3::new(50.0, 1.0, 50.0),
-);
+let cube = spawn_cube_at(world, Vec3::new(0.0, 5.0, 0.0));
 ```
 
 ### Spawning Physics Spheres
 
 ```rust
-let sphere = spawn_dynamic_physics_sphere(
-    world,
-    Vec3::new(0.0, 10.0, 0.0),
-    0.5,   // radius
-    1.0,   // mass
-);
-```
-
-### Spawning Physics Cylinders
-
-```rust
-let cylinder = spawn_dynamic_physics_cylinder(
-    world,
-    Vec3::new(0.0, 5.0, 0.0),
-    0.5,   // half_height
-    0.3,   // radius
-    2.0,   // mass
-);
+let sphere = spawn_sphere_at(world, Vec3::new(0.0, 10.0, 0.0));
 ```
 
 ## Applying Forces

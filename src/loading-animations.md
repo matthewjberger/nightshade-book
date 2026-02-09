@@ -29,11 +29,10 @@ fn load_character(world: &mut World) -> Option<Entity> {
 
     // Spawn with animations and skins
     result.prefabs.first().map(|prefab| {
-        spawn_prefab_with_skins(
+        spawn_prefab_with_animations(
             world,
             prefab,
             &result.animations,
-            &result.skins,
             Vec3::zeros(),
         )
     })
@@ -208,7 +207,6 @@ Load once, spawn many:
 struct CharacterFactory {
     prefab: Prefab,
     animations: Vec<AnimationClip>,
-    skins: Vec<SkinData>,
 }
 
 impl CharacterFactory {
@@ -217,16 +215,14 @@ impl CharacterFactory {
         Some(Self {
             prefab: result.prefabs.into_iter().next()?,
             animations: result.animations,
-            skins: result.skins,
         })
     }
 
     fn spawn(&self, world: &mut World, position: Vec3) -> Entity {
-        spawn_prefab_with_skins(
+        spawn_prefab_with_animations(
             world,
             &self.prefab,
             &self.animations,
-            &self.skins,
             position,
         )
     }

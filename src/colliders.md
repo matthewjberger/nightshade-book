@@ -7,21 +7,13 @@ Colliders define the physical shape of objects for collision detection.
 ### Ball (Sphere)
 
 ```rust
-world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Ball { radius: 0.5 },
-    handle: None,
-});
+world.set_collider(entity, ColliderComponent::ball(0.5));
 ```
 
 ### Cuboid (Box)
 
 ```rust
-world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Cuboid {
-        half_extents: Vec3::new(1.0, 0.5, 1.0),  // Half-sizes
-    },
-    handle: None,
-});
+world.set_collider(entity, ColliderComponent::cuboid(1.0, 0.5, 1.0));
 ```
 
 ### Capsule
@@ -29,13 +21,7 @@ world.set_collider(entity, ColliderComponent {
 Perfect for characters:
 
 ```rust
-world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Capsule {
-        half_height: 0.5,  // Height of cylindrical section
-        radius: 0.3,
-    },
-    handle: None,
-});
+world.set_collider(entity, ColliderComponent::capsule(0.3, 1.0));
 ```
 
 ### Cylinder
@@ -43,10 +29,10 @@ world.set_collider(entity, ColliderComponent {
 ```rust
 world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Cylinder {
-        half_height: 1.0,
         radius: 0.5,
+        height: 2.0,
     },
-    handle: None,
+    ..Default::default()
 });
 ```
 
@@ -55,10 +41,10 @@ world.set_collider(entity, ColliderComponent {
 ```rust
 world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Cone {
-        half_height: 1.0,
         radius: 0.5,
+        height: 2.0,
     },
-    handle: None,
+    ..Default::default()
 });
 ```
 
@@ -78,7 +64,7 @@ let indices: Vec<[u32; 3]> = mesh.indices
 
 world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Trimesh { vertices, indices },
-    handle: None,
+    ..Default::default()
 });
 ```
 
@@ -94,7 +80,7 @@ world.set_collider(entity, ColliderComponent {
         heights,
         scale: Vec3::new(100.0, 50.0, 100.0),
     },
-    handle: None,
+    ..Default::default()
 });
 ```
 
@@ -104,13 +90,13 @@ Multiple shapes combined:
 
 ```rust
 let shapes = vec![
-    (ColliderShape::Cuboid { half_extents: Vec3::new(0.5, 0.1, 0.5) }, body_offset),
+    (ColliderShape::Cuboid { x: 0.5, y: 0.1, z: 0.5 }, body_offset),
     (ColliderShape::Ball { radius: 0.3 }, head_offset),
 ];
 
 world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Compound { shapes },
-    handle: None,
+    ..Default::default()
 });
 ```
 

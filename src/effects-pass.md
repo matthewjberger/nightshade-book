@@ -367,7 +367,7 @@ impl State for VisualDemo {
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
         self.time += dt;
 
         // Analyze audio
@@ -425,7 +425,7 @@ impl State for VisualDemo {
 }
 
 fn main() {
-    nightshade::run(VisualDemo::default());
+    nightshade::launch(VisualDemo::default());
 }
 ```
 

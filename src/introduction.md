@@ -54,6 +54,15 @@ The engine is built on top of industry-standard libraries:
 - **Debug Rendering** - Lines, boxes, spheres for visualization
 - **HUD Text** - Screen-space text rendering with anchoring
 - **Screenshot Capture** - Save frames to PNG
+- **Developer Console** - In-game command console with custom commands
+
+### Platform
+
+- **OpenXR VR** - Virtual reality with head/hand tracking and locomotion
+- **Steam** - Achievements, stats, multiplayer, and friends integration
+- **Webview** - Host web frontends (Leptos, Yew) with bidirectional IPC
+- **Mosaic** - Multi-pane desktop application framework with dockable widgets
+- **WASM Plugins** - Extend the engine with WebAssembly plugins
 
 ## Architecture Overview
 
@@ -126,13 +135,12 @@ Nightshade is well-suited for:
 
 Nightshade may not be ideal for:
 
-- **2D-only games** - Consider a dedicated 2D engine
-- **AAA production** - Missing some advanced features (GI, complex animation graphs)
+- **2D-only games** - Consider a dedicated 2D engine (though Nightshade does support sprites)
 - **Mobile** - Not yet optimized for mobile platforms
 
 ## Version
 
-This documentation covers **Nightshade v0.6.69** using **Rust 2024 Edition**.
+This documentation covers **Nightshade** using **Rust 2024 Edition**.
 
 ## Getting Help
 

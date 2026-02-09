@@ -84,6 +84,7 @@ impl State for HelloNightshade {
     fn initialize(&mut self, world: &mut World) {
         world.resources.user_interface.enabled = false;
         world.resources.graphics.atmosphere = Atmosphere::Nebula;
+        capture_procedural_atmosphere_ibl(world, Atmosphere::Nebula, 0.0);
         world.resources.graphics.bloom_enabled = true;
         world.resources.graphics.bloom_intensity = 0.15;
         world.resources.graphics.show_grid = true;

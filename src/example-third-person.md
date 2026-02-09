@@ -61,7 +61,7 @@ impl State for ThirdPersonGame {
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
 
         self.update_camera_input(world);
         self.update_player_movement(world, dt);
@@ -74,7 +74,7 @@ impl State for ThirdPersonGame {
         update_animation_players(world, dt);
     }
 
-    fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {
+    fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
         if state == ElementState::Pressed {
             match button {
                 MouseButton::Left => self.attack(world),
@@ -113,13 +113,7 @@ impl ThirdPersonGame {
             velocity: Vec3::zeros(),
         });
 
-        world.set_collider(controller_entity, ColliderComponent {
-            shape: ColliderShape::Capsule {
-                half_height: 0.6,
-                radius: 0.4,
-            },
-            handle: None,
-        });
+        world.set_collider(controller_entity, ColliderComponent::capsule(0.4, 1.2));
 
         world.set_parent(player, Parent(controller_entity));
         world.set_local_transform(player, LocalTransform {
@@ -142,11 +136,13 @@ impl ThirdPersonGame {
         )[0];
 
         world.set_camera(camera, Camera {
-            fov: 60.0_f32.to_radians(),
-            near: 0.1,
-            far: 1000.0,
-            active: true,
-            ..Default::default()
+            projection: Projection::Perspective(PerspectiveCamera {
+                y_fov_rad: 60.0_f32.to_radians(),
+                z_near: 0.1,
+                z_far: Some(1000.0),
+                aspect_ratio: None,
+            }),
+            smoothing: None,
         });
 
         world.resources.active_camera = Some(camera);
@@ -154,11 +150,7 @@ impl ThirdPersonGame {
     }
 
     fn setup_level(&mut self, world: &mut World) {
-        let floor = spawn_primitive(world, Primitive::Plane);
-        world.set_local_transform(floor, LocalTransform {
-            scale: Vec3::new(100.0, 1.0, 100.0),
-            ..Default::default()
-        });
+        let floor = spawn_plane_at(world, Vec3::zeros());
         world.set_material(floor, Material {
             base_color: [0.2, 0.5, 0.2, 1.0],
             roughness: 0.9,
@@ -169,7 +161,7 @@ impl ThirdPersonGame {
         });
 
         for index in 0..20 {
-            let rock = spawn_primitive(world, Primitive::Sphere);
+            let rock = spawn_sphere_at(world, Vec3::zeros());
             let x = (index % 5) as f32 * 15.0 - 30.0 + rand_range(-2.0, 2.0);
             let z = (index / 5) as f32 * 15.0 - 30.0 + rand_range(-2.0, 2.0);
             let scale = rand_range(0.5, 2.0);
@@ -186,12 +178,12 @@ impl ThirdPersonGame {
                 ..Default::default()
             });
 
-            add_collider(rock, ColliderShape::Sphere { radius: scale });
+            add_collider(world, rock, ColliderShape::Sphere { radius: scale });
         }
     }
 
     fn setup_lighting(&mut self, world: &mut World) {
-        spawn_directional_light(world, Vec3::new(-0.3, -1.0, -0.5));
+        spawn_sun(world);
 
         world.resources.graphics.ambient_intensity = 0.2;
     }
@@ -386,7 +378,7 @@ impl ThirdPersonGame {
             let forward = transform.rotation * Vec3::new(0.0, 0.0, 1.0);
             let attack_range = 2.0;
 
-            for entity in world.query(GLOBAL_TRANSFORM) {
+            for entity in world.query_entities(GLOBAL_TRANSFORM) {
                 if entity == player { continue; }
 
                 if let Some(target_transform) = world.get_global_transform(entity) {
@@ -431,7 +423,7 @@ fn rand_range(min: f32, max: f32) -> f32 {
 }
 
 fn main() {
-    nightshade::run(ThirdPersonGame::default());
+    nightshade::launch(ThirdPersonGame::default());
 }
 ```
 
@@ -505,5 +497,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "physics"] }
 ```

@@ -19,7 +19,7 @@ Components are plain data structs attached to entities:
 ```rust
 pub struct LocalTransform {
     pub translation: Vec3,
-    pub rotation: UnitQuaternion<f32>,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
@@ -35,10 +35,10 @@ Systems are functions that process entities with specific components:
 
 ```rust
 fn damage_system(world: &mut World) {
-    for entity in world.query(HEALTH | DAMAGE_OVER_TIME) {
+    for entity in world.query_entities(HEALTH | DAMAGE_OVER_TIME) {
         let dot = world.get_damage_over_time(entity).unwrap();
         if let Some(health) = world.get_health_mut(entity) {
-            health.current -= dot.damage_per_second * world.resources.time.delta_seconds;
+            health.current -= dot.damage_per_second * world.resources.window.timing.delta_time;
         }
     }
 }
@@ -55,7 +55,6 @@ pub const RENDER_MESH: ComponentFlags = 1 << 2;
 pub const MATERIAL_REF: ComponentFlags = 1 << 3;
 pub const CAMERA: ComponentFlags = 1 << 4;
 pub const LIGHT: ComponentFlags = 1 << 5;
-// ... and so on
 ```
 
 Combine flags with bitwise OR:
@@ -73,13 +72,13 @@ let entity = world.spawn_entities(RENDERABLE, 1)[0];
 ```rust
 world.set_local_transform(entity, LocalTransform {
     translation: Vec3::new(0.0, 5.0, 0.0),
-    rotation: UnitQuaternion::identity(),
+    rotation: Quat::identity(),
     scale: Vec3::new(1.0, 1.0, 1.0),
 });
 
 world.set_render_mesh(entity, RenderMesh {
-    mesh_name: "cube".to_string(),
-    gpu_mesh_id: None,
+    name: "cube".to_string(),
+    id: None,
 });
 ```
 
@@ -87,7 +86,7 @@ world.set_render_mesh(entity, RenderMesh {
 
 ```rust
 if let Some(transform) = world.get_local_transform(entity) {
-    println!("Position: {:?}", transform.translation);
+    let position = transform.translation;
 }
 ```
 
@@ -102,8 +101,7 @@ if let Some(transform) = world.get_local_transform_mut(entity) {
 ### Checking Component Presence
 
 ```rust
-if world.has_component(entity, RENDER_MESH) {
-    // Entity has a render mesh
+if world.has_components(entity, RENDER_MESH) {
 }
 ```
 
@@ -114,16 +112,12 @@ Entities can form parent-child relationships:
 ```rust
 use nightshade::ecs::transform::components::Parent;
 
-// Set parent
 world.update_parent(child_entity, Some(Parent(Some(parent_entity))));
 
-// Clear parent
 world.update_parent(child_entity, Some(Parent(None)));
 
-// Get children
-if let Some(children) = world.children_cache.get(&parent_entity) {
+if let Some(children) = world.resources.children_cache.get(&parent_entity) {
     for child in children {
-        // Process child
     }
 }
 ```
@@ -140,10 +134,10 @@ use freecs::ecs;
 ecs! {
     GameWorld {
         components {
-            player_state: PlayerState,
-            inventory: Inventory,
-            health: Health,
-            enemy_ai: EnemyAI,
+            player_state: PlayerState => PLAYER_STATE,
+            inventory: Inventory => INVENTORY,
+            health: Health => HEALTH,
+            enemy_ai: EnemyAI => ENEMY_AI,
         },
         resources {
             game_time: GameTime,
@@ -163,10 +157,8 @@ pub struct MyGame {
 
 impl State for MyGame {
     fn run_systems(&mut self, world: &mut World) {
-        // Update game ECS
         update_player(&mut self.game);
 
-        // Sync with engine world
         sync_positions(&self.game, world);
     }
 }

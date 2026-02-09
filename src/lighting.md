@@ -11,31 +11,17 @@ Nightshade supports three types of lights: directional, point, and spot lights.
 Illuminates the entire scene from a direction, simulating distant light sources like the sun:
 
 ```rust
-fn spawn_sun(world: &mut World) -> Entity {
-    let entity = world.spawn_entities(
-        LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
-        1
-    )[0];
+use nightshade::prelude::*;
 
-    world.set_light(entity, Light {
-        light_type: LightType::Directional,
-        color: Vec3::new(1.0, 0.98, 0.95),
-        intensity: 2.0,
-        cast_shadows: true,
-        shadow_bias: 0.001,
-        ..Default::default()
-    });
+let sun = spawn_sun(world);
+```
 
-    // Point light downward at an angle
-    world.set_local_transform(entity, LocalTransform {
-        rotation: nalgebra_glm::quat_look_at(
-            &Vec3::new(-0.5, -1.0, -0.3).normalize(),
-            &Vec3::y(),
-        ),
-        ..Default::default()
-    });
+`spawn_sun` returns the `Entity` for the directional light, which you can further configure:
 
-    entity
+```rust
+if let Some(light) = world.get_light_mut(sun) {
+    light.color = Vec3::new(1.0, 0.98, 0.95);
+    light.intensity = 2.0;
 }
 ```
 
@@ -44,7 +30,7 @@ fn spawn_sun(world: &mut World) -> Entity {
 Emits light in all directions from a point:
 
 ```rust
-fn spawn_point_light(world: &mut World, position: Vec3, color: Vec3, intensity: f32) -> Entity {
+fn create_point_light(world: &mut World, position: Vec3, color: Vec3, intensity: f32) -> Entity {
     let entity = world.spawn_entities(
         LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
         1
@@ -73,7 +59,7 @@ fn spawn_point_light(world: &mut World, position: Vec3, color: Vec3, intensity: 
 Cone-shaped light, perfect for flashlights or stage lighting:
 
 ```rust
-fn spawn_spotlight(world: &mut World, position: Vec3, direction: Vec3) -> Entity {
+fn create_spotlight(world: &mut World, position: Vec3, direction: Vec3) -> Entity {
     let entity = world.spawn_entities(
         LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
         1
@@ -192,18 +178,15 @@ world.resources.graphics.ambient_intensity = 0.3;
 
 ## Multiple Lights
 
-Nightshade supports multiple lights in a scene:
+Nightshade supports multiple lights in a scene. Create point and spot lights manually as shown above:
 
 ```rust
 fn setup_lighting(world: &mut World) {
-    // Main sun
     spawn_sun(world);
 
-    // Fill lights
-    spawn_point_light(world, Vec3::new(5.0, 3.0, 5.0), Vec3::new(0.8, 0.9, 1.0), 2.0);
-    spawn_point_light(world, Vec3::new(-5.0, 3.0, -5.0), Vec3::new(1.0, 0.8, 0.7), 1.5);
+    create_point_light(world, Vec3::new(5.0, 3.0, 5.0), Vec3::new(0.8, 0.9, 1.0), 2.0);
+    create_point_light(world, Vec3::new(-5.0, 3.0, -5.0), Vec3::new(1.0, 0.8, 0.7), 1.5);
 
-    // Accent spotlight
-    spawn_spotlight(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+    create_spotlight(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
 }
 ```

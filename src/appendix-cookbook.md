@@ -272,7 +272,7 @@ fn melee_attack(
 
     let mut hit_entities = vec![];
 
-    for entity in world.query(GLOBAL_TRANSFORM) {
+    for entity in world.query_entities(GLOBAL_TRANSFORM) {
         if entity == attacker {
             continue;
         }
@@ -342,7 +342,7 @@ fn update_projectiles(
         projectile.lifetime -= dt;
 
         if projectile.lifetime <= 0.0 {
-            world.despawn(*entity);
+            world.despawn_entities(&[*entity]);
             return false;
         }
 
@@ -554,7 +554,7 @@ impl WaveSpawner {
 
     fn spawn_enemy(&mut self, world: &mut World) {
         let position = random_position_on_circle(Vec3::zeros(), 20.0);
-        spawn_primitive(world, Primitive::Cube);
+        spawn_cube_at(world, position);
         self.enemies_remaining -= 1;
     }
 }
@@ -641,7 +641,7 @@ fn load_game(path: &str) -> std::io::Result<SaveData> {
 fn debug_draw_colliders(world: &mut World, lines_entity: Entity) {
     let mut lines = vec![];
 
-    for entity in world.query(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
+    for entity in world.query_entities(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
         let Some(collider) = world.get_collider(entity) else { continue };
         let Some(transform) = world.get_global_transform(entity) else { continue };
 

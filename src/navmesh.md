@@ -15,32 +15,14 @@ nightshade = { git = "...", features = ["engine", "navmesh"] }
 
 ## Generating a NavMesh
 
-Generate a navigation mesh from geometry:
+Generate a navigation mesh from world geometry:
 
 ```rust
 use nightshade::ecs::navmesh::*;
 
 fn setup_navmesh(world: &mut World) {
-    // Get terrain or level geometry
-    let vertices: Vec<Vec3> = get_level_vertices();
-    let indices: Vec<[u32; 3]> = get_level_indices();
-
-    let config = RecastNavMeshConfig {
-        cell_size: 0.15,
-        cell_height: 0.1,
-        agent_height: 1.0,
-        agent_radius: 0.4,
-        agent_max_climb: 0.3,
-        agent_max_slope: 45.0,
-        region_min_size: 8,
-        region_merge_size: 20,
-        edge_max_len: 12.0,
-        edge_max_error: 1.3,
-        detail_sample_dist: 6.0,
-        detail_sample_max_error: 1.0,
-    };
-
-    generate_navmesh_recast(world, &vertices, &indices, &config);
+    let config = RecastNavMeshConfig::default();
+    generate_navmesh_recast(world, &config);
 }
 ```
 
@@ -59,27 +41,8 @@ fn setup_navmesh(world: &mut World) {
 
 ```rust
 fn spawn_npc(world: &mut World, position: Vec3) -> Entity {
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | NAV_MESH_AGENT,
-        1
-    )[0];
-
-    world.set_local_transform(entity, LocalTransform {
-        translation: position,
-        ..Default::default()
-    });
-
-    world.set_nav_mesh_agent(entity, NavMeshAgent {
-        speed: 3.0,
-        acceleration: 10.0,
-        turning_speed: 8.0,
-        stopping_distance: 0.5,
-        target: None,
-        path: Vec::new(),
-        path_index: 0,
-    });
-
-    entity
+    let agent = spawn_navmesh_agent(world, position, 0.4, 1.0);
+    agent
 }
 ```
 
@@ -97,7 +60,8 @@ Call the navigation system each frame:
 
 ```rust
 fn run_systems(&mut self, world: &mut World) {
-    update_navmesh_agents(world);
+    let dt = world.resources.window.timing.delta_time;
+    run_navmesh_systems(world, dt);
 }
 ```
 

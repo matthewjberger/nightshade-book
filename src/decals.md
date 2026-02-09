@@ -26,10 +26,10 @@ fn spawn_bullet_hole(world: &mut World, position: Vec3, normal: Vec3) -> Entity 
         1
     )[0];
 
-    let rotation = UnitQuaternion::face_towards(&normal, &Vec3::y());
+    let rotation = Quat::face_towards(&normal, &Vec3::y());
 
     world.set_local_transform(entity, LocalTransform {
-        position,
+        translation: position,
         rotation,
         scale: Vec3::new(1.0, 1.0, 1.0),
     });
@@ -97,12 +97,12 @@ fn spawn_blood(world: &mut World, position: Vec3, normal: Vec3) -> Entity {
         1
     )[0];
 
-    let rotation = UnitQuaternion::face_towards(&normal, &Vec3::y());
+    let rotation = Quat::face_towards(&normal, &Vec3::y());
     let random_angle = rand::random::<f32>() * std::f32::consts::TAU;
-    let rotation = rotation * UnitQuaternion::from_axis_angle(&Vec3::z_axis(), random_angle);
+    let rotation = rotation * Quat::from_axis_angle(&Vec3::z_axis(), random_angle);
 
     world.set_local_transform(entity, LocalTransform {
-        position,
+        translation: position,
         rotation,
         scale: Vec3::new(1.0, 1.0, 1.0),
     });
@@ -129,11 +129,11 @@ fn spawn_footprint(world: &mut World, position: Vec3, direction: Vec3, left: boo
         1
     )[0];
 
-    let rotation = UnitQuaternion::face_towards(&Vec3::y(), &direction);
+    let rotation = Quat::face_towards(&Vec3::y(), &direction);
     let flip = if left { 1.0 } else { -1.0 };
 
     world.set_local_transform(entity, LocalTransform {
-        position,
+        translation: position,
         rotation,
         scale: Vec3::new(flip, 1.0, 1.0),
     });
@@ -161,8 +161,8 @@ fn spawn_magic_rune(world: &mut World, position: Vec3) -> Entity {
     )[0];
 
     world.set_local_transform(entity, LocalTransform {
-        position,
-        rotation: UnitQuaternion::from_axis_angle(&Vec3::x_axis(), -std::f32::consts::FRAC_PI_2),
+        translation: position,
+        rotation: Quat::from_axis_angle(&Vec3::x_axis(), -std::f32::consts::FRAC_PI_2),
         scale: Vec3::new(1.0, 1.0, 1.0),
     });
 

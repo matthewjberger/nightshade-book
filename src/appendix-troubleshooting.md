@@ -9,12 +9,12 @@ Common issues and their solutions.
 You're using a feature that isn't enabled in your `Cargo.toml`. Add the required feature:
 
 ```toml
-nightshade = { git = "...", features = ["engine", "physics", "audio"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "physics", "audio"] }
 ```
 
 See [Feature Flags](appendix-features.md) for the complete list.
 
-### "cannot find function `spawn_primitive`"
+### "cannot find function `spawn_cube_at`"
 
 Import the prelude:
 
@@ -108,10 +108,9 @@ transform.translation = Vec3::new(0.0, 2.0, 0.0);
 3. **High velocity causing tunneling:**
 ```rust
 // Enable CCD for fast objects
-world.set_rigid_body(entity, RigidBodyComponent {
-    ccd_enabled: true,
-    ..Default::default()
-});
+let mut body = RigidBodyComponent::new_dynamic();
+body.ccd_enabled = true;
+world.set_rigid_body(entity, body);
 ```
 
 ### Animation not playing
@@ -153,7 +152,7 @@ play_sound(world, "shoot");
 
 2. **Check audio feature is enabled:**
 ```toml
-nightshade = { git = "...", features = ["engine", "audio"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "audio"] }
 ```
 
 3. **Verify file format:** Supported formats are WAV, OGG, MP3, FLAC.
@@ -188,7 +187,7 @@ add_collider(world, entity, ColliderShape::Box { ... });
 
 1. **Despawn unused entities:**
 ```rust
-world.despawn(entity);
+world.despawn_entities(&[entity]);
 ```
 
 2. **Unload unused textures:**
@@ -203,10 +202,10 @@ world.resources.texture_cache.clear_unused();
 1. **Avoid allocations in run_systems:**
 ```rust
 // Bad - allocates every frame
-let entities: Vec<Entity> = world.query(TRANSFORM).collect();
+let entities: Vec<Entity> = world.query_entities(LOCAL_TRANSFORM).collect();
 
 // Good - iterate directly
-for entity in world.query(TRANSFORM) {
+for entity in world.query_entities(LOCAL_TRANSFORM) {
     // ...
 }
 ```
@@ -226,7 +225,7 @@ fn initialize(&mut self, world: &mut World) {
 Missing or incorrect lighting:
 
 ```rust
-spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+spawn_sun(world);
 world.resources.graphics.ambient_intensity = 0.1;
 ```
 

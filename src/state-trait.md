@@ -6,17 +6,12 @@ The `State` trait is the primary interface between your game and the Nightshade 
 
 ```rust
 pub trait State: 'static {
-    fn title(&self) -> &str;
-    fn initialize(&mut self, world: &mut World);
-    fn run_systems(&mut self, world: &mut World);
-
-    // Optional methods with default implementations
-    fn ui(&mut self, ctx: &egui::Context, world: &mut World) {}
+    fn title(&self) -> &str { "Nightshade" }
+    fn icon_bytes(&self) -> Option<&'static [u8]> { None }
+    fn initialize(&mut self, world: &mut World) {}
+    fn run_systems(&mut self, world: &mut World) {}
+    fn ui(&mut self, world: &mut World, ctx: &egui::Context) {}
     fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {}
-    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {}
-    fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {}
-    fn on_gamepad_event(&mut self, world: &mut World, event: gilrs::Event) {}
-    fn on_dropped_file(&mut self, world: &mut World, path: PathBuf) {}
     fn configure_render_graph(
         &mut self,
         graph: &mut RenderGraph<World>,
@@ -24,14 +19,27 @@ pub trait State: 'static {
         surface_format: wgpu::TextureFormat,
         resources: RenderResources,
     ) {}
+    fn update_render_graph(&mut self, graph: &mut RenderGraph<World>, world: &World) {}
+    fn pre_render(&mut self, renderer: &mut dyn Render, world: &mut World) {}
+    fn handle_event(&mut self, world: &mut World, message: &Message) {}
+    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {}
+    fn on_dropped_file(&mut self, world: &mut World, path: &Path) {}
+    fn on_dropped_file_data(&mut self, world: &mut World, name: &str, data: &[u8]) {}
+    fn on_hovered_file(&mut self, world: &mut World, path: &Path) {}
+    fn on_hovered_file_cancelled(&mut self, world: &mut World) {}
+    fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {}
+    fn on_gamepad_event(&mut self, world: &mut World, event: gilrs::Event) {}
+    fn next_state(&mut self, world: &mut World) -> Option<Box<dyn State>> { None }
 }
 ```
 
-## Required Methods
+All methods have default implementations, so you only need to implement the ones relevant to your game.
+
+## Commonly Used Methods
 
 ### title()
 
-Returns the window title:
+Returns the window title. Defaults to `"Nightshade"` if not overridden:
 
 ```rust
 fn title(&self) -> &str {
@@ -70,10 +78,10 @@ fn run_systems(&mut self, world: &mut World) {
 
 ### ui()
 
-For egui-based user interfaces:
+For egui-based user interfaces. Note that `world` comes before `ctx`:
 
 ```rust
-fn ui(&mut self, ctx: &egui::Context, world: &mut World) {
+fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
     egui::Window::new("Debug").show(ctx, |ui| {
         ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
         ui.label(format!("Entities: {}", world.entity_count()));
@@ -105,11 +113,27 @@ fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
 Handle keyboard events directly:
 
 ```rust
-fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed {
+fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed {
         match key {
             KeyCode::Escape => self.paused = !self.paused,
             KeyCode::F11 => toggle_fullscreen(world),
+            _ => {}
+        }
+    }
+}
+```
+
+### on_mouse_input()
+
+Handle mouse button events:
+
+```rust
+fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
+    if state == ElementState::Pressed {
+        match button {
+            MouseButton::Left => self.shoot(world),
+            MouseButton::Right => self.aim(world),
             _ => {}
         }
     }
@@ -134,7 +158,7 @@ fn on_gamepad_event(&mut self, world: &mut World, event: gilrs::Event) {
 
 ### configure_render_graph()
 
-Customize the rendering pipeline:
+Customize the rendering pipeline. Called once during initialization:
 
 ```rust
 fn configure_render_graph(
@@ -145,20 +169,100 @@ fn configure_render_graph(
     resources: RenderResources,
 ) {
     let bloom_pass = passes::BloomPass::new(device, 1920, 1080);
-    graph
-        .pass(Box::new(bloom_pass))
-        .read("hdr", resources.scene_color)
-        .write("bloom", resources.bloom);
+    graph.add_pass(
+        Box::new(bloom_pass),
+        &[("input", resources.scene_color), ("output", resources.bloom)],
+    );
+}
+```
+
+### update_render_graph()
+
+Called each frame to update render graph state dynamically:
+
+```rust
+fn update_render_graph(&mut self, graph: &mut RenderGraph<World>, world: &World) {
+    if self.bloom_changed {
+        graph.set_enabled("bloom_pass", self.bloom_enabled);
+        self.bloom_changed = false;
+    }
+}
+```
+
+### pre_render()
+
+Called before rendering begins each frame. Useful for custom GPU uploads or renderer state changes:
+
+```rust
+fn pre_render(&mut self, renderer: &mut dyn Render, world: &mut World) {
+    renderer.update_custom_buffer(world, &self.custom_data);
+}
+```
+
+### next_state()
+
+Allows transitioning to a different State. Return `Some(new_state)` to switch:
+
+```rust
+fn next_state(&mut self, world: &mut World) -> Option<Box<dyn State>> {
+    if self.transition_to_gameplay {
+        Some(Box::new(GameplayState::new()))
+    } else {
+        None
+    }
+}
+```
+
+### on_dropped_file() / on_dropped_file_data()
+
+Handle files dropped onto the window:
+
+```rust
+fn on_dropped_file(&mut self, world: &mut World, path: &Path) {
+    if path.extension() == Some("glb".as_ref()) {
+        self.load_model(world, path);
+    }
+}
+
+fn on_dropped_file_data(&mut self, world: &mut World, name: &str, data: &[u8]) {
+    self.process_dropped_data(world, name, data);
+}
+```
+
+### on_hovered_file() / on_hovered_file_cancelled()
+
+Handle file drag hover events:
+
+```rust
+fn on_hovered_file(&mut self, world: &mut World, path: &Path) {
+    self.show_drop_indicator = true;
+}
+
+fn on_hovered_file_cancelled(&mut self, world: &mut World) {
+    self.show_drop_indicator = false;
+}
+```
+
+### handle_event()
+
+Handle custom EventBus messages:
+
+```rust
+fn handle_event(&mut self, world: &mut World, message: &Message) {
+    match message {
+        Message::Custom(data) => self.process_event(world, data),
+        _ => {}
+    }
 }
 ```
 
 ## Launching Your Game
 
-Use the `nightshade::run` function to run your game:
+Use the `nightshade::launch` function to run your game:
 
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }
 ```
 

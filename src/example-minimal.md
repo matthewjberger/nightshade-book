@@ -13,18 +13,14 @@ impl State for MinimalGame {
     fn initialize(&mut self, world: &mut World) {
         spawn_fly_camera(world);
 
-        let cube = spawn_primitive(world, Primitive::Cube);
-        world.set_local_transform(cube, LocalTransform {
-            translation: Vec3::new(0.0, 0.0, -5.0),
-            ..Default::default()
-        });
+        spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0));
 
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        spawn_sun(world);
     }
 }
 
 fn main() {
-    nightshade::run(MinimalGame);
+    nightshade::launch(MinimalGame);
 }
 ```
 
@@ -42,7 +38,7 @@ The prelude exports all commonly used types:
 - `Entity` type
 - Math types (`Vec3`, `Vec4`, `Mat4`, etc.)
 - Component flags (`LOCAL_TRANSFORM`, `MESH_COMPONENT`, etc.)
-- Common functions (`spawn_primitive`, `spawn_fly_camera`, etc.)
+- Common functions (`spawn_cube_at`, `spawn_fly_camera`, etc.)
 
 ### 2. Define Your Game State
 
@@ -76,11 +72,13 @@ The `State` trait has many optional methods:
 |--------|---------|
 | `initialize` | Setup at startup |
 | `run_systems` | Game logic each frame |
+| `ui` | egui-based UI |
+| `immediate_ui` | Built-in immediate mode UI |
 | `on_keyboard_input` | Key press/release |
 | `on_mouse_input` | Mouse button events |
-| `on_mouse_motion` | Mouse movement |
-| `on_window_resize` | Window size changes |
+| `on_gamepad_event` | Gamepad input |
 | `configure_render_graph` | Custom rendering |
+| `next_state` | State transitions |
 
 ### 4. Set Up the Scene
 
@@ -90,14 +88,10 @@ fn initialize(&mut self, world: &mut World) {
     spawn_fly_camera(world);
 
     // A visible object
-    let cube = spawn_primitive(world, Primitive::Cube);
-    world.set_local_transform(cube, LocalTransform {
-        translation: Vec3::new(0.0, 0.0, -5.0),
-        ..Default::default()
-    });
+    spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0));
 
     // Light (required for PBR materials)
-    spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+    spawn_sun(world);
 }
 ```
 
@@ -105,11 +99,11 @@ fn initialize(&mut self, world: &mut World) {
 
 ```rust
 fn main() {
-    nightshade::run(MinimalGame);
+    nightshade::launch(MinimalGame);
 }
 ```
 
-The `run` function:
+The `launch` function:
 1. Creates the window
 2. Initializes the renderer
 3. Calls `initialize` on your state
@@ -126,7 +120,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "https://github.com/user/nightshade", features = ["engine"] }
+nightshade = { git = "https://github.com/user/nightshade", features = ["engine", "wgpu"] }
 ```
 
 ## Running
@@ -154,22 +148,14 @@ fn initialize(&mut self, world: &mut World) {
     spawn_fly_camera(world);
 
     // Ground plane
-    let ground = spawn_primitive(world, Primitive::Plane);
-    world.set_local_transform(ground, LocalTransform {
-        scale: Vec3::new(10.0, 1.0, 10.0),
-        ..Default::default()
-    });
+    spawn_plane_at(world, Vec3::zeros());
 
     // Multiple cubes
     for index in 0..5 {
-        let cube = spawn_primitive(world, Primitive::Cube);
-        world.set_local_transform(cube, LocalTransform {
-            translation: Vec3::new(index as f32 * 2.0 - 4.0, 0.5, -5.0),
-            ..Default::default()
-        });
+        spawn_cube_at(world, Vec3::new(index as f32 * 2.0 - 4.0, 0.5, -5.0));
     }
 
-    spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+    spawn_sun(world);
 }
 ```
 
@@ -185,17 +171,13 @@ impl State for MinimalGame {
     fn initialize(&mut self, world: &mut World) {
         spawn_fly_camera(world);
 
-        self.cube = Some(spawn_primitive(world, Primitive::Cube));
-        world.set_local_transform(self.cube.unwrap(), LocalTransform {
-            translation: Vec3::new(0.0, 0.0, -5.0),
-            ..Default::default()
-        });
+        self.cube = Some(spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0)));
 
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        spawn_sun(world);
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
         self.time += dt;
 
         if let Some(cube) = self.cube {
@@ -214,8 +196,8 @@ impl State for MinimalGame {
 
 ```rust
 impl State for MinimalGame {
-    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-        if state == KeyState::Pressed {
+    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+        if state == ElementState::Pressed {
             match key {
                 KeyCode::Escape => std::process::exit(0),
                 KeyCode::Space => self.spawn_cube(world),

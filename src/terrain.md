@@ -20,40 +20,25 @@ use nightshade::ecs::terrain::*;
 
 fn initialize(&mut self, world: &mut World) {
     let config = TerrainConfig::default();
-    spawn_terrain(world, config, Vec3::zeros());
+    let material_id = MaterialRef::new("terrain");
+    spawn_terrain_with_material(world, &config, material_id);
 }
 ```
 
 ## Terrain Configuration
 
 ```rust
-pub struct TerrainConfig {
-    pub chunk_size: f32,         // Size of each terrain chunk
-    pub view_distance: u32,      // How many chunks to render
-    pub patches_per_chunk: u32,  // Subdivision level
-    pub max_tessellation: u32,   // Maximum tessellation level
-    pub min_tessellation: u32,   // Minimum tessellation level
-    pub height_scale: f32,       // Vertical scale
-    pub noise_frequency: f32,    // Noise detail frequency
-    pub noise_octaves: u32,      // Noise layers
-    pub lod_distances: [f32; 5], // LOD transition distances
-}
-
-impl Default for TerrainConfig {
-    fn default() -> Self {
-        Self {
-            chunk_size: 64.0,
-            view_distance: 8,
-            patches_per_chunk: 8,
-            max_tessellation: 16,
-            min_tessellation: 1,
-            height_scale: 50.0,
-            noise_frequency: 0.01,
-            noise_octaves: 6,
-            lod_distances: [50.0, 150.0, 400.0, 800.0, 1600.0],
-        }
-    }
-}
+let config = TerrainConfig {
+    size: 512.0,
+    resolution: 256,
+    height_scale: 50.0,
+    noise: NoiseConfig {
+        noise_type: NoiseType::Perlin,
+        frequency: 0.01,
+        octaves: 6,
+        ..Default::default()
+    },
+};
 ```
 
 ## Terrain with Custom Material
@@ -66,7 +51,8 @@ let snow_material = Material {
     ..Default::default()
 };
 
-spawn_terrain_with_material(world, config, Vec3::zeros(), snow_material);
+let material_id = MaterialRef::new("snow_terrain");
+spawn_terrain_with_material(world, &config, material_id);
 ```
 
 ## Sampling Terrain Height
@@ -180,7 +166,7 @@ impl ChunkManager {
         self.loaded_chunks.retain(|&(cx, cz), entity| {
             let dist = ((cx - chunk_x).abs().max((cz - chunk_z).abs())) as u32;
             if dist > self.config.view_distance + 1 {
-                world.despawn(*entity);
+                world.despawn_entities(&[*entity]);
                 false
             } else {
                 true
@@ -195,15 +181,16 @@ impl ChunkManager {
 Terrain automatically adjusts detail based on distance:
 
 ```rust
-// LOD levels are determined by distance from camera
-// lod_distances[0] = highest detail
-// lod_distances[4] = lowest detail
-
 let config = TerrainConfig {
-    lod_distances: [50.0, 150.0, 400.0, 800.0, 1600.0],
-    max_tessellation: 16,
-    min_tessellation: 1,
-    ..Default::default()
+    size: 512.0,
+    resolution: 256,
+    height_scale: 50.0,
+    noise: NoiseConfig {
+        noise_type: NoiseType::Perlin,
+        frequency: 0.01,
+        octaves: 6,
+        ..Default::default()
+    },
 };
 ```
 
@@ -216,8 +203,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static WIREFRAME: AtomicBool = AtomicBool::new(false);
 
-fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed && key == KeyCode::KeyT {
+fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed && key == KeyCode::KeyT {
         let current = WIREFRAME.load(Ordering::Relaxed);
         WIREFRAME.store(!current, Ordering::Relaxed);
     }

@@ -26,13 +26,12 @@ fn initialize(&mut self, world: &mut World) {
 ```rust
 pub struct Lines {
     pub lines: Vec<Line>,
-    pub version: u64,
 }
 
 pub struct Line {
     pub start: Vec3,
     pub end: Vec3,
-    pub color: Vec4,  // RGBA, linear color space
+    pub color: Vec4,
 }
 ```
 
@@ -187,7 +186,7 @@ fn run_systems(&mut self, world: &mut World) {
         lines.clear();
 
         // Draw velocity vectors for all physics bodies
-        for entity in world.query(RIGID_BODY_COMPONENT | LOCAL_TRANSFORM) {
+        for entity in world.query_entities(RIGID_BODY | LOCAL_TRANSFORM) {
             if let (Some(body), Some(transform)) = (
                 world.get_rigid_body(entity),
                 world.get_local_transform(entity),
@@ -266,7 +265,7 @@ fn draw_colliders(world: &mut World, lines_entity: Entity) {
     if let Some(lines) = world.get_lines_mut(lines_entity) {
         lines.clear();
 
-        for entity in world.query(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
+        for entity in world.query_entities(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
             if let (Some(collider), Some(transform)) = (
                 world.get_collider(entity),
                 world.get_global_transform(entity),

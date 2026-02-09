@@ -36,8 +36,8 @@ Allows rotation in all directions:
 
 ```rust
 // Pendulum
-let anchor = spawn_static_physics_cube(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.3, 0.3, 0.3));
-let ball = spawn_dynamic_physics_sphere(world, Vec3::new(0.0, 3.0, 0.0), 0.5, 1.0);
+let anchor = spawn_cube_at(world, Vec3::new(0.0, 5.0, 0.0));
+let ball = spawn_sphere_at(world, Vec3::new(0.0, 3.0, 0.0));
 
 create_spherical_joint(
     world,
@@ -56,7 +56,7 @@ Rotates around a single axis:
 ```rust
 // Door hinge
 let door_frame = spawn_static_entity(world);
-let door = spawn_dynamic_physics_cube(world, Vec3::new(0.5, 1.0, 0.0), Vec3::new(1.0, 2.0, 0.1), 5.0);
+let door = spawn_cube_at(world, Vec3::new(0.5, 1.0, 0.0));
 
 create_revolute_joint(
     world,
@@ -85,7 +85,7 @@ Slides along an axis:
 ```rust
 // Drawer
 let cabinet = spawn_static_entity(world);
-let drawer = spawn_dynamic_physics_cube(world, Vec3::new(0.0, 0.0, 0.5), Vec3::new(0.8, 0.3, 0.5), 2.0);
+let drawer = spawn_cube_at(world, Vec3::new(0.0, 0.0, 0.5));
 
 create_prismatic_joint(
     world,
@@ -104,7 +104,7 @@ Maximum distance constraint:
 
 ```rust
 let ceiling = spawn_static_entity(world);
-let weight = spawn_dynamic_physics_sphere(world, Vec3::new(0.0, 0.0, 0.0), 0.3, 2.0);
+let weight = spawn_sphere_at(world, Vec3::new(0.0, 0.0, 0.0));
 
 create_rope_joint(
     world,
@@ -122,7 +122,7 @@ Elastic connection:
 
 ```rust
 let anchor = spawn_static_entity(world);
-let bob = spawn_dynamic_physics_sphere(world, Vec3::new(0.0, -2.0, 0.0), 0.3, 1.0);
+let bob = spawn_sphere_at(world, Vec3::new(0.0, -2.0, 0.0));
 
 create_spring_joint(
     world,
@@ -164,11 +164,11 @@ Create a chain of connected spheres:
 
 ```rust
 fn create_chain(world: &mut World, start: Vec3, links: usize) {
-    let mut previous = spawn_static_physics_cube(world, start, Vec3::new(0.2, 0.2, 0.2));
+    let mut previous = spawn_cube_at(world, start);
 
     for index in 0..links {
         let position = start - Vec3::new(0.0, (index + 1) as f32 * 0.5, 0.0);
-        let link = spawn_dynamic_physics_sphere(world, position, 0.15, 0.5);
+        let link = spawn_sphere_at(world, position);
 
         create_spherical_joint(
             world,
@@ -190,19 +190,9 @@ Complete door with momentum:
 
 ```rust
 fn spawn_interactive_door(world: &mut World, position: Vec3) -> Entity {
-    let frame = spawn_static_physics_cube(
-        world,
-        position,
-        Vec3::new(0.1, 2.0, 0.1),
-    );
+    let frame = spawn_cube_at(world, position);
 
-    let door = spawn_dynamic_physics_cube_with_material(
-        world,
-        position + Vec3::new(0.5, 0.0, 0.0),
-        Vec3::new(1.0, 2.0, 0.1),
-        10.0,
-        wood_material,
-    );
+    let door = spawn_cube_at(world, position + Vec3::new(0.5, 0.0, 0.0));
 
     // Lock vertical rotation
     if let Some(rb) = world.get_rigid_body(door) {

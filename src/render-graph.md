@@ -51,43 +51,44 @@ fn configure_render_graph(
     surface_format: wgpu::TextureFormat,
     resources: RenderResources,
 ) {
-    // Particle rendering
     let particle_pass = passes::ParticlePass::new(device, wgpu::TextureFormat::Rgba16Float);
-    graph
-        .pass(Box::new(particle_pass))
-        .slot("color", resources.scene_color)
-        .slot("depth", resources.depth);
+    graph.add_pass(
+        Box::new(particle_pass),
+        &[("color", resources.scene_color), ("depth", resources.depth)],
+    );
 
-    // Bloom
     let bloom_pass = passes::BloomPass::new(device, 1920, 1080);
-    graph
-        .pass(Box::new(bloom_pass))
-        .read("hdr", resources.scene_color)
-        .write("bloom", resources.bloom);
+    graph.add_pass(
+        Box::new(bloom_pass),
+        &[("hdr", resources.scene_color), ("bloom", resources.bloom)],
+    );
 
-    // SSAO
     let ssao_pass = passes::SsaoPass::new(device);
-    graph
-        .pass(Box::new(ssao_pass))
-        .read("depth", resources.depth)
-        .read("normals", resources.view_normals)
-        .write("ssao_raw", resources.ssao_raw);
+    graph.add_pass(
+        Box::new(ssao_pass),
+        &[
+            ("depth", resources.depth),
+            ("normals", resources.view_normals),
+            ("ssao_raw", resources.ssao_raw),
+        ],
+    );
 
-    // SSAO blur
     let ssao_blur_pass = passes::SsaoBlurPass::new(device);
-    graph
-        .pass(Box::new(ssao_blur_pass))
-        .read("ssao_raw", resources.ssao_raw)
-        .write("ssao", resources.ssao);
+    graph.add_pass(
+        Box::new(ssao_blur_pass),
+        &[("ssao_raw", resources.ssao_raw), ("ssao", resources.ssao)],
+    );
 
-    // Final composite
     let postprocess_pass = passes::PostProcessPass::new(device, surface_format, 0.3);
-    graph
-        .pass(Box::new(postprocess_pass))
-        .read("hdr", resources.scene_color)
-        .read("bloom", resources.bloom)
-        .read("ssao", resources.ssao)
-        .write("output", resources.swapchain);
+    graph.add_pass(
+        Box::new(postprocess_pass),
+        &[
+            ("hdr", resources.scene_color),
+            ("bloom", resources.bloom),
+            ("ssao", resources.ssao),
+            ("output", resources.swapchain),
+        ],
+    );
 }
 ```
 
@@ -151,16 +152,15 @@ impl PassNode<World> for MyCustomPass {
 The graph automatically orders passes based on read/write dependencies:
 
 ```rust
-// Pass A writes to "intermediate"
-graph
-    .pass(Box::new(pass_a))
-    .write("intermediate", texture_a);
+graph.add_pass(
+    Box::new(pass_a),
+    &[("intermediate", texture_a)],
+);
 
-// Pass B reads from "intermediate" - automatically runs after Pass A
-graph
-    .pass(Box::new(pass_b))
-    .read("intermediate", texture_a)
-    .write("final", texture_b);
+graph.add_pass(
+    Box::new(pass_b),
+    &[("intermediate", texture_a), ("final", texture_b)],
+);
 ```
 
 ## Render Resources
@@ -184,8 +184,9 @@ Enable/disable passes based on settings:
 ```rust
 if world.resources.graphics.bloom_enabled {
     let bloom_pass = passes::BloomPass::new(device, width, height);
-    graph.pass(Box::new(bloom_pass))
-        .read("hdr", resources.scene_color)
-        .write("bloom", resources.bloom);
+    graph.add_pass(
+        Box::new(bloom_pass),
+        &[("hdr", resources.scene_color), ("bloom", resources.bloom)],
+    );
 }
 ```

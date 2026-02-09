@@ -48,8 +48,8 @@ fn run_systems(&mut self, world: &mut World) {
 Handle key events in the State trait:
 
 ```rust
-fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed {
+fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed {
         match key {
             KeyCode::Escape => self.paused = !self.paused,
             KeyCode::F11 => toggle_fullscreen(world),
@@ -121,7 +121,7 @@ if scroll.y != 0.0 {
 ### Direct Event Handling
 
 ```rust
-fn on_mouse_input(&mut self, world: &mut World, button: MouseButton, state: ElementState) {
+fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
     match (button, state) {
         (MouseButton::Left, ElementState::Pressed) => self.shoot(),
         (MouseButton::Right, ElementState::Pressed) => self.aim(),

@@ -14,7 +14,7 @@ Nightshade provides 44 built-in components across several categories.
 ```rust
 pub struct LocalTransform {
     pub translation: Vec3,
-    pub rotation: UnitQuaternion<f32>,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
@@ -38,17 +38,20 @@ pub struct Parent(pub Option<Entity>);
 
 ```rust
 pub struct RenderMesh {
-    pub mesh_name: String,
-    pub gpu_mesh_id: Option<MeshId>,
+    pub name: String,
+    pub id: Option<MeshId>,
 }
 
 pub struct MaterialRef {
-    pub material_name: String,
+    pub name: String,
+    pub id: Option<MaterialId>,
 }
+```
 
-pub struct Visibility {
-    pub visible: bool,
-}
+`MaterialRef::new(name)` takes `impl Into<String>`, so you can pass `&str` directly:
+
+```rust
+MaterialRef::new("Default")
 ```
 
 ## Camera Components
@@ -56,16 +59,33 @@ pub struct Visibility {
 | Component | Description |
 |-----------|-------------|
 | `Camera` | Projection mode and smoothing |
-| `PerspectiveCamera` | FOV, aspect, near/far planes |
-| `OrthographicCamera` | Size, near/far for orthographic |
 | `PanOrbitCamera` | Orbiting camera controller |
 
+There is a single `CAMERA` component flag. The projection type is determined by the `Projection` enum inside the `Camera` struct:
+
 ```rust
+pub struct Camera {
+    pub projection: Projection,
+    pub smoothing: Option<Smoothing>,
+}
+
+pub enum Projection {
+    Perspective(PerspectiveCamera),
+    Orthographic(OrthographicCamera),
+}
+
 pub struct PerspectiveCamera {
-    pub fov: f32,
-    pub aspect: f32,
-    pub near: f32,
-    pub far: f32,
+    pub aspect_ratio: Option<f32>,
+    pub y_fov_rad: f32,
+    pub z_far: Option<f32>,
+    pub z_near: f32,
+}
+
+pub struct OrthographicCamera {
+    pub x_mag: f32,
+    pub y_mag: f32,
+    pub z_far: f32,
+    pub z_near: f32,
 }
 ```
 
@@ -107,6 +127,12 @@ pub enum LightType {
 pub struct RigidBodyComponent {
     pub body_type: RigidBodyType,
     pub handle: Option<RigidBodyHandle>,
+    pub mass: f32,
+    pub linear_damping: f32,
+    pub angular_damping: f32,
+    pub gravity_scale: f32,
+    pub can_sleep: bool,
+    pub ccd_enabled: bool,
 }
 
 pub enum RigidBodyType {
@@ -115,6 +141,8 @@ pub enum RigidBodyType {
     Static,
 }
 ```
+
+The component flag for rigid bodies is `RIGID_BODY` (not `RIGID_BODY_COMPONENT`).
 
 ## Animation Components
 
@@ -128,7 +156,9 @@ pub enum RigidBodyType {
 ```rust
 pub struct AnimationPlayer {
     pub clips: Vec<AnimationClip>,
-    pub current_clip: usize,
+    pub current_clip: Option<usize>,
+    pub blend_from_clip: Option<usize>,
+    pub blend_factor: f32,
     pub playing: bool,
     pub speed: f32,
     pub time: f32,

@@ -10,7 +10,7 @@ A camera entity needs these components:
 
 ```rust
 let camera = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA | PERSPECTIVE_CAMERA,
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA,
     1
 )[0];
 ```
@@ -96,10 +96,10 @@ Standard 3D perspective with depth:
 
 ```rust
 world.set_perspective_camera(camera, PerspectiveCamera {
-    fov: 1.0,        // ~57 degrees
-    aspect: 16.0 / 9.0,
-    near: 0.1,
-    far: 1000.0,
+    y_fov_rad: 1.0,              // ~57 degrees
+    aspect_ratio: Some(16.0 / 9.0),
+    z_near: 0.1,
+    z_far: Some(1000.0),
 });
 ```
 
@@ -109,14 +109,13 @@ No perspective distortion (useful for 2D or isometric):
 
 ```rust
 world.set_camera(camera, Camera {
-    projection: ProjectionMode::Orthographic,
+    projection: Projection::Orthographic(OrthographicCamera {
+        x_mag: 10.0,
+        y_mag: 10.0,
+        z_near: 0.1,
+        z_far: 100.0,
+    }),
     smoothing: None,
-});
-
-world.set_orthographic_camera(camera, OrthographicCamera {
-    size: 10.0,
-    near: 0.1,
-    far: 100.0,
 });
 ```
 
@@ -126,15 +125,12 @@ Modify pan-orbit camera at runtime:
 
 ```rust
 if let Some(pan_orbit) = world.get_pan_orbit_camera_mut(camera) {
-    // Change focus point
-    pan_orbit.target_focus = Vec3::new(0.0, 2.0, 0.0);
+    pan_orbit.focus = Vec3::new(0.0, 2.0, 0.0);
 
-    // Zoom in/out
-    pan_orbit.target_radius = 5.0;
+    pan_orbit.radius = 5.0;
 
-    // Rotate
-    pan_orbit.target_yaw += 0.1;
-    pan_orbit.target_pitch += 0.05;
+    pan_orbit.yaw += 0.1;
+    pan_orbit.pitch += 0.05;
 }
 ```
 
@@ -144,10 +140,17 @@ Add smoothing for smoother camera movement:
 
 ```rust
 world.set_camera(camera, Camera {
-    projection: ProjectionMode::Perspective,
-    smoothing: Some(CameraSmoothing {
-        position_smoothing: 5.0,
-        rotation_smoothing: 10.0,
+    projection: Projection::Perspective(PerspectiveCamera {
+        y_fov_rad: 1.0,
+        aspect_ratio: None,
+        z_near: 0.1,
+        z_far: Some(1000.0),
+    }),
+    smoothing: Some(Smoothing {
+        mouse_sensitivity: 0.5,
+        mouse_smoothness: 0.05,
+        keyboard_smoothness: 0.08,
+        ..Smoothing::default()
     }),
 });
 ```
@@ -177,8 +180,8 @@ struct MyGame {
     debug_camera: Entity,
 }
 
-fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed && key == KeyCode::Tab {
+fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed && key == KeyCode::Tab {
         let current = world.resources.active_camera;
         world.resources.active_camera = if current == Some(self.main_camera) {
             Some(self.debug_camera)

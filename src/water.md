@@ -39,7 +39,7 @@ let water_entity = world.spawn_entities(
 )[0];
 
 world.set_local_transform(water_entity, LocalTransform {
-    position: Vec3::new(0.0, 0.0, 0.0),
+    translation: Vec3::new(0.0, 0.0, 0.0),
     ..Default::default()
 });
 
@@ -189,7 +189,7 @@ fn spawn_pool(world: &mut World, position: Vec3, size: Vec3) -> Entity {
     )[0];
 
     world.set_local_transform(entity, LocalTransform {
-        position,
+        translation: position,
         ..Default::default()
     });
 

@@ -9,16 +9,20 @@ Materials define the visual appearance of meshes using PBR (Physically Based Ren
 ```rust
 pub struct Material {
     pub base_color: [f32; 4],
-    pub base_color_texture: Option<String>,
+    pub base_texture: Option<String>,
+    pub base_texture_uv_set: usize,
     pub metallic: f32,
     pub roughness: f32,
     pub metallic_roughness_texture: Option<String>,
+    pub metallic_roughness_texture_uv_set: usize,
     pub normal_texture: Option<String>,
+    pub normal_texture_uv_set: usize,
     pub normal_scale: f32,
     pub occlusion_texture: Option<String>,
-    pub occlusion_strength: f32,
+    pub occlusion_texture_uv_set: usize,
     pub emissive_factor: [f32; 3],
     pub emissive_texture: Option<String>,
+    pub emissive_texture_uv_set: usize,
     pub alpha_mode: AlphaMode,
     pub alpha_cutoff: f32,
     pub double_sided: bool,
@@ -125,7 +129,7 @@ world.queue_command(WorldCommand::LoadTexture {
 ```rust
 let wood_material = Material {
     base_color: [1.0, 1.0, 1.0, 1.0],
-    base_color_texture: Some("wood".to_string()),
+    base_texture: Some("wood".to_string()),
     roughness: 0.8,
     metallic: 0.0,
     ..Default::default()
@@ -137,7 +141,7 @@ let wood_material = Material {
 ```rust
 let brick_material = Material {
     base_color: [1.0, 1.0, 1.0, 1.0],
-    base_color_texture: Some("brick_color".to_string()),
+    base_texture: Some("brick_color".to_string()),
     normal_texture: Some("brick_normal".to_string()),
     normal_scale: 1.0,
     roughness: 0.9,
@@ -162,7 +166,7 @@ if let Some(&index) = world.resources.material_registry.registry.name_to_index.g
 }
 
 // Assign to entity
-world.set_material_ref(entity, MaterialRef::new("my_material".to_string()));
+world.set_material_ref(entity, MaterialRef::new("my_material"));
 ```
 
 ## Procedural Textures

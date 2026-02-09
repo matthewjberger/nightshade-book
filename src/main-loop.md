@@ -24,41 +24,24 @@ Each frame executes in this order:
 15. Present to swapchain
 ```
 
-## Timing Resources
+## Timing
 
-### Time
-
-Current frame timing:
-
-```rust
-pub struct Time {
-    pub delta_seconds: f32,
-    pub elapsed_seconds: f32,
-    pub frame_count: u64,
-}
-
-fn run_systems(&mut self, world: &mut World) {
-    let dt = world.resources.time.delta_seconds;
-    let total = world.resources.time.elapsed_seconds;
-    let frame = world.resources.time.frame_count;
-}
-```
-
-### Window Timing
-
-More detailed timing information:
+All timing information is accessed through `world.resources.window.timing`:
 
 ```rust
 pub struct WindowTiming {
-    pub frame_count: u64,
-    pub total_time: f32,
-    pub frame_time: f32,
-    pub fps: f32,
+    pub frames_per_second: f32,
+    pub delta_time: f32,
+    pub raw_delta_time: f32,
+    pub time_speed: f32,
+    pub frame_counter: u64,
+    pub uptime_milliseconds: u64,
 }
 
-fn show_fps(world: &World) {
-    let fps = world.resources.window.timing.fps;
-    println!("FPS: {:.1}", fps);
+fn run_systems(&mut self, world: &mut World) {
+    let dt = world.resources.window.timing.delta_time;
+    let elapsed = world.resources.window.timing.uptime_milliseconds as f32 / 1000.0;
+    let frame = world.resources.window.timing.frame_counter;
 }
 ```
 
@@ -89,16 +72,16 @@ For smooth rendering between physics steps:
 
 ```rust
 pub struct PhysicsInterpolation {
-    pub previous_position: Vec3,
-    pub previous_rotation: UnitQuaternion<f32>,
-    pub current_position: Vec3,
-    pub current_rotation: UnitQuaternion<f32>,
+    pub previous_translation: Vec3,
+    pub previous_rotation: Quat,
+    pub current_translation: Vec3,
+    pub current_rotation: Quat,
 }
 
 fn interpolate_physics_transforms(world: &mut World, alpha: f32) {
-    for entity in world.query(PHYSICS_INTERPOLATION) {
+    for entity in world.query_entities(PHYSICS_INTERPOLATION) {
         let interp = world.get_physics_interpolation(entity).unwrap();
-        let position = interp.previous_position.lerp(&interp.current_position, alpha);
+        let translation = interp.previous_translation.lerp(&interp.current_translation, alpha);
         let rotation = interp.previous_rotation.slerp(&interp.current_rotation, alpha);
     }
 }
@@ -139,10 +122,10 @@ Always multiply movement by delta time for frame-rate independence:
 
 ```rust
 fn move_entity(world: &mut World, entity: Entity, velocity: Vec3) {
-    let dt = world.resources.time.delta_seconds;
+    let dt = world.resources.window.timing.delta_time;
 
     if let Some(transform) = world.get_local_transform_mut(entity) {
-        transform.position += velocity * dt;
+        transform.translation += velocity * dt;
     }
 }
 ```
@@ -157,7 +140,7 @@ struct MyGame {
 }
 
 fn run_systems(&mut self, world: &mut World) {
-    let dt = world.resources.time.delta_seconds;
+    let dt = world.resources.window.timing.delta_time;
 
     self.spawn_timer += dt;
     if self.spawn_timer >= 2.0 {
@@ -173,7 +156,7 @@ fn run_systems(&mut self, world: &mut World) {
 
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }
 ```
 
@@ -182,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```rust
 #[wasm_bindgen(start)]
 pub async fn start() {
-    nightshade::run_wasm::<MyGame>(WindowConfig::default()).await;
+    nightshade::launch(MyGame::default()).await;
 }
 ```
 
@@ -190,7 +173,7 @@ pub async fn start() {
 
 ```rust
 fn main() {
-    nightshade::launch_xr::<MyGame>(XrConfig::default());
+    nightshade::launch_xr(MyGame::default());
 }
 ```
 
@@ -202,7 +185,7 @@ If you see occasional stuttering:
 
 ```rust
 fn run_systems(&mut self, world: &mut World) {
-    let dt = world.resources.time.delta_seconds;
+    let dt = world.resources.window.timing.delta_time;
     if dt > 0.1 {
         tracing::warn!("Long frame: {:.3}s", dt);
     }
@@ -221,7 +204,7 @@ fn run_systems(&mut self, world: &mut World) {
 
     let elapsed = start.elapsed();
     if elapsed.as_millis() > 5 {
-        tracing::debug!("expensive_system took {:?}", elapsed);
+        tracing::info!("expensive_system took {:?}", elapsed);
     }
 }
 ```

@@ -32,13 +32,11 @@ fn spawn_ambient_sound(world: &mut World, position: Vec3, sound: &str) -> Entity
         ..Default::default()
     });
 
-    world.set_audio_source(entity, AudioSource {
-        sound_name: sound.to_string(),
-        spatial: true,
-        volume: 1.0,
-        loop_sound: true,
-        playing: true,
-    });
+    world.set_audio_source(entity, AudioSource::new(sound)
+        .with_spatial(true)
+        .with_looping(true)
+        .playing(),
+    );
 
     entity
 }
@@ -49,16 +47,11 @@ fn spawn_ambient_sound(world: &mut World, position: Vec3, sound: &str) -> Entity
 Sounds get quieter with distance:
 
 ```rust
-world.set_audio_source(entity, AudioSource {
-    sound_name: "waterfall".to_string(),
-    spatial: true,
-    volume: 1.0,
-    loop_sound: true,
-    playing: true,
-    min_distance: 1.0,   // Full volume within this range
-    max_distance: 50.0,  // Silent beyond this range
-    rolloff: AudioRolloff::Linear,
-});
+world.set_audio_source(entity, AudioSource::new("waterfall")
+    .with_spatial(true)
+    .with_looping(true)
+    .playing(),
+);
 ```
 
 ### Rolloff Modes
@@ -89,7 +82,7 @@ fn update_helicopter(world: &mut World, helicopter: Entity, dt: f32) {
 Moving sounds experience pitch shift:
 
 ```rust
-world.resources.audio_engine.set_doppler_factor(1.0);  // 0 = off, 1 = realistic
+world.resources.audio.set_doppler_factor(1.0);  // 0 = off, 1 = realistic
 ```
 
 ## Reverb Zones
@@ -98,7 +91,7 @@ Create ambient reverb for different environments:
 
 ```rust
 fn set_cave_reverb(world: &mut World) {
-    world.resources.audio_engine.set_reverb(ReverbSettings {
+    world.resources.audio.set_reverb(ReverbSettings {
         room_size: 0.9,
         damping: 0.3,
         wet_mix: 0.6,
@@ -107,7 +100,7 @@ fn set_cave_reverb(world: &mut World) {
 }
 
 fn set_outdoor_reverb(world: &mut World) {
-    world.resources.audio_engine.set_reverb(ReverbSettings {
+    world.resources.audio.set_reverb(ReverbSettings {
         room_size: 0.2,
         damping: 0.8,
         wet_mix: 0.1,
@@ -121,13 +114,9 @@ fn set_outdoor_reverb(world: &mut World) {
 UI sounds and music should not be spatial:
 
 ```rust
-world.set_audio_source(entity, AudioSource {
-    sound_name: "ui_click".to_string(),
-    spatial: false,  // Always same volume regardless of position
-    volume: 1.0,
-    loop_sound: false,
-    playing: true,
-});
+world.set_audio_source(entity, AudioSource::new("ui_click")
+    .playing(),
+);
 ```
 
 ## Directional Audio Sources
@@ -135,16 +124,10 @@ world.set_audio_source(entity, AudioSource {
 Some sounds are directional (like a speaker):
 
 ```rust
-world.set_audio_source(entity, AudioSource {
-    sound_name: "announcement".to_string(),
-    spatial: true,
-    volume: 1.0,
-    directional: true,
-    cone_inner_angle: 0.5,  // Full volume in front
-    cone_outer_angle: 1.5,  // Fades to sides
-    cone_outer_gain: 0.2,   // Volume outside cone
-    ..Default::default()
-});
+world.set_audio_source(entity, AudioSource::new("announcement")
+    .with_spatial(true)
+    .playing(),
+);
 ```
 
 ## Multiple Listeners (Split-Screen)
@@ -216,13 +199,9 @@ fn play_footstep_at_position(world: &mut World, position: Vec3) {
         ..Default::default()
     });
 
-    world.set_audio_source(entity, AudioSource {
-        sound_name: "footstep".to_string(),
-        spatial: true,
-        volume: 0.5,
-        loop_sound: false,
-        playing: true,
-        auto_despawn: true,  // Remove entity when sound finishes
-    });
+    world.set_audio_source(entity, AudioSource::new("footstep")
+        .with_spatial(true)
+        .playing(),
+    );
 }
 ```

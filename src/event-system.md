@@ -45,7 +45,7 @@ Use `publish_app_event` to send events:
 
 ```rust
 fn combat_system(world: &mut World, game: &mut GameState) {
-    for enemy in world.query(ENEMY | HEALTH) {
+    for enemy in world.query_entities(ENEMY | HEALTH) {
         let health = world.get_health(enemy).unwrap();
         if health.current <= 0 {
             let position = world.get_global_transform(enemy)
@@ -58,7 +58,7 @@ fn combat_system(world: &mut World, game: &mut GameState) {
                 killer: game.last_attacker,
             });
 
-            world.despawn(enemy);
+            world.despawn_entities(&[enemy]);
         }
     }
 }

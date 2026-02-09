@@ -12,21 +12,14 @@ use nightshade::ecs::particles::components::*;
 let entity = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
 
 world.set_particle_emitter(entity, ParticleEmitter {
-    emitter_type: EmitterType::Fire,
+    max_particles: 1000,
+    emission_rate: 50.0,
+    lifetime: 1.5,
+    initial_velocity: Vec3::new(0.0, 1.0, 0.0),
+    velocity_randomness: 0.3,
+    size: 0.2,
+    color: fire_gradient(),
     shape: EmitterShape::Point,
-    position: Vec3::new(0.0, 0.0, 0.0),
-    direction: Vec3::new(0.0, 1.0, 0.0),
-    spawn_rate: 50.0,
-    particle_lifetime_min: 0.5,
-    particle_lifetime_max: 1.5,
-    initial_velocity_min: 1.0,
-    initial_velocity_max: 3.0,
-    velocity_spread: 0.3,
-    gravity: Vec3::new(0.0, -1.0, 0.0),
-    size_start: 0.2,
-    size_end: 0.05,
-    color_gradient: fire_gradient(),
-    enabled: true,
     ..Default::default()
 });
 ```
@@ -93,66 +86,54 @@ Complete campfire with multiple emitters:
 
 ```rust
 fn spawn_campfire(world: &mut World, position: Vec3) {
-    // Fire core (bright, fast)
-    let core = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let core = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(core, LocalTransform {
+        translation: position,
+        ..Default::default()
+    });
     world.set_particle_emitter(core, ParticleEmitter {
-        emitter_type: EmitterType::Fire,
+        max_particles: 2000,
+        emission_rate: 50.0,
+        lifetime: 0.5,
+        initial_velocity: Vec3::new(0.0, 1.5, 0.0),
+        velocity_randomness: 0.12,
+        size: 0.12,
+        color: fire_gradient(),
         shape: EmitterShape::Sphere { radius: 0.04 },
-        position,
-        direction: Vec3::new(0.0, 1.0, 0.0),
-        spawn_rate: 50.0,
-        particle_lifetime_min: 0.25,
-        particle_lifetime_max: 0.5,
-        initial_velocity_min: 0.8,
-        initial_velocity_max: 1.5,
-        velocity_spread: 0.12,
-        gravity: Vec3::new(0.0, 2.5, 0.0),
-        size_start: 0.12,
-        size_end: 0.04,
-        color_gradient: fire_gradient(),
-        emissive_strength: 18.0,
-        turbulence_strength: 1.2,
-        turbulence_frequency: 4.5,
         ..Default::default()
     });
 
-    // Smoke (slow, expanding)
-    let smoke = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let smoke = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(smoke, LocalTransform {
+        translation: position + Vec3::new(0.0, 0.5, 0.0),
+        ..Default::default()
+    });
     world.set_particle_emitter(smoke, ParticleEmitter {
-        emitter_type: EmitterType::Smoke,
+        max_particles: 500,
+        emission_rate: 25.0,
+        lifetime: 10.0,
+        initial_velocity: Vec3::new(0.1, 0.7, 0.05),
+        velocity_randomness: 0.3,
+        size: 0.2,
+        color: smoke_gradient(),
         shape: EmitterShape::Sphere { radius: 0.1 },
-        position: position + Vec3::new(0.0, 0.5, 0.0),
-        direction: Vec3::new(0.1, 1.0, 0.05).normalize(),
-        spawn_rate: 25.0,
-        particle_lifetime_min: 5.0,
-        particle_lifetime_max: 10.0,
-        initial_velocity_min: 0.3,
-        initial_velocity_max: 0.7,
-        gravity: Vec3::new(0.05, 0.2, 0.02),
-        drag: 0.05,
-        size_start: 0.2,
-        size_end: 2.5,
-        color_gradient: smoke_gradient(),
-        turbulence_strength: 0.6,
-        turbulence_frequency: 0.2,
         ..Default::default()
     });
 
-    // Embers (sparks)
-    let embers = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let embers = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(embers, LocalTransform {
+        translation: position + Vec3::new(0.0, 0.1, 0.0),
+        ..Default::default()
+    });
     world.set_particle_emitter(embers, ParticleEmitter {
-        emitter_type: EmitterType::Sparks,
+        max_particles: 200,
+        emission_rate: 8.0,
+        lifetime: 4.0,
+        initial_velocity: Vec3::new(0.0, 2.0, 0.0),
+        velocity_randomness: 0.5,
+        size: 0.02,
+        color: ColorGradient::default(),
         shape: EmitterShape::Sphere { radius: 0.15 },
-        position: position + Vec3::new(0.0, 0.1, 0.0),
-        spawn_rate: 8.0,
-        particle_lifetime_min: 2.0,
-        particle_lifetime_max: 4.0,
-        initial_velocity_min: 0.5,
-        initial_velocity_max: 2.0,
-        gravity: Vec3::new(0.0, -0.3, 0.0),
-        size_start: 0.02,
-        size_end: 0.01,
-        emissive_strength: 25.0,
         ..Default::default()
     });
 }
@@ -162,48 +143,48 @@ fn spawn_campfire(world: &mut World, position: Vec3) {
 
 ```rust
 fn spawn_snow_blizzard(world: &mut World) {
-    let snow = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let snow = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(snow, LocalTransform {
+        translation: Vec3::new(0.0, 30.0, 0.0),
+        ..Default::default()
+    });
 
     world.set_particle_emitter(snow, ParticleEmitter {
-        emitter_type: EmitterType::Snow,
+        max_particles: 10000,
+        emission_rate: 500.0,
+        lifetime: 15.0,
+        initial_velocity: Vec3::new(-0.1, -1.0, -0.05),
+        velocity_randomness: 0.3,
+        size: 0.03,
+        color: ColorGradient::default(),
         shape: EmitterShape::Box {
             half_extents: Vec3::new(50.0, 0.1, 50.0),
         },
-        position: Vec3::new(0.0, 30.0, 0.0),
-        direction: Vec3::new(-0.1, -1.0, -0.05).normalize(),
-        spawn_rate: 500.0,
-        particle_lifetime_min: 8.0,
-        particle_lifetime_max: 15.0,
-        initial_velocity_min: 0.5,
-        initial_velocity_max: 2.0,
-        velocity_spread: 0.3,
-        gravity: Vec3::new(-0.1, -0.5, -0.05),
-        drag: 0.02,
-        size_start: 0.03,
-        size_end: 0.02,
-        turbulence_strength: 0.8,
-        turbulence_frequency: 0.5,
         ..Default::default()
     });
+}
+```
+
+## Updating Emitters
+
+Call the particle update system each frame:
+
+```rust
+fn run_systems(&mut self, world: &mut World) {
+    let dt = world.resources.window.timing.delta_time;
+    update_particle_emitters(world, dt);
 }
 ```
 
 ## Controlling Emitters
 
 ```rust
-// Enable/disable
 if let Some(emitter) = world.get_particle_emitter_mut(entity) {
-    emitter.enabled = false;
+    emitter.emission_rate = 0.0;
 }
 
-// Burst spawn
-if let Some(emitter) = world.get_particle_emitter_mut(entity) {
-    emitter.burst_count = 50;  // Spawn 50 particles immediately
-}
-
-// Change position
-if let Some(emitter) = world.get_particle_emitter_mut(entity) {
-    emitter.position = new_position;
+if let Some(transform) = world.get_local_transform_mut(entity) {
+    transform.translation = new_position;
 }
 ```
 
@@ -211,14 +192,11 @@ if let Some(emitter) = world.get_particle_emitter_mut(entity) {
 
 | Property | Description |
 |----------|-------------|
-| `spawn_rate` | Particles per second |
-| `burst_count` | One-time particle spawn |
-| `particle_lifetime_min/max` | Random lifetime range |
-| `initial_velocity_min/max` | Random speed range |
-| `velocity_spread` | Direction randomization |
-| `gravity` | Constant acceleration |
-| `drag` | Air resistance |
-| `size_start/end` | Size over lifetime |
-| `emissive_strength` | Glow intensity |
-| `turbulence_strength` | Noise movement |
-| `turbulence_frequency` | Noise frequency |
+| `max_particles` | Maximum active particles |
+| `emission_rate` | Particles per second |
+| `lifetime` | Particle lifetime in seconds |
+| `initial_velocity` | Starting velocity vector |
+| `velocity_randomness` | Direction randomization |
+| `size` | Particle size |
+| `color` | ColorGradient over lifetime |
+| `shape` | EmitterShape for spawn region |

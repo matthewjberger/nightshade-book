@@ -16,16 +16,16 @@ Then set component values:
 ```rust
 world.set_local_transform(entity, LocalTransform {
     translation: Vec3::new(0.0, 1.0, 0.0),
-    rotation: UnitQuaternion::identity(),
+    rotation: Quat::identity(),
     scale: Vec3::new(1.0, 1.0, 1.0),
 });
 
 world.set_render_mesh(entity, RenderMesh {
-    mesh_name: "cube".to_string(),
-    gpu_mesh_id: None,
+    name: "cube".to_string(),
+    id: None,
 });
 
-world.set_material_ref(entity, MaterialRef::new("default".to_string()));
+world.set_material_ref(entity, MaterialRef::new("Default"));
 ```
 
 ## Spawning Multiple Entities
@@ -45,7 +45,7 @@ for (index, entity) in entities.iter().enumerate() {
 
 ## Helper Functions
 
-Nightshade provides convenience functions for common entities:
+Nightshade provides convenience functions for common entities. Primitive spawn helpers and `fly_camera_system` / `escape_key_exit_system` are available from the prelude.
 
 ### Cameras
 
@@ -53,13 +53,12 @@ Nightshade provides convenience functions for common entities:
 let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Main Camera".to_string());
 world.resources.active_camera = Some(camera);
 
-// Pan-orbit camera
 let orbit_camera = spawn_pan_orbit_camera(
     world,
-    Vec3::zeros(),  // focus point
-    10.0,           // radius
-    0.5,            // yaw
-    0.4,            // pitch
+    Vec3::zeros(),
+    10.0,
+    0.5,
+    0.4,
     "Orbit Camera".to_string(),
 );
 ```
@@ -67,54 +66,111 @@ let orbit_camera = spawn_pan_orbit_camera(
 ### Lights
 
 ```rust
-spawn_sun(world);
+let sun = spawn_sun(world);
+```
 
-spawn_point_light(world, Vec3::new(0.0, 3.0, 0.0), Vec3::new(1.0, 0.8, 0.6), 5.0);
+To create a point light, manually spawn an entity with the `LIGHT` flag and set the `Light` component with `LightType::Point`:
+
+```rust
+let light = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LIGHT,
+    1,
+)[0];
+
+world.set_local_transform(light, LocalTransform {
+    translation: Vec3::new(0.0, 3.0, 0.0),
+    ..Default::default()
+});
+
+world.set_light(light, Light {
+    light_type: LightType::Point,
+    color: Vec3::new(1.0, 0.8, 0.6),
+    intensity: 5.0,
+    range: 10.0,
+    cast_shadows: true,
+    shadow_bias: 0.005,
+    inner_cone_angle: 0.0,
+    outer_cone_angle: 0.0,
+});
 ```
 
 ### Primitives
 
-```rust
-use nightshade::ecs::mesh::primitives::*;
+All primitive spawn helpers are available from the prelude:
 
-spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
-spawn_sphere(world, Vec3::new(2.0, 1.0, 0.0), 0.5);
-spawn_plane(world, Vec3::zeros(), Vec2::new(10.0, 10.0));
+```rust
+spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
+spawn_sphere_at(world, Vec3::new(2.0, 1.0, 0.0));
+spawn_plane_at(world, Vec3::zeros());
+spawn_cylinder_at(world, Vec3::new(4.0, 1.0, 0.0));
+spawn_cone_at(world, Vec3::new(6.0, 1.0, 0.0));
+spawn_torus_at(world, Vec3::new(8.0, 1.0, 0.0));
 ```
 
 ### Physics Objects
 
+There are no dedicated physics spawn helpers. Create physics entities manually by combining the appropriate component flags:
+
 ```rust
-use nightshade::ecs::physics::*;
+let dynamic_cube = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY
+    | RENDER_MESH | MATERIAL_REF | RIGID_BODY | COLLIDER,
+    1,
+)[0];
 
-// Dynamic cube
-spawn_dynamic_physics_cube(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(1.0, 1.0, 1.0), 1.0);
+world.set_local_transform(dynamic_cube, LocalTransform {
+    translation: Vec3::new(0.0, 5.0, 0.0),
+    ..Default::default()
+});
 
-// Static floor
-spawn_static_physics_cube(world, Vec3::new(0.0, -0.5, 0.0), Vec3::new(50.0, 1.0, 50.0));
+world.set_render_mesh(dynamic_cube, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
 
-// Dynamic sphere
-spawn_dynamic_physics_sphere(world, Vec3::new(0.0, 10.0, 0.0), 0.5, 1.0);
+world.set_material_ref(dynamic_cube, MaterialRef::new("Default"));
+
+world.set_rigid_body(dynamic_cube, RigidBodyComponent {
+    body_type: RigidBodyType::Dynamic,
+    ..Default::default()
+});
+```
+
+For a static floor:
+
+```rust
+let floor = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY
+    | RENDER_MESH | MATERIAL_REF | RIGID_BODY | COLLIDER,
+    1,
+)[0];
+
+world.set_local_transform(floor, LocalTransform {
+    translation: Vec3::new(0.0, -0.5, 0.0),
+    scale: Vec3::new(50.0, 1.0, 50.0),
+    ..Default::default()
+});
+
+world.set_render_mesh(floor, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
+
+world.set_material_ref(floor, MaterialRef::new("Default"));
+
+world.set_rigid_body(floor, RigidBodyComponent {
+    body_type: RigidBodyType::Static,
+    ..Default::default()
+});
 ```
 
 ### Character Controllers
 
 ```rust
-// First-person player
-let (player, camera) = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0));
-
-// Custom character controller
-let controller = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | CHARACTER_CONTROLLER,
-    1,
-)[0];
-
-if let Some(cc) = world.get_character_controller_mut(controller) {
-    *cc = CharacterControllerComponent::new_capsule(0.5, 0.3);
-    cc.max_speed = 5.0;
-    cc.jump_impulse = 6.0;
-}
+let player = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0), 1.8, 0.3);
 ```
+
+`spawn_first_person_player` takes the world, position, height, and radius, and returns the player `Entity`.
 
 ## Loading Models
 
@@ -126,7 +182,6 @@ use nightshade::ecs::prefab::*;
 let model_bytes = include_bytes!("../assets/character.glb");
 let result = import_gltf_from_bytes(model_bytes)?;
 
-// Register textures
 for (name, (rgba_data, width, height)) in result.textures {
     world.queue_command(WorldCommand::LoadTexture {
         name,
@@ -136,18 +191,15 @@ for (name, (rgba_data, width, height)) in result.textures {
     });
 }
 
-// Register meshes
 for (name, mesh) in result.meshes {
     mesh_cache_insert(&mut world.resources.mesh_cache, name, mesh);
 }
 
-// Spawn prefab
 for prefab in result.prefabs {
-    let entity = spawn_prefab_with_skins(
+    let entity = spawn_prefab_with_animations(
         world,
         &prefab,
         &result.animations,
-        &result.skins,
         Vec3::new(0.0, 0.0, 0.0),
     );
 }
@@ -158,11 +210,9 @@ for prefab in result.prefabs {
 Remove entities from the world:
 
 ```rust
-// Immediate despawn
-world.despawn(entity);
+world.despawn_entity(entity);
 
-// Deferred despawn (safe during iteration)
-world.command_queue.despawn(entity);
+despawn_recursive_immediate(world, entity);
 ```
 
 ## Entity with Parent
@@ -175,7 +225,7 @@ let child = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | PARENT, 1)
 
 world.update_parent(child, Some(Parent(Some(parent))));
 world.set_local_transform(child, LocalTransform {
-    translation: Vec3::new(0.0, 1.0, 0.0),  // 1 unit above parent
+    translation: Vec3::new(0.0, 1.0, 0.0),
     ..Default::default()
 });
 ```

@@ -10,7 +10,7 @@ Every Nightshade application implements the `State` trait:
 use nightshade::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }
 
 #[derive(Default)]
@@ -22,11 +22,9 @@ impl State for MyGame {
     }
 
     fn initialize(&mut self, world: &mut World) {
-        // Setup happens here
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        // Game logic runs every frame
     }
 }
 ```
@@ -52,8 +50,6 @@ Without lights, everything is dark. Add a directional light (sun):
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
-    // Camera setup...
-
     spawn_sun(world);
 }
 ```
@@ -66,22 +62,16 @@ For development, a ground grid is helpful:
 fn initialize(&mut self, world: &mut World) {
     world.resources.graphics.show_grid = true;
     world.resources.graphics.atmosphere = Atmosphere::Sky;
-
-    // Camera and lighting...
 }
 ```
 
 ## Adding Geometry
 
-Spawn a cube using the built-in primitive:
+Spawn a cube using the built-in primitive (available from the prelude):
 
 ```rust
-use nightshade::ecs::mesh::primitives::spawn_cube;
-
 fn initialize(&mut self, world: &mut World) {
-    // Previous setup...
-
-    spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
+    spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
 }
 ```
 
@@ -100,10 +90,9 @@ fn run_systems(&mut self, world: &mut World) {
 
 ```rust
 use nightshade::prelude::*;
-use nightshade::ecs::mesh::primitives::spawn_cube;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }
 
 #[derive(Default)]
@@ -127,9 +116,9 @@ impl State for MyGame {
 
         spawn_sun(world);
 
-        spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
-        spawn_cube(world, Vec3::new(3.0, 0.5, 0.0), 0.5);
-        spawn_cube(world, Vec3::new(-2.0, 1.5, 2.0), 1.5);
+        spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
+        spawn_cube_at(world, Vec3::new(3.0, 0.5, 0.0));
+        spawn_cube_at(world, Vec3::new(-2.0, 1.5, 2.0));
     }
 
     fn run_systems(&mut self, world: &mut World) {

@@ -30,7 +30,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
+nightshade = { git = "https://github.com/matthewjberger/nightshade.git", features = ["engine", "wgpu"] }
 ```
 
 ## Entry Point (main.rs)
@@ -43,7 +43,7 @@ mod game;
 use nightshade::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    nightshade::run(game::MyGame::default())
+    nightshade::launch(game::MyGame::default())
 }
 ```
 

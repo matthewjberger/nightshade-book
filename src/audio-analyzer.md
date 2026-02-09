@@ -342,7 +342,7 @@ impl State for MusicVisualizer {
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
         self.playback_time += dt;
 
         // Analyze current audio position
@@ -385,7 +385,7 @@ impl State for MusicVisualizer {
 }
 
 fn main() {
-    nightshade::run(MusicVisualizer::default());
+    nightshade::launch(MusicVisualizer::default());
 }
 ```
 

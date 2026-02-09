@@ -7,12 +7,12 @@
 Nightshade provides basic geometric primitives:
 
 ```rust
-use nightshade::ecs::mesh::primitives::*;
+use nightshade::prelude::*;
 
-spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
-spawn_sphere(world, Vec3::new(2.0, 1.0, 0.0), 0.5);
-spawn_plane(world, Vec3::zeros(), Vec2::new(10.0, 10.0));
-spawn_cylinder(world, Vec3::new(-2.0, 1.0, 0.0), 0.5, 1.0);
+spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
+spawn_sphere_at(world, Vec3::new(2.0, 1.0, 0.0));
+spawn_plane_at(world, Vec3::zeros());
+spawn_cylinder_at(world, Vec3::new(-2.0, 1.0, 0.0));
 ```
 
 ## Loading glTF/GLB Models
@@ -154,11 +154,11 @@ let entity = world.spawn_entities(
 )[0];
 
 world.set_render_mesh(entity, RenderMesh {
-    mesh_name: "triangle".to_string(),
-    gpu_mesh_id: None,
+    name: "triangle".to_string(),
+    id: None,
 });
 
-world.set_material_ref(entity, MaterialRef::new("default".to_string()));
+world.set_material_ref(entity, MaterialRef::new("default"));
 ```
 
 ## Instanced Meshes

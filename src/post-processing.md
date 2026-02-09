@@ -132,12 +132,11 @@ fn configure_render_graph(
     surface_format: wgpu::TextureFormat,
     resources: RenderResources,
 ) {
-    // Custom shader pass
     let custom_pass = MyCustomPass::new(device);
-    graph
-        .pass(Box::new(custom_pass))
-        .read("input", resources.scene_color)
-        .write("output", resources.post_processed);
+    graph.add_pass(
+        Box::new(custom_pass),
+        &[("input", resources.scene_color), ("output", resources.post_processed)],
+    );
 }
 ```
 

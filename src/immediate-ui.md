@@ -10,7 +10,7 @@ Implement the `immediate_ui()` method on your `State`:
 
 ```rust
 impl State for MyGame {
-    fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
+    fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
         ui.panel(PanelPosition::Left, 200.0, |ui| {
             ui.label("Left Panel");
             if ui.button("Click me") {
@@ -156,7 +156,7 @@ ui.separator();
 ## Pause Menu Example
 
 ```rust
-fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
+fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
     if self.paused {
         ui.panel(PanelPosition::Central, 300.0, |ui| {
             ui.label("PAUSED");
@@ -181,7 +181,7 @@ fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
 ## Settings Menu Example
 
 ```rust
-fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
+fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
     if self.show_settings {
         ui.panel(PanelPosition::Central, 400.0, |ui| {
             ui.label("Settings");
@@ -217,7 +217,7 @@ fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
 ## Inventory UI Example
 
 ```rust
-fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
+fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
     ui.panel(PanelPosition::Right, 250.0, |ui| {
         ui.label("Inventory");
         ui.separator();
@@ -241,7 +241,7 @@ fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
 ## Dialog Box Example
 
 ```rust
-fn immediate_ui(&mut self, ui: &mut ImmediateUi, world: &mut World) {
+fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
     if let Some(dialog) = &self.current_dialog {
         ui.panel(PanelPosition::Bottom, 150.0, |ui| {
             ui.label(&dialog.speaker);

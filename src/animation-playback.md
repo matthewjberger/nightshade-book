@@ -9,13 +9,13 @@ Control animation playback through the `AnimationPlayer` component.
 ```rust
 pub struct AnimationPlayer {
     pub clips: Vec<AnimationClip>,
-    pub current_clip: usize,
-    pub playing: bool,
-    pub speed: f32,
+    pub current_clip: Option<usize>,
     pub time: f32,
+    pub speed: f32,
     pub looping: bool,
-    pub crossfade_duration: f32,
-    pub bone_mapping: HashMap<String, Entity>,
+    pub playing: bool,
+    pub blend_from_clip: Option<usize>,
+    pub blend_factor: f32,
 }
 ```
 
@@ -24,9 +24,7 @@ pub struct AnimationPlayer {
 ```rust
 fn play_animation(world: &mut World, entity: Entity, clip_index: usize) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.current_clip = clip_index;
-        player.time = 0.0;
-        player.playing = true;
+        player.play(clip_index);
         player.looping = true;
     }
 }
@@ -47,13 +45,13 @@ fn set_animation_speed(world: &mut World, entity: Entity, speed: f32) {
 ```rust
 fn pause_animation(world: &mut World, entity: Entity) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.playing = false;
+        player.pause();
     }
 }
 
 fn resume_animation(world: &mut World, entity: Entity) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.playing = true;
+        player.resume();
     }
 }
 ```
@@ -74,8 +72,10 @@ fn set_looping(world: &mut World, entity: Entity, looping: bool) {
 fn is_animation_finished(world: &World, entity: Entity) -> bool {
     if let Some(player) = world.get_animation_player(entity) {
         if !player.looping {
-            let clip = &player.clips[player.current_clip];
-            return player.time >= clip.duration;
+            if let Some(index) = player.current_clip {
+                let clip = &player.clips[index];
+                return player.time >= clip.duration;
+            }
         }
     }
     false
@@ -83,11 +83,12 @@ fn is_animation_finished(world: &World, entity: Entity) -> bool {
 
 fn get_animation_progress(world: &World, entity: Entity) -> f32 {
     if let Some(player) = world.get_animation_player(entity) {
-        let clip = &player.clips[player.current_clip];
-        player.time / clip.duration
-    } else {
-        0.0
+        if let Some(index) = player.current_clip {
+            let clip = &player.clips[index];
+            return player.time / clip.duration;
+        }
     }
+    0.0
 }
 ```
 
@@ -100,9 +101,7 @@ fn play_animation_by_name(world: &mut World, entity: Entity, name: &str) -> bool
     if let Some(player) = world.get_animation_player_mut(entity) {
         for (index, clip) in player.clips.iter().enumerate() {
             if clip.name.to_lowercase().contains(&name.to_lowercase()) {
-                player.current_clip = index;
-                player.time = 0.0;
-                player.playing = true;
+                player.play(index);
                 return true;
             }
         }
@@ -171,9 +170,7 @@ Play an animation once without looping:
 ```rust
 fn play_once(world: &mut World, entity: Entity, clip_index: usize) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.current_clip = clip_index;
-        player.time = 0.0;
-        player.playing = true;
+        player.play(clip_index);
         player.looping = false;
     }
 }
