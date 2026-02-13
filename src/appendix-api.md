@@ -9,13 +9,13 @@ Quick lookup for common Nightshade API functions and types.
 ```rust
 // Spawn entities with components
 let entities = world.spawn_entities(flags, count);
-let entity = world.spawn_entities(LOCAL_TRANSFORM | MESH_COMPONENT, 1)[0];
+let entity = world.spawn_entities(LOCAL_TRANSFORM | RENDER_MESH, 1)[0];
 
 // Despawn entity
 world.despawn_entities(&[entity]);
 
 // Query entities by components
-for entity in world.query_entities(LOCAL_TRANSFORM | MESH_COMPONENT) {
+for entity in world.query_entities(LOCAL_TRANSFORM | RENDER_MESH) {
     // Process entity
 }
 ```
@@ -26,15 +26,14 @@ for entity in world.query_entities(LOCAL_TRANSFORM | MESH_COMPONENT) {
 // Get component (immutable)
 world.get_local_transform(entity) -> Option<&LocalTransform>
 world.get_global_transform(entity) -> Option<&GlobalTransform>
-world.get_mesh(entity) -> Option<&MeshComponent>
-world.get_material(entity) -> Option<&Material>
+world.get_render_mesh(entity) -> Option<&RenderMesh>
+world.get_material_ref(entity) -> Option<&MaterialRef>
 world.get_camera(entity) -> Option<&Camera>
 world.get_rigid_body(entity) -> Option<&RigidBodyComponent>
 world.get_collider(entity) -> Option<&ColliderComponent>
 world.get_animation_player(entity) -> Option<&AnimationPlayer>
 world.get_parent(entity) -> Option<&Parent>
-world.get_children(entity) -> &[Entity]
-world.get_visible(entity) -> Option<&Visible>
+world.get_visibility(entity) -> Option<&Visibility>
 
 // Get component (mutable)
 world.get_local_transform_mut(entity) -> Option<&mut LocalTransform>
@@ -43,8 +42,11 @@ world.get_rigid_body_mut(entity) -> Option<&mut RigidBodyComponent>
 
 // Set component
 world.set_local_transform(entity, LocalTransform { ... })
-world.set_material(entity, Material { ... })
-// ... same pattern for all components
+world.set_light(entity, Light { ... })
+// ... same pattern for all ECS components
+
+// Set material (registers in material registry + assigns MaterialRef)
+set_material_with_textures(world, entity, Material { ... })
 ```
 
 ### Resources
@@ -55,10 +57,9 @@ world.resources.window.timing.frames_per_second    // Current FPS
 world.resources.window.timing.uptime_milliseconds  // Total elapsed time in ms
 world.resources.input.keyboard           // Keyboard state
 world.resources.input.mouse              // Mouse state
-world.resources.input.cursor_locked      // Lock cursor to window
-world.resources.input.cursor_visible     // Show/hide cursor
+world.resources.graphics.show_cursor     // Show/hide cursor
 world.resources.active_camera            // Current active camera entity
-world.resources.graphics.ambient_intensity
+world.resources.graphics.ambient_light
 world.resources.physics.gravity
 ```
 
@@ -67,26 +68,36 @@ world.resources.physics.gravity
 ```rust
 LOCAL_TRANSFORM         // Position, rotation, scale
 GLOBAL_TRANSFORM        // World-space transform
-MESH_COMPONENT          // Renderable mesh
-MATERIAL_COMPONENT      // PBR material
+RENDER_MESH             // Renderable mesh
+MATERIAL_REF            // PBR material reference
 CAMERA                  // Camera component
+PAN_ORBIT_CAMERA        // Pan-orbit camera controller
 RIGID_BODY              // Physics rigid body
-COLLIDER_COMPONENT      // Physics collider
+COLLIDER                // Physics collider
 CHARACTER_CONTROLLER    // Character movement
+PHYSICS_INTERPOLATION   // Smooth physics rendering
 ANIMATION_PLAYER        // Skeletal animation
 PARENT                  // Parent entity reference
-CHILDREN                // Child entities
-VISIBLE                 // Visibility flag
-DIRECTIONAL_LIGHT       // Directional light
-POINT_LIGHT             // Point light
-SPOT_LIGHT              // Spot light
+VISIBILITY              // Visibility flag
+LIGHT                   // Directional, point, or spot light
 AUDIO_SOURCE            // Sound emitter
 AUDIO_LISTENER          // Sound receiver
 PARTICLE_EMITTER        // Particle system
-NAV_MESH_AGENT          // Navigation agent
+NAVMESH_AGENT           // Navigation agent
 HUD_TEXT                // Screen-space text
-TEXT_COMPONENT          // 3D world text
-LINES_COMPONENT         // Debug lines
+TEXT                    // 3D world text
+LINES                   // Debug lines
+SPRITE                  // 2D billboard rendering
+SPRITE_ANIMATOR         // Sprite animation
+RENDER_LAYER            // Depth/layer for ordering
+CASTS_SHADOW            // Marks mesh for shadow maps
+SKIN                    // Skeleton definition
+JOINT                   // Bone in skeleton
+MORPH_WEIGHTS           // Blend shape weights
+NAME                    // String identifier
+ROTATION                // Additional rotation component
+DECAL                   // Projected texture
+WATER                   // Water surface/volume
 GRASS_REGION            // Grass rendering
 GRASS_INTERACTOR        // Grass bending
 ```
@@ -135,7 +146,6 @@ OrthographicCamera {
 
 // Spawn cameras
 spawn_camera(world, position: Vec3, name: String) -> Entity
-spawn_fly_camera(world) -> Entity
 spawn_pan_orbit_camera(world, focus: Vec3, radius: f32, yaw: f32, pitch: f32, name: String) -> Entity
 ```
 
@@ -145,7 +155,9 @@ spawn_pan_orbit_camera(world, focus: Vec3, radius: f32, yaw: f32, pitch: f32, na
 spawn_cube_at(world, position: Vec3) -> Entity
 spawn_sphere_at(world, position: Vec3) -> Entity
 spawn_plane_at(world, position: Vec3) -> Entity
-spawn_capsule_at(world, position: Vec3) -> Entity
+spawn_cylinder_at(world, position: Vec3) -> Entity
+spawn_cone_at(world, position: Vec3) -> Entity
+spawn_torus_at(world, position: Vec3) -> Entity
 ```
 
 ## Model Loading
@@ -268,20 +280,17 @@ spawn_audio_source(world, position: Vec3, sound_name: &str) -> Entity
 ```rust
 // Keyboard
 world.resources.input.keyboard.is_key_pressed(KeyCode::KeyW) -> bool
-world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) -> bool
-world.resources.input.keyboard.is_key_just_released(KeyCode::ShiftLeft) -> bool
 
 // Mouse
 world.resources.input.mouse.position -> Vec2
-world.resources.input.mouse.delta -> Vec2
-world.resources.input.mouse.scroll_delta -> Vec2
+world.resources.input.mouse.position_delta -> Vec2
+world.resources.input.mouse.wheel_delta -> Vec2
 world.resources.input.mouse.state.contains(MouseState::LEFT_CLICKED) -> bool
 world.resources.input.mouse.state.contains(MouseState::RIGHT_CLICKED) -> bool
 world.resources.input.mouse.state.contains(MouseState::LEFT_JUST_PRESSED) -> bool
 
 // Cursor
-world.resources.input.cursor_locked = true;
-world.resources.input.cursor_visible = false;
+world.resources.graphics.show_cursor = false;
 
 // Gamepad (with feature)
 query_active_gamepad(world) -> Option<&Gamepad>
@@ -478,15 +487,15 @@ if let Ok(mut state) = effects_state.write() {
 
 ```rust
 // Spawn lines entity
-let lines = world.spawn_entities(LOCAL_TRANSFORM | LINES_COMPONENT, 1)[0];
+let lines = world.spawn_entities(LOCAL_TRANSFORM | LINES, 1)[0];
 
-// Set line data
-world.set_lines(lines, LinesComponent {
+world.set_lines(lines, Lines {
     lines: vec![
-        Line { start: Vec3::zeros(), end: Vec3::new(1.0, 0.0, 0.0), color: [1.0, 0.0, 0.0, 1.0] },
-        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 1.0, 0.0), color: [0.0, 1.0, 0.0, 1.0] },
-        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 0.0, 1.0), color: [0.0, 0.0, 1.0, 1.0] },
+        Line { start: Vec3::zeros(), end: Vec3::new(1.0, 0.0, 0.0), color: Vec4::new(1.0, 0.0, 0.0, 1.0) },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 1.0, 0.0), color: Vec4::new(0.0, 1.0, 0.0, 1.0) },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 0.0, 1.0), color: Vec4::new(0.0, 0.0, 1.0, 1.0) },
     ],
+    version: 0,
 });
 
 // Gizmos

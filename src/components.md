@@ -18,9 +18,7 @@ pub struct LocalTransform {
     pub scale: Vec3,
 }
 
-pub struct GlobalTransform {
-    pub matrix: Mat4,
-}
+pub struct GlobalTransform(pub Mat4);
 
 pub struct Parent(pub Option<Entity>);
 ```

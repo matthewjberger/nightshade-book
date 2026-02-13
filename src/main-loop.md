@@ -34,7 +34,7 @@ pub struct WindowTiming {
     pub delta_time: f32,
     pub raw_delta_time: f32,
     pub time_speed: f32,
-    pub frame_counter: u64,
+    pub frame_counter: u32,
     pub uptime_milliseconds: u64,
 }
 

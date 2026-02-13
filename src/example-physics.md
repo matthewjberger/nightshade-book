@@ -21,7 +21,7 @@ enum SpawnMode {
     #[default]
     Cube,
     Sphere,
-    Capsule,
+    Cylinder,
     Chain,
     Ragdoll,
 }
@@ -39,16 +39,18 @@ impl Default for PhysicsPlayground {
 
 impl State for PhysicsPlayground {
     fn initialize(&mut self, world: &mut World) {
-        spawn_fly_camera(world);
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
         self.setup_environment(world);
         self.setup_ui(world);
 
-        world.resources.input.cursor_locked = true;
+        world.resources.graphics.show_cursor = false;
     }
 
     fn run_systems(&mut self, world: &mut World) {
         let dt = world.resources.window.timing.delta_time;
 
+        fly_camera_system(world);
         self.update_held_object(world);
         self.update_ui(world);
 
@@ -60,7 +62,7 @@ impl State for PhysicsPlayground {
             match key {
                 KeyCode::Digit1 => self.spawn_mode = SpawnMode::Cube,
                 KeyCode::Digit2 => self.spawn_mode = SpawnMode::Sphere,
-                KeyCode::Digit3 => self.spawn_mode = SpawnMode::Capsule,
+                KeyCode::Digit3 => self.spawn_mode = SpawnMode::Cylinder,
                 KeyCode::Digit4 => self.spawn_mode = SpawnMode::Chain,
                 KeyCode::Digit5 => self.spawn_mode = SpawnMode::Ragdoll,
                 KeyCode::KeyR => self.reset_scene(world),
@@ -93,7 +95,7 @@ impl State for PhysicsPlayground {
 impl PhysicsPlayground {
     fn setup_environment(&mut self, world: &mut World) {
         let floor = spawn_plane_at(world, Vec3::zeros());
-        world.set_material(floor, Material {
+        set_material_with_textures(world,floor, Material {
             base_color: [0.3, 0.3, 0.35, 1.0],
             roughness: 0.8,
             ..Default::default()
@@ -105,7 +107,7 @@ impl PhysicsPlayground {
         self.spawn_walls(world);
 
         spawn_sun(world);
-        world.resources.graphics.ambient_intensity = 0.2;
+        world.resources.graphics.ambient_light = [0.2, 0.2, 0.2, 1.0];
     }
 
     fn spawn_walls(&mut self, world: &mut World) {
@@ -118,7 +120,7 @@ impl PhysicsPlayground {
 
         for (position, half_extents) in wall_positions {
             let wall = spawn_cube_at(world, position);
-            world.set_material(wall, Material {
+            set_material_with_textures(world,wall, Material {
                 base_color: [0.4, 0.4, 0.45, 1.0],
                 roughness: 0.9,
                 ..Default::default()
@@ -149,13 +151,13 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let spawn_position = transform.translation +
-            transform.rotation * Vec3::new(0.0, 0.0, -5.0);
+        let spawn_position = transform.translation() +
+            transform.forward_vector() * 5.0;
 
         match self.spawn_mode {
             SpawnMode::Cube => self.spawn_cube(world, spawn_position),
             SpawnMode::Sphere => self.spawn_sphere(world, spawn_position),
-            SpawnMode::Capsule => self.spawn_capsule(world, spawn_position),
+            SpawnMode::Cylinder => self.spawn_cylinder(world, spawn_position),
             SpawnMode::Chain => self.spawn_chain(world, spawn_position),
             SpawnMode::Ragdoll => self.spawn_ragdoll(world, spawn_position),
         }
@@ -168,7 +170,7 @@ impl PhysicsPlayground {
             transform.rotation = random_rotation();
         }
 
-        world.set_material(cube, Material {
+        set_material_with_textures(world,cube, Material {
             base_color: random_color(),
             roughness: 0.7,
             metallic: 0.1,
@@ -186,7 +188,7 @@ impl PhysicsPlayground {
     fn spawn_sphere(&self, world: &mut World, position: Vec3) -> Entity {
         let sphere = spawn_sphere_at(world, position);
 
-        world.set_material(sphere, Material {
+        set_material_with_textures(world,sphere, Material {
             base_color: random_color(),
             roughness: 0.3,
             metallic: 0.8,
@@ -199,14 +201,14 @@ impl PhysicsPlayground {
         sphere
     }
 
-    fn spawn_capsule(&self, world: &mut World, position: Vec3) -> Entity {
-        let capsule = spawn_capsule_at(world, position);
+    fn spawn_cylinder(&self, world: &mut World, position: Vec3) -> Entity {
+        let capsule = spawn_cylinder_at(world, position);
 
         if let Some(transform) = world.get_local_transform_mut(capsule) {
             transform.rotation = random_rotation();
         }
 
-        world.set_material(capsule, Material {
+        set_material_with_textures(world,capsule, Material {
             base_color: random_color(),
             roughness: 0.5,
             metallic: 0.3,
@@ -230,12 +232,12 @@ impl PhysicsPlayground {
         for index in 0..link_count {
             let position = start_position + Vec3::new(0.0, -(index as f32 * link_spacing), 0.0);
 
-            let link = spawn_capsule_at(world, position);
+            let link = spawn_cylinder_at(world, position);
             if let Some(transform) = world.get_local_transform_mut(link) {
                 transform.scale = Vec3::new(0.2, 0.3, 0.2);
             }
 
-            world.set_material(link, Material {
+            set_material_with_textures(world,link, Material {
                 base_color: [0.7, 0.7, 0.75, 1.0],
                 roughness: 0.3,
                 metallic: 0.9,
@@ -319,7 +321,7 @@ impl PhysicsPlayground {
             transform.scale = half_extents * 2.0;
         }
 
-        world.set_material(part, Material {
+        set_material_with_textures(world,part, Material {
             base_color: color,
             roughness: 0.8,
             ..Default::default()
@@ -335,8 +337,8 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let origin = transform.translation;
-        let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+        let origin = transform.translation();
+        let direction = transform.forward_vector();
 
         if let Some(hit) = raycast(world, origin, direction, 20.0) {
             if world.get_rigid_body(hit.entity).is_some() {
@@ -360,7 +362,7 @@ impl PhysicsPlayground {
                 let Some(camera) = world.resources.active_camera else { return };
                 let Some(transform) = world.get_global_transform(camera) else { return };
 
-                let throw_direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+                let throw_direction = transform.forward_vector();
                 body.velocity = throw_direction * 20.0;
             }
         }
@@ -371,8 +373,8 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(camera_transform) = world.get_global_transform(camera) else { return };
 
-        let target = camera_transform.translation +
-            camera_transform.rotation * Vec3::new(0.0, 0.0, -self.grab_distance);
+        let target = camera_transform.translation() +
+            camera_transform.forward_vector() * self.grab_distance;
 
         if let Some(transform) = world.get_local_transform(entity) {
             let to_target = target - transform.translation;
@@ -386,8 +388,8 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let origin = transform.translation;
-        let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+        let origin = transform.translation();
+        let direction = transform.forward_vector();
 
         if let Some(hit) = raycast(world, origin, direction, 50.0) {
             world.despawn_entities(&[hit.entity]);
@@ -398,8 +400,8 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let explosion_center = transform.translation +
-            transform.rotation * Vec3::new(0.0, 0.0, -5.0);
+        let explosion_center = transform.translation() +
+            transform.forward_vector() * 5.0;
         let explosion_radius = 10.0;
         let explosion_force = 50.0;
 
@@ -408,7 +410,7 @@ impl PhysicsPlayground {
                 world.get_rigid_body_mut(entity),
                 world.get_global_transform(entity),
             ) {
-                let to_entity = entity_transform.translation - explosion_center;
+                let to_entity = entity_transform.translation() - explosion_center;
                 let distance = to_entity.magnitude();
 
                 if distance < explosion_radius && distance > 0.1 {
@@ -486,7 +488,7 @@ fn main() {
 Spawn various physics primitives with random colors:
 - Cubes
 - Spheres
-- Capsules
+- Cylinders
 
 ### Joint Systems
 

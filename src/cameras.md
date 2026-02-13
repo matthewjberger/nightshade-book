@@ -95,11 +95,14 @@ fn follow_camera_system(world: &mut World, target: Entity, camera: Entity) {
 Standard 3D perspective with depth:
 
 ```rust
-world.set_perspective_camera(camera, PerspectiveCamera {
-    y_fov_rad: 1.0,              // ~57 degrees
-    aspect_ratio: Some(16.0 / 9.0),
-    z_near: 0.1,
-    z_far: Some(1000.0),
+world.set_camera(camera, Camera {
+    projection: Projection::Perspective(PerspectiveCamera {
+        y_fov_rad: 1.0,
+        aspect_ratio: Some(16.0 / 9.0),
+        z_near: 0.1,
+        z_far: Some(1000.0),
+    }),
+    smoothing: None,
 });
 ```
 

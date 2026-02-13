@@ -7,7 +7,7 @@ Nightshade supports parent-child relationships between entities, enabling hierar
 ### Setting a Parent
 
 ```rust
-world.set_parent(child_entity, Parent(parent_entity));
+world.set_parent(child_entity, Parent(Some(parent_entity)));
 world.set_local_transform_dirty(child_entity, LocalTransformDirty);
 ```
 
@@ -16,16 +16,16 @@ When you set a parent, the child's `LocalTransform` becomes relative to the pare
 ### Getting Children
 
 ```rust
-let children = world.get_children(parent_entity);
-for child in children {
-    // Process each child
+if let Some(children) = world.resources.children_cache.get(&parent_entity) {
+    for child in children {
+    }
 }
 ```
 
 ### Removing a Parent
 
 ```rust
-world.remove_parent(child_entity);
+world.set_parent(child_entity, Parent(None));
 ```
 
 ## Transform Propagation
@@ -55,9 +55,7 @@ pub struct LocalTransform {
     pub scale: Vec3,
 }
 
-pub struct GlobalTransform {
-    pub matrix: Mat4,
-}
+pub struct GlobalTransform(pub Mat4);
 ```
 
 - **LocalTransform**: Position, rotation, scale relative to parent (or world if no parent)
@@ -140,15 +138,15 @@ fn spawn_robot_arm(world: &mut World) -> Entity {
 
     let lower_arm = spawn_cube_at(world, Vec3::new(0.0, 1.5, 0.0));
     world.set_name(lower_arm, Name("Lower Arm".to_string()));
-    world.set_parent(lower_arm, Parent(base));
+    world.set_parent(lower_arm, Parent(Some(base)));
 
     let upper_arm = spawn_cube_at(world, Vec3::new(0.0, 2.0, 0.0));
     world.set_name(upper_arm, Name("Upper Arm".to_string()));
-    world.set_parent(upper_arm, Parent(lower_arm));
+    world.set_parent(upper_arm, Parent(Some(lower_arm)));
 
     let hand = spawn_cube_at(world, Vec3::new(0.0, 1.5, 0.0));
     world.set_name(hand, Name("Hand".to_string()));
-    world.set_parent(hand, Parent(upper_arm));
+    world.set_parent(hand, Parent(Some(upper_arm)));
 
     base
 }

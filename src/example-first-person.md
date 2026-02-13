@@ -37,8 +37,7 @@ impl State for FirstPersonGame {
         self.setup_ui(world);
         self.setup_audio(world);
 
-        world.resources.input.cursor_locked = true;
-        world.resources.input.cursor_visible = false;
+        world.resources.graphics.show_cursor = false;
     }
 
     fn run_systems(&mut self, world: &mut World) {
@@ -74,7 +73,7 @@ impl FirstPersonGame {
     fn setup_player(&mut self, world: &mut World) {
         let player = world.spawn_entities(
             LOCAL_TRANSFORM | GLOBAL_TRANSFORM |
-            CHARACTER_CONTROLLER | COLLIDER_COMPONENT |
+            CHARACTER_CONTROLLER | COLLIDER |
             AUDIO_LISTENER,
             1
         )[0];
@@ -118,7 +117,7 @@ impl FirstPersonGame {
             smoothing: None,
         });
 
-        world.set_parent(camera, Parent(player));
+        world.set_parent(camera, Parent(Some(player)));
         world.resources.active_camera = Some(camera);
 
         self.setup_weapon(world, camera);
@@ -137,13 +136,13 @@ impl FirstPersonGame {
             scale: Vec3::new(0.1, 0.1, 0.1),
         });
 
-        world.set_parent(weapon, Parent(camera));
+        world.set_parent(weapon, Parent(Some(camera)));
         self.weapon = Some(weapon);
     }
 
     fn setup_level(&mut self, world: &mut World) {
         let floor = spawn_plane_at(world, Vec3::zeros());
-        world.set_material(floor, Material {
+        set_material_with_textures(world, floor, Material {
             base_color: [0.3, 0.3, 0.3, 1.0],
             roughness: 0.9,
             ..Default::default()
@@ -182,7 +181,7 @@ impl FirstPersonGame {
                 ),
                 ..Default::default()
             });
-            world.set_material(crate_entity, Material {
+            set_material_with_textures(world, crate_entity, Material {
                 base_color: [0.6, 0.4, 0.2, 1.0],
                 roughness: 0.8,
                 ..Default::default()
@@ -198,7 +197,7 @@ impl FirstPersonGame {
     fn setup_lighting(&mut self, world: &mut World) {
         spawn_sun(world);
 
-        world.resources.graphics.ambient_intensity = 0.1;
+        world.resources.graphics.ambient_light = [0.1, 0.1, 0.1, 1.0];
     }
 
     fn setup_ui(&mut self, world: &mut World) {
@@ -239,7 +238,7 @@ impl FirstPersonGame {
         let Some(player) = self.player else { return };
 
         let keyboard = &world.resources.input.keyboard;
-        let mouse_delta = world.resources.input.mouse.delta;
+        let position_delta = world.resources.input.mouse.position_delta;
 
         let mut move_input = Vec3::zeros();
         if keyboard.is_key_pressed(KeyCode::KeyW) { move_input.z -= 1.0; }
@@ -266,7 +265,7 @@ impl FirstPersonGame {
                 controller.velocity.x = world_move.x * speed;
                 controller.velocity.z = world_move.z * speed;
 
-                if keyboard.is_key_just_pressed(KeyCode::Space) && controller.grounded {
+                if keyboard.is_key_pressed(KeyCode::Space) && controller.grounded {
                     controller.velocity.y = controller.jump_speed;
                 }
             }
@@ -275,7 +274,7 @@ impl FirstPersonGame {
         if let Some(transform) = world.get_local_transform_mut(player) {
             let sensitivity = 0.002;
             let yaw = nalgebra_glm::quat_angle_axis(
-                -mouse_delta.x * sensitivity,
+                -position_delta.x * sensitivity,
                 &Vec3::y(),
             );
             transform.rotation = yaw * transform.rotation;
@@ -285,7 +284,7 @@ impl FirstPersonGame {
             if let Some(transform) = world.get_local_transform_mut(camera) {
                 let sensitivity = 0.002;
                 let pitch = nalgebra_glm::quat_angle_axis(
-                    -mouse_delta.y * sensitivity,
+                    -position_delta.y * sensitivity,
                     &Vec3::x(),
                 );
                 transform.rotation = transform.rotation * pitch;
@@ -296,11 +295,11 @@ impl FirstPersonGame {
     fn update_weapon_sway(&mut self, world: &mut World, dt: f32) {
         let Some(weapon) = self.weapon else { return };
 
-        let mouse_delta = world.resources.input.mouse.delta;
+        let position_delta = world.resources.input.mouse.position_delta;
 
         if let Some(transform) = world.get_local_transform_mut(weapon) {
-            let target_x = 0.3 - mouse_delta.x * 0.001;
-            let target_y = -0.2 - mouse_delta.y * 0.001;
+            let target_x = 0.3 - position_delta.x * 0.001;
+            let target_y = -0.2 - position_delta.y * 0.001;
 
             transform.translation.x += (target_x - transform.translation.x) * dt * 10.0;
             transform.translation.y += (target_y - transform.translation.y) * dt * 10.0;
@@ -340,8 +339,8 @@ impl FirstPersonGame {
 
         if let Some(camera) = world.resources.active_camera {
             if let Some(transform) = world.get_global_transform(camera) {
-                let origin = transform.translation;
-                let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+                let origin = transform.translation();
+                let direction = transform.forward_vector();
 
                 if let Some(hit) = raycast(world, origin, direction, 100.0) {
                     if let Some(body) = world.get_rigid_body_mut(hit.entity) {
@@ -385,8 +384,7 @@ impl FirstPersonGame {
     }
 
     fn toggle_pause(&mut self, world: &mut World) {
-        world.resources.input.cursor_locked = !world.resources.input.cursor_locked;
-        world.resources.input.cursor_visible = !world.resources.input.cursor_visible;
+        world.resources.graphics.show_cursor = !world.resources.graphics.show_cursor;
     }
 }
 
@@ -420,7 +418,7 @@ CharacterController {
 First-person camera is parented to the player:
 
 ```rust
-world.set_parent(camera, Parent(player));
+world.set_parent(camera, Parent(Some(player)));
 ```
 
 This makes the camera follow the player automatically.
@@ -430,7 +428,7 @@ This makes the camera follow the player automatically.
 The weapon is parented to the camera so it stays in view:
 
 ```rust
-world.set_parent(weapon, Parent(camera));
+world.set_parent(weapon, Parent(Some(camera)));
 ```
 
 ### Mouse Look

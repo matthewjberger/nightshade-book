@@ -204,7 +204,7 @@ For text in 3D space (billboards, signs):
 
 ```rust
 let entity = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | TEXT_COMPONENT,
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | TEXT,
     1
 )[0];
 

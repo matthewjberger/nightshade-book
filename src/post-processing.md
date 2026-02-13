@@ -32,7 +32,7 @@ fn initialize(&mut self, world: &mut World) {
     world.resources.graphics.ssao_intensity = 1.0;
 
     // Tonemapping
-    world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+    world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 }
 ```
 
@@ -75,18 +75,18 @@ world.resources.graphics.ssao_bias = 0.025;     // Depth comparison bias
 Convert HDR colors to displayable range:
 
 ```rust
-pub enum TonemapMethod {
+pub enum TonemapAlgorithm {
     Reinhard,         // Simple, good for general use
-    ReinhardExtended, // Reinhard with white point
     Aces,             // Film-like, high contrast
-    AcesApprox,       // Faster ACES approximation
-    Filmic,           // Cinematic look
+    Reinhard,         // Simple, preserves detail
+    ReinhardExtended, // Reinhard with white point
     Uncharted2,       // Video game standard
+    AgX,              // Neutral, balanced
+    Neutral,          // Minimal color shift
     None,             // No tonemapping (LDR only)
 }
 
-world.resources.graphics.tonemap_method = TonemapMethod::Aces;
-world.resources.graphics.exposure = 1.0;  // Brightness adjustment
+world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 ```
 
 ## Depth of Field

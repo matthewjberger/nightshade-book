@@ -8,7 +8,7 @@ Debug line drawing for visualization, gizmos, and wireframes.
 use nightshade::ecs::lines::*;
 
 fn initialize(&mut self, world: &mut World) {
-    let entity = world.spawn_entities(LINES_COMPONENT, 1)[0];
+    let entity = world.spawn_entities(LINES, 1)[0];
 
     let mut lines = Lines::new();
     lines.add(
@@ -265,17 +265,17 @@ fn draw_colliders(world: &mut World, lines_entity: Entity) {
     if let Some(lines) = world.get_lines_mut(lines_entity) {
         lines.clear();
 
-        for entity in world.query_entities(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
+        for entity in world.query_entities(COLLIDER | GLOBAL_TRANSFORM) {
             if let (Some(collider), Some(transform)) = (
                 world.get_collider(entity),
                 world.get_global_transform(entity),
             ) {
                 match &collider.shape {
                     ColliderShape::Sphere { radius } => {
-                        draw_sphere(lines, transform.translation, *radius, Vec4::new(0.0, 1.0, 0.0, 1.0), 16);
+                        draw_sphere(lines, transform.translation(), *radius, Vec4::new(0.0, 1.0, 0.0, 1.0), 16);
                     }
                     ColliderShape::Box { half_extents } => {
-                        draw_box(lines, transform.translation, *half_extents, Vec4::new(0.0, 1.0, 0.0, 1.0));
+                        draw_box(lines, transform.translation(), *half_extents, Vec4::new(0.0, 1.0, 0.0, 1.0));
                     }
                     _ => {}
                 }

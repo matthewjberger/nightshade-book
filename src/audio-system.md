@@ -153,7 +153,7 @@ fn run_systems(&mut self, world: &mut World) {
     }
 
     // Play sound on input
-    if world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) {
+    if world.resources.input.keyboard.is_key_pressed(KeyCode::Space) {
         play_sound(world, "jump", PlaybackSettings::default());
     }
 }

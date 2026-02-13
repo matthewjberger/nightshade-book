@@ -64,10 +64,10 @@ for entity in world.query_entities(LIGHT) {
 Check if an entity has specific components:
 
 ```rust
-if world.has_components(entity, RENDER_MESH) {
+if world.entity_has_components(entity, RENDER_MESH) {
 }
 
-if world.has_components(entity, ANIMATION_PLAYER | SKIN) {
+if world.entity_has_components(entity, ANIMATION_PLAYER | SKIN) {
 }
 ```
 

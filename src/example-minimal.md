@@ -11,11 +11,16 @@ struct MinimalGame;
 
 impl State for MinimalGame {
     fn initialize(&mut self, world: &mut World) {
-        spawn_fly_camera(world);
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
 
         spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0));
 
         spawn_sun(world);
+    }
+
+    fn run_systems(&mut self, world: &mut World) {
+        fly_camera_system(world);
     }
 }
 
@@ -37,8 +42,8 @@ The prelude exports all commonly used types:
 - `World` struct
 - `Entity` type
 - Math types (`Vec3`, `Vec4`, `Mat4`, etc.)
-- Component flags (`LOCAL_TRANSFORM`, `MESH_COMPONENT`, etc.)
-- Common functions (`spawn_cube_at`, `spawn_fly_camera`, etc.)
+- Component flags (`LOCAL_TRANSFORM`, `RENDER_MESH`, etc.)
+- Common functions (`spawn_cube_at`, `spawn_camera`, etc.)
 
 ### 2. Define Your Game State
 
@@ -84,13 +89,11 @@ The `State` trait has many optional methods:
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
-    // Camera (required to see anything)
-    spawn_fly_camera(world);
+    let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+    world.resources.active_camera = Some(camera);
 
-    // A visible object
     spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0));
 
-    // Light (required for PBR materials)
     spawn_sun(world);
 }
 ```
@@ -145,12 +148,11 @@ The fly camera uses standard controls:
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
-    spawn_fly_camera(world);
+    let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+    world.resources.active_camera = Some(camera);
 
-    // Ground plane
     spawn_plane_at(world, Vec3::zeros());
 
-    // Multiple cubes
     for index in 0..5 {
         spawn_cube_at(world, Vec3::new(index as f32 * 2.0 - 4.0, 0.5, -5.0));
     }
@@ -169,7 +171,8 @@ struct MinimalGame {
 
 impl State for MinimalGame {
     fn initialize(&mut self, world: &mut World) {
-        spawn_fly_camera(world);
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
 
         self.cube = Some(spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0)));
 

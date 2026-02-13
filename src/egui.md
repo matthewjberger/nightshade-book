@@ -54,8 +54,8 @@ if ui.button("Spawn Enemy").clicked() {
 ```rust
 ui.add(egui::Slider::new(&mut self.speed, 0.0..=10.0).text("Speed"));
 
-ui.add(egui::Slider::new(&mut world.resources.graphics.exposure, 0.1..=5.0)
-    .text("Exposure"));
+ui.add(egui::Slider::new(&mut world.resources.graphics.bloom_intensity, 0.0..=2.0)
+    .text("Bloom Intensity"));
 ```
 
 ### Checkboxes
@@ -229,14 +229,14 @@ fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
         ui.heading("Performance");
         ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
         ui.label(format!("Frame Time: {:.2}ms", world.resources.window.timing.delta_time * 1000.0));
-        ui.label(format!("Entities: {}", world.entity_count()));
+        ui.label(format!("Entities: {}", world.query_entities(RENDER_MESH).count()));
 
         ui.separator();
 
         ui.heading("Graphics");
         ui.checkbox(&mut world.resources.graphics.bloom_enabled, "Bloom");
         ui.checkbox(&mut world.resources.graphics.ssao_enabled, "SSAO");
-        ui.add(egui::Slider::new(&mut world.resources.graphics.exposure, 0.1..=5.0).text("Exposure"));
+        ui.add(egui::Slider::new(&mut world.resources.graphics.bloom_intensity, 0.0..=2.0).text("Bloom Intensity"));
 
         ui.separator();
 

@@ -15,14 +15,12 @@ fn run_systems(&mut self, world: &mut World) {
         move_forward();
     }
 
-    // Key just pressed this frame
-    if keyboard.is_key_just_pressed(KeyCode::Space) {
+    if keyboard.is_key_pressed(KeyCode::Space) {
         jump();
     }
 
-    // Key just released this frame
-    if keyboard.is_key_just_released(KeyCode::ShiftLeft) {
-        stop_sprinting();
+    if keyboard.is_key_pressed(KeyCode::ShiftLeft) {
+        sprint();
     }
 }
 ```
@@ -73,7 +71,7 @@ let position = mouse.position;  // Screen coordinates (x, y)
 ### Mouse Movement (Delta)
 
 ```rust
-let delta = world.resources.input.mouse.delta;
+let delta = world.resources.input.mouse.position_delta;
 camera_yaw += delta.x * sensitivity;
 camera_pitch += delta.y * sensitivity;
 ```
@@ -112,7 +110,7 @@ if mouse.state.contains(MouseState::MIDDLE_CLICKED) {
 ### Mouse Scroll
 
 ```rust
-let scroll = world.resources.input.mouse.scroll_delta;
+let scroll = world.resources.input.mouse.wheel_delta;
 if scroll.y != 0.0 {
     zoom_camera(scroll.y);
 }
@@ -167,7 +165,7 @@ First-person camera control:
 
 ```rust
 fn mouse_look_system(world: &mut World, sensitivity: f32) {
-    let delta = world.resources.input.mouse.delta;
+    let delta = world.resources.input.mouse.position_delta;
 
     if let Some(camera) = world.resources.active_camera {
         if let Some(transform) = world.get_local_transform_mut(camera) {
@@ -189,19 +187,17 @@ fn mouse_look_system(world: &mut World, sensitivity: f32) {
 }
 ```
 
-## Cursor Locking
+## Cursor Visibility
 
 For first-person games:
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
-    world.resources.input.cursor_locked = true;
-    world.resources.input.cursor_visible = false;
+    world.resources.graphics.show_cursor = false;
 }
 
 fn toggle_cursor(world: &mut World) {
-    world.resources.input.cursor_locked = !world.resources.input.cursor_locked;
-    world.resources.input.cursor_visible = !world.resources.input.cursor_visible;
+    world.resources.graphics.show_cursor = !world.resources.graphics.show_cursor;
 }
 ```
 
@@ -245,8 +241,8 @@ struct InputBuffer {
 fn update_input_buffer(buffer: &mut InputBuffer, world: &World, dt: f32) {
     buffer.jump_buffer = (buffer.jump_buffer - dt).max(0.0);
 
-    if world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) {
-        buffer.jump_buffer = 0.15;  // 150ms buffer
+    if world.resources.input.keyboard.is_key_pressed(KeyCode::Space) {
+        buffer.jump_buffer = 0.15;
     }
 }
 

@@ -95,7 +95,7 @@ world.resources.graphics.atmosphere = Atmosphere::Sky;
 world.resources.graphics.bloom_enabled = true;
 world.resources.graphics.ssao_enabled = true;
 
-world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 ```
 
 ### Active Camera

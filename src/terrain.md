@@ -96,7 +96,7 @@ fn add_terrain_collision(world: &mut World, config: &TerrainConfig) {
 
     // Create heightfield collider
     let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | COLLIDER_COMPONENT,
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | COLLIDER,
         1
     )[0];
 

@@ -135,7 +135,7 @@ fn run_systems(&mut self, world: &mut World) {
 3. **Animation player is on child entity:**
 ```rust
 // glTF animations are often on child nodes
-for child in world.get_children(model_root) {
+for child in world.resources.children_cache.get(&model_root).cloned().unwrap_or_default() {
     if let Some(player) = world.get_animation_player_mut(child) {
         player.play("idle");
     }
@@ -163,7 +163,7 @@ nightshade = { git = "...", features = ["engine", "wgpu", "audio"] }
 
 1. **Check entity count:**
 ```rust
-println!("Entities: {}", world.entity_count());
+println!("Entities: {}", world.query_entities(RENDER_MESH).count());
 ```
 
 2. **Disable expensive effects:**
@@ -226,16 +226,16 @@ Missing or incorrect lighting:
 
 ```rust
 spawn_sun(world);
-world.resources.graphics.ambient_intensity = 0.1;
+world.resources.graphics.ambient_light = [0.1, 0.1, 0.1, 1.0];
 ```
 
 ### Objects are too bright / washed out
 
-Adjust exposure and tonemapping:
+Adjust tonemapping and color grading:
 
 ```rust
-world.resources.graphics.exposure = 1.0;
-world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
+world.resources.graphics.color_grading.brightness = 0.0;
 ```
 
 ### Textures look wrong

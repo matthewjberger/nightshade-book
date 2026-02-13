@@ -101,7 +101,7 @@ if let Some(transform) = world.get_local_transform_mut(entity) {
 ### Checking Component Presence
 
 ```rust
-if world.has_components(entity, RENDER_MESH) {
+if world.entity_has_components(entity, RENDER_MESH) {
 }
 ```
 

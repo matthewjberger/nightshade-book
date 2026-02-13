@@ -355,8 +355,9 @@ impl Default for VisualDemo {
 
 impl State for VisualDemo {
     fn initialize(&mut self, world: &mut World) {
-        spawn_fly_camera(world);
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
+        spawn_sun(world);
 
         // Load some geometry
         load_gltf(world, "assets/models/scene.glb");

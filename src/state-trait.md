@@ -5,9 +5,9 @@ The `State` trait is the primary interface between your game and the Nightshade 
 ## Trait Definition
 
 ```rust
-pub trait State: 'static {
+pub trait State {
     fn title(&self) -> &str { "Nightshade" }
-    fn icon_bytes(&self) -> Option<&'static [u8]> { None }
+    fn icon_bytes(&self) -> Option<&'static [u8]> { Some(LOGO_BYTES) }
     fn initialize(&mut self, world: &mut World) {}
     fn run_systems(&mut self, world: &mut World) {}
     fn ui(&mut self, world: &mut World, ctx: &egui::Context) {}
@@ -84,7 +84,7 @@ For egui-based user interfaces. Note that `world` comes before `ctx`:
 fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
     egui::Window::new("Debug").show(ctx, |ui| {
         ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
-        ui.label(format!("Entities: {}", world.entity_count()));
+        ui.label(format!("Entities: {}", world.query_entities(RENDER_MESH).count()));
     });
 }
 ```

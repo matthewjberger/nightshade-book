@@ -147,7 +147,7 @@ fn update_flashlight(world: &mut World, flashlight: Entity) {
     let Some(camera_transform) = world.get_global_transform(camera) else { return };
 
     let position = camera_transform.translation();
-    let forward = camera_transform.forward();
+    let forward = camera_transform.forward_vector();
 
     if let Some(transform) = world.get_local_transform_mut(flashlight) {
         transform.translation = position;
@@ -173,7 +173,7 @@ Set ambient lighting through the atmosphere:
 
 ```rust
 world.resources.graphics.atmosphere = Atmosphere::Sky;
-world.resources.graphics.ambient_intensity = 0.3;
+world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
 ```
 
 ## Multiple Lights

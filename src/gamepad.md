@@ -135,7 +135,7 @@ fn gather_input(world: &World) -> PlayerInput {
     if keyboard.is_key_pressed(KeyCode::KeyS) { input.movement.y += 1.0; }
     if keyboard.is_key_pressed(KeyCode::KeyA) { input.movement.x -= 1.0; }
     if keyboard.is_key_pressed(KeyCode::KeyD) { input.movement.x += 1.0; }
-    input.jump |= keyboard.is_key_just_pressed(KeyCode::Space);
+    input.jump |= keyboard.is_key_pressed(KeyCode::Space);
 
     if let Some(gamepad) = &world.resources.input.gamepad {
         let stick = gamepad.left_stick;

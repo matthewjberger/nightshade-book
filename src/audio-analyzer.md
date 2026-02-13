@@ -121,8 +121,10 @@ fn run_systems(&mut self, world: &mut World) {
     }
 
     // Flash lights on snare
-    if let Some(light) = world.get_point_light_mut(self.light) {
-        light.intensity = 5.0 + self.analyzer.snare_decay * 20.0;
+    if let Some(light_entity) = self.light {
+        if let Some(light) = world.get_light_mut(light_entity) {
+            light.intensity = 5.0 + self.analyzer.snare_decay * 20.0;
+        }
     }
 
     // Particle burst on onset
@@ -189,9 +191,10 @@ analyzer.harmonic_change
 
 ```rust
 fn update_material(&self, world: &mut World) {
+    use nightshade::ecs::generational_registry::registry_entry_by_name_mut;
+
     let brightness = self.analyzer.smoothed_centroid;
 
-    // Interpolate from red (dark sound) to blue (bright sound)
     let color = [
         1.0 - brightness,
         0.2,
@@ -199,8 +202,13 @@ fn update_material(&self, world: &mut World) {
         1.0
     ];
 
-    if let Some(material) = world.get_material_mut(self.entity) {
-        material.base_color = color;
+    if let Some(mat_ref) = world.get_material_ref(self.entity).cloned() {
+        if let Some(material) = registry_entry_by_name_mut(
+            &mut world.resources.material_registry.registry,
+            &mat_ref.name,
+        ) {
+            material.base_color = color;
+        }
     }
 }
 ```
@@ -254,8 +262,8 @@ fn run_systems(&mut self, world: &mut World) {
 
     // Dim lights during breakdown
     if self.analyzer.is_breakdown {
-        world.resources.graphics.ambient_intensity =
-            0.1 + 0.1 * self.analyzer.breakdown_intensity;
+        let intensity = 0.1 + 0.1 * self.analyzer.breakdown_intensity;
+        world.resources.graphics.ambient_light = [intensity, intensity, intensity, 1.0];
     }
 
     // Camera shake on drop
@@ -301,6 +309,7 @@ analyzer.reset();
 ## Complete Example
 
 ```rust
+use nightshade::ecs::generational_registry::registry_entry_by_name_mut;
 use nightshade::prelude::*;
 
 struct MusicVisualizer {
@@ -328,17 +337,28 @@ impl State for MusicVisualizer {
         self.analyzer.load_samples(samples, sample_rate);
 
         // Create scene
-        self.cube = Some(spawn_primitive(world, Primitive::Cube));
-        self.light = Some(spawn_point_light(
-            world,
-            Vec3::new(0.0, 3.0, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            10.0,
-            20.0
-        ));
+        self.cube = Some(spawn_cube_at(world, Vec3::zeros()));
 
-        spawn_fly_camera(world);
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        let light_entity = world.spawn_entities(
+            LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
+            1
+        )[0];
+        world.set_light(light_entity, Light {
+            light_type: LightType::Point,
+            color: Vec3::new(1.0, 1.0, 1.0),
+            intensity: 10.0,
+            range: 20.0,
+            ..Default::default()
+        });
+        world.set_local_transform(light_entity, LocalTransform {
+            translation: Vec3::new(0.0, 3.0, 0.0),
+            ..Default::default()
+        });
+        self.light = Some(light_entity);
+
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
+        spawn_sun(world);
     }
 
     fn run_systems(&mut self, world: &mut World) {
@@ -355,31 +375,35 @@ impl State for MusicVisualizer {
                 transform.scale = Vec3::new(bass_scale, bass_scale, bass_scale);
             }
 
-            // Color based on spectral content
-            if let Some(material) = world.get_material_mut(cube) {
-                material.emissive = [
-                    self.analyzer.smoothed_bass,
-                    self.analyzer.smoothed_mids,
-                    self.analyzer.smoothed_highs,
-                ];
-                material.emissive_strength = self.analyzer.intensity * 2.0;
+            if let Some(mat_ref) = world.get_material_ref(cube).cloned() {
+                if let Some(material) = registry_entry_by_name_mut(
+                    &mut world.resources.material_registry.registry,
+                    &mat_ref.name,
+                ) {
+                    material.emissive_factor = [
+                        self.analyzer.smoothed_bass,
+                        self.analyzer.smoothed_mids,
+                        self.analyzer.smoothed_highs,
+                    ];
+                    material.emissive_strength = self.analyzer.intensity * 2.0;
+                }
             }
         }
 
         // Flash light on kick
-        if let Some(light) = self.light {
-            if let Some(point_light) = world.get_point_light_mut(light) {
-                point_light.intensity = 5.0 + self.analyzer.kick_decay * 30.0;
+        if let Some(light_entity) = self.light {
+            if let Some(light) = world.get_light_mut(light_entity) {
+                light.intensity = 5.0 + self.analyzer.kick_decay * 30.0;
             }
         }
 
         // Adjust ambient based on structure
         if self.analyzer.is_breakdown {
-            world.resources.graphics.ambient_intensity = 0.05;
+            world.resources.graphics.ambient_light = [0.05, 0.05, 0.05, 1.0];
         } else if self.analyzer.is_dropping {
-            world.resources.graphics.ambient_intensity = 0.3;
+            world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
         } else {
-            world.resources.graphics.ambient_intensity = 0.15;
+            world.resources.graphics.ambient_light = [0.15, 0.15, 0.15, 1.0];
         }
     }
 }

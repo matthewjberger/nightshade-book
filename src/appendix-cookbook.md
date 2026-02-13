@@ -53,7 +53,7 @@ fn camera_relative_movement(
 
     let Some(camera_transform) = world.get_global_transform(camera) else { return };
 
-    let forward = camera_transform.forward();
+    let forward = camera_transform.forward_vector();
     let forward_flat = Vec3::new(forward.x, 0.0, forward.z).normalize();
     let right_flat = Vec3::new(forward.z, 0.0, -forward.x).normalize();
 
@@ -91,7 +91,7 @@ fn handle_jumping(
     let dt = world.resources.window.timing.delta_time;
     let keyboard = &world.resources.input.keyboard;
 
-    if state.grounded && keyboard.is_key_just_pressed(KeyCode::Space) {
+    if state.grounded && keyboard.is_key_pressed(KeyCode::Space) {
         state.velocity_y = jump_force;
         state.grounded = false;
     }
@@ -163,8 +163,8 @@ struct OrbitCamera {
 }
 
 fn orbit_camera_system(world: &mut World, camera: Entity, orbit: &mut OrbitCamera) {
-    let mouse_delta = world.resources.input.mouse.delta;
-    let scroll = world.resources.input.mouse.scroll_delta;
+    let mouse_delta = world.resources.input.mouse.position_delta;
+    let scroll = world.resources.input.mouse.wheel_delta;
 
     orbit.yaw -= mouse_delta.x * orbit.sensitivity;
     orbit.pitch -= mouse_delta.y * orbit.sensitivity;
@@ -205,7 +205,7 @@ struct FpsCamera {
 }
 
 fn fps_camera_system(world: &mut World, camera: Entity, fps: &mut FpsCamera) {
-    let mouse_delta = world.resources.input.mouse.delta;
+    let mouse_delta = world.resources.input.mouse.position_delta;
 
     fps.yaw -= mouse_delta.x * fps.sensitivity;
     fps.pitch -= mouse_delta.y * fps.sensitivity;
@@ -268,7 +268,7 @@ fn melee_attack(
     };
 
     let origin = attacker_transform.translation();
-    let forward = attacker_transform.forward();
+    let forward = attacker_transform.forward_vector();
 
     let mut hit_entities = vec![];
 
@@ -319,7 +319,7 @@ fn spawn_projectile(
     owner: Entity,
 ) -> Entity {
     let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | MESH_COMPONENT,
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH,
         1
     )[0];
 
@@ -403,7 +403,7 @@ impl EntityPool {
 }
 
 fn set_entity_active(world: &mut World, entity: Entity, active: bool) {
-    world.set_visible(entity, Visible(active));
+    world.set_visibility(entity, Visibility { visible: active });
 }
 ```
 
@@ -641,12 +641,12 @@ fn load_game(path: &str) -> std::io::Result<SaveData> {
 fn debug_draw_colliders(world: &mut World, lines_entity: Entity) {
     let mut lines = vec![];
 
-    for entity in world.query_entities(COLLIDER_COMPONENT | GLOBAL_TRANSFORM) {
+    for entity in world.query_entities(COLLIDER | GLOBAL_TRANSFORM) {
         let Some(collider) = world.get_collider(entity) else { continue };
         let Some(transform) = world.get_global_transform(entity) else { continue };
 
         let pos = transform.translation();
-        let color = [0.0, 1.0, 0.0, 1.0];
+        let color = Vec4::new(0.0, 1.0, 0.0, 1.0);
 
         match &collider.shape {
             ColliderShape::Box { half_extents } => {
@@ -659,10 +659,10 @@ fn debug_draw_colliders(world: &mut World, lines_entity: Entity) {
         }
     }
 
-    world.set_lines(lines_entity, LinesComponent { lines });
+    world.set_lines(lines_entity, Lines { lines, version: 0 });
 }
 
-fn draw_wire_box(lines: &mut Vec<Line>, center: Vec3, half: Vec3, color: [f32; 4]) {
+fn draw_wire_box(lines: &mut Vec<Line>, center: Vec3, half: Vec3, color: Vec4) {
     let corners = [
         center + Vec3::new(-half.x, -half.y, -half.z),
         center + Vec3::new( half.x, -half.y, -half.z),
