@@ -7,29 +7,30 @@ The `State` trait is the primary interface between your game and the Nightshade 
 ```rust
 pub trait State {
     fn title(&self) -> &str { "Nightshade" }
-    fn icon_bytes(&self) -> Option<&'static [u8]> { Some(LOGO_BYTES) }
-    fn initialize(&mut self, world: &mut World) {}
-    fn run_systems(&mut self, world: &mut World) {}
-    fn ui(&mut self, world: &mut World, ctx: &egui::Context) {}
-    fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {}
+    fn icon_bytes(&self) -> Option<&'static [u8]> { /* default: built-in icon */ }
+    fn initialize(&mut self, _world: &mut World) {}
+    fn next_state(&mut self, _world: &mut World) -> Option<Box<dyn State>> { None }
     fn configure_render_graph(
         &mut self,
         graph: &mut RenderGraph<World>,
         device: &wgpu::Device,
         surface_format: wgpu::TextureFormat,
         resources: RenderResources,
-    ) {}
-    fn update_render_graph(&mut self, graph: &mut RenderGraph<World>, world: &World) {}
-    fn pre_render(&mut self, renderer: &mut dyn Render, world: &mut World) {}
-    fn handle_event(&mut self, world: &mut World, message: &Message) {}
-    fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {}
-    fn on_dropped_file(&mut self, world: &mut World, path: &Path) {}
-    fn on_dropped_file_data(&mut self, world: &mut World, name: &str, data: &[u8]) {}
-    fn on_hovered_file(&mut self, world: &mut World, path: &Path) {}
-    fn on_hovered_file_cancelled(&mut self, world: &mut World) {}
-    fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {}
-    fn on_gamepad_event(&mut self, world: &mut World, event: gilrs::Event) {}
-    fn next_state(&mut self, world: &mut World) -> Option<Box<dyn State>> { None }
+    ) { /* default: bloom + post-processing + swapchain blit */ }
+    fn ui(&mut self, _world: &mut World, _ui_context: &egui::Context) {}
+    fn secondary_ui(&mut self, _world: &mut World, _window_index: usize, _ui_context: &egui::Context) {}
+    fn immediate_ui(&mut self, _world: &mut World, _ui: &mut ImmediateUi) {}
+    fn run_systems(&mut self, _world: &mut World) {}
+    fn pre_render(&mut self, _renderer: &mut dyn Render, _world: &mut World) {}
+    fn update_render_graph(&mut self, _graph: &mut RenderGraph<World>, _world: &World) {}
+    fn handle_event(&mut self, _world: &mut World, _message: &Message) {}
+    fn on_keyboard_input(&mut self, _world: &mut World, _key_code: KeyCode, _key_state: ElementState) {}
+    fn on_dropped_file(&mut self, _world: &mut World, _path: &std::path::Path) {}
+    fn on_dropped_file_data(&mut self, _world: &mut World, _name: &str, _data: &[u8]) {}
+    fn on_hovered_file(&mut self, _world: &mut World, _path: &std::path::Path) {}
+    fn on_hovered_file_cancelled(&mut self, _world: &mut World) {}
+    fn on_gamepad_event(&mut self, _world: &mut World, _event: gilrs::Event) {}
+    fn on_mouse_input(&mut self, _world: &mut World, _state: ElementState, _button: MouseButton) {}
 }
 ```
 
@@ -78,11 +79,11 @@ fn run_systems(&mut self, world: &mut World) {
 
 ### ui()
 
-For egui-based user interfaces. Note that `world` comes before `ctx`:
+For egui-based user interfaces. Requires the `egui` feature. Note that `world` comes before `ui_context`:
 
 ```rust
-fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
-    egui::Window::new("Debug").show(ctx, |ui| {
+fn ui(&mut self, world: &mut World, ui_context: &egui::Context) {
+    egui::Window::new("Debug").show(ui_context, |ui| {
         ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
         ui.label(format!("Entities: {}", world.query_entities(RENDER_MESH).count()));
     });
@@ -113,9 +114,9 @@ fn immediate_ui(&mut self, world: &mut World, ui: &mut ImmediateUi) {
 Handle keyboard events directly:
 
 ```rust
-fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
-    if state == ElementState::Pressed {
-        match key {
+fn on_keyboard_input(&mut self, world: &mut World, key_code: KeyCode, key_state: ElementState) {
+    if key_state == ElementState::Pressed {
+        match key_code {
             KeyCode::Escape => self.paused = !self.paused,
             KeyCode::F11 => toggle_fullscreen(world),
             _ => {}
@@ -156,9 +157,31 @@ fn on_gamepad_event(&mut self, world: &mut World, event: gilrs::Event) {
 }
 ```
 
+### secondary_ui()
+
+For multi-window applications using egui. Called with a `window_index` parameter that identifies which secondary window is being drawn, allowing you to render different UI per window. Requires the `egui` feature:
+
+```rust
+fn secondary_ui(&mut self, world: &mut World, window_index: usize, ui_context: &egui::Context) {
+    match window_index {
+        0 => {
+            egui::Window::new("Inspector").show(ui_context, |ui| {
+                ui.label("Secondary window 0");
+            });
+        }
+        1 => {
+            egui::Window::new("Scene View").show(ui_context, |ui| {
+                ui.label("Secondary window 1");
+            });
+        }
+        _ => {}
+    }
+}
+```
+
 ### configure_render_graph()
 
-Customize the rendering pipeline. Called once during initialization:
+Customize the rendering pipeline. Called once during initialization. The default implementation sets up bloom, post-processing, and swapchain blit passes. Override this to replace or extend the default pipeline:
 
 ```rust
 fn configure_render_graph(

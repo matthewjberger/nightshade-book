@@ -69,36 +69,22 @@ fn run_systems(&mut self, world: &mut World) {
 
 ```rust
 fn has_reached_destination(world: &World, agent: Entity) -> bool {
-    if let Some(nav_agent) = world.get_nav_mesh_agent(agent) {
-        nav_agent.target.is_none() || nav_agent.path.is_empty()
+    if let Some(nav_agent) = world.get_navmesh_agent(agent) {
+        nav_agent.target_position.is_none() || nav_agent.current_path.is_empty()
     } else {
         true
     }
 }
 
 fn get_remaining_distance(world: &World, agent: Entity) -> f32 {
-    if let Some(nav_agent) = world.get_nav_mesh_agent(agent) {
+    if let Some(nav_agent) = world.get_navmesh_agent(agent) {
         if let Some(agent_pos) = world.get_local_transform(agent).map(|t| t.translation) {
-            if let Some(target) = nav_agent.target {
+            if let Some(target) = nav_agent.target_position {
                 return (target - agent_pos).magnitude();
             }
         }
     }
     0.0
-}
-```
-
-## Pathfinding Queries
-
-Find paths without agents:
-
-```rust
-fn find_path(world: &World, start: Vec3, end: Vec3) -> Option<Vec<Vec3>> {
-    query_path(world, start, end)
-}
-
-fn is_point_walkable(world: &World, point: Vec3) -> bool {
-    is_on_navmesh(world, point)
 }
 ```
 
@@ -147,27 +133,13 @@ let config = RecastNavMeshConfig {
 // Area 2: Mud (cost 3.0 - avoided)
 ```
 
-## Off-Mesh Connections
-
-Link disconnected navmesh regions (ladders, teleports):
-
-```rust
-fn add_ladder_connection(world: &mut World, start: Vec3, end: Vec3) {
-    add_offmesh_connection(world, start, end, true);  // bidirectional = true
-}
-
-fn add_one_way_jump(world: &mut World, start: Vec3, end: Vec3) {
-    add_offmesh_connection(world, start, end, false);  // one-way
-}
-```
-
 ## Debug Visualization
 
 Draw the navmesh for debugging:
 
 ```rust
 fn draw_navmesh_debug(world: &mut World) {
-    if let Some(navmesh) = &world.resources.navmesh_world.navmesh {
+    if let Some(navmesh) = &world.resources.navmesh.navmesh {
         for triangle in navmesh.triangles() {
             // Draw triangle edges as lines
             draw_debug_line(world, triangle.v0, triangle.v1, Vec4::new(0.0, 1.0, 0.0, 1.0));

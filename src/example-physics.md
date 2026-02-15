@@ -54,7 +54,8 @@ impl State for PhysicsPlayground {
         self.update_held_object(world);
         self.update_ui(world);
 
-        update_physics(world, dt);
+        run_physics_systems(world);
+        sync_transforms_from_physics_system(world);
     }
 
     fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
@@ -100,7 +101,7 @@ impl PhysicsPlayground {
             roughness: 0.8,
             ..Default::default()
         });
-        add_collider(world, floor, ColliderShape::Box {
+        add_collider(world, floor, ColliderShape::Cuboid {
             half_extents: Vec3::new(50.0, 0.1, 50.0),
         });
 
@@ -125,7 +126,7 @@ impl PhysicsPlayground {
                 roughness: 0.9,
                 ..Default::default()
             });
-            add_collider(world, wall, ColliderShape::Box { half_extents });
+            add_collider(world, wall, ColliderShape::Cuboid { half_extents });
         }
     }
 
@@ -178,7 +179,7 @@ impl PhysicsPlayground {
         });
 
         add_rigid_body(world, cube, RigidBodyType::Dynamic, 1.0);
-        add_collider(world, cube, ColliderShape::Box {
+        add_collider(world, cube, ColliderShape::Cuboid {
             half_extents: Vec3::new(0.5, 0.5, 0.5),
         });
 
@@ -196,7 +197,7 @@ impl PhysicsPlayground {
         });
 
         add_rigid_body(world, sphere, RigidBodyType::Dynamic, 1.0);
-        add_collider(world, sphere, ColliderShape::Sphere { radius: 0.5 });
+        add_collider(world, sphere, ColliderShape::Ball { radius: 0.5 });
 
         sphere
     }
@@ -245,7 +246,7 @@ impl PhysicsPlayground {
             });
 
             if index == 0 {
-                add_rigid_body(world, link, RigidBodyType::Static, 0.0);
+                add_rigid_body(world, link, RigidBodyType::Fixed, 0.0);
             } else {
                 add_rigid_body(world, link, RigidBodyType::Dynamic, 0.5);
             }
@@ -328,7 +329,7 @@ impl PhysicsPlayground {
         });
 
         add_rigid_body(world, part, RigidBodyType::Dynamic, half_extents.x * half_extents.y * half_extents.z * 8.0);
-        add_collider(world, part, ColliderShape::Box { half_extents });
+        add_collider(world, part, ColliderShape::Cuboid { half_extents });
 
         part
     }
@@ -363,7 +364,7 @@ impl PhysicsPlayground {
                 let Some(transform) = world.get_global_transform(camera) else { return };
 
                 let throw_direction = transform.forward_vector();
-                body.velocity = throw_direction * 20.0;
+                body.linvel = [throw_direction.x * 20.0, throw_direction.y * 20.0, throw_direction.z * 20.0];
             }
         }
     }
@@ -379,7 +380,7 @@ impl PhysicsPlayground {
         if let Some(transform) = world.get_local_transform(entity) {
             let to_target = target - transform.translation;
             if let Some(body) = world.get_rigid_body_mut(entity) {
-                body.velocity = to_target * 20.0;
+                body.linvel = [to_target.x * 20.0, to_target.y * 20.0, to_target.z * 20.0];
             }
         }
     }
@@ -416,7 +417,11 @@ impl PhysicsPlayground {
                 if distance < explosion_radius && distance > 0.1 {
                     let falloff = 1.0 - (distance / explosion_radius);
                     let force = to_entity.normalize() * explosion_force * falloff;
-                    body.velocity += force;
+                    body.linvel = [
+                        body.linvel[0] + force.x,
+                        body.linvel[1] + force.y,
+                        body.linvel[2] + force.z,
+                    ];
                 }
             }
         }

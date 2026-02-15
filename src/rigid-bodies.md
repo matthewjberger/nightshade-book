@@ -16,7 +16,7 @@ let entity = world.spawn_entities(
 
 world.set_rigid_body(entity, RigidBodyComponent::new_dynamic());
 
-world.set_collider(entity, ColliderComponent::ball(0.5));
+world.set_collider(entity, ColliderComponent::new_ball(0.5));
 ```
 
 ### Kinematic Bodies
@@ -24,7 +24,7 @@ world.set_collider(entity, ColliderComponent::ball(0.5));
 Controlled by code, not affected by forces:
 
 ```rust
-world.set_rigid_body(entity, RigidBodyComponent::new_kinematic());
+world.set_rigid_body(entity, RigidBodyComponent::new_kinematic_position_based());
 ```
 
 Move kinematic bodies by updating their transform:

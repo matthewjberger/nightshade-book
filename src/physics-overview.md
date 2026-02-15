@@ -33,13 +33,13 @@ Objects that can move and be affected by forces:
 
 - **Dynamic**: Affected by gravity and forces
 - **Kinematic**: Moved by code, affects dynamic bodies
-- **Static**: Immovable, infinite mass
+- **Fixed**: Immovable, infinite mass
 
 ### Colliders
 
 Shapes used for collision detection:
 
-- Box, Sphere, Capsule, Cylinder
+- Cuboid, Ball, Capsule, Cylinder
 - Triangle mesh, Heightfield
 - Compound shapes
 

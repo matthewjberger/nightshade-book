@@ -159,7 +159,7 @@ world.set_render_mesh(floor, RenderMesh {
 world.set_material_ref(floor, MaterialRef::new("Default"));
 
 world.set_rigid_body(floor, RigidBodyComponent {
-    body_type: RigidBodyType::Static,
+    body_type: RigidBodyType::Fixed,
     ..Default::default()
 });
 ```
@@ -167,10 +167,10 @@ world.set_rigid_body(floor, RigidBodyComponent {
 ### Character Controllers
 
 ```rust
-let player = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0), 1.8, 0.3);
+let (player_entity, camera_entity) = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0));
 ```
 
-`spawn_first_person_player` takes the world, position, height, and radius, and returns the player `Entity`.
+`spawn_first_person_player` takes the world and position, and returns a tuple of `(Entity, Entity)` for the player entity and camera entity.
 
 ## Loading Models
 
@@ -210,7 +210,7 @@ for prefab in result.prefabs {
 Remove entities from the world:
 
 ```rust
-world.despawn_entity(entity);
+world.despawn_entities(&[entity]);
 
 despawn_recursive_immediate(world, entity);
 ```

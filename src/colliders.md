@@ -7,7 +7,7 @@ Colliders define the physical shape of objects for collision detection.
 ### Ball (Sphere)
 
 ```rust
-world.set_collider(entity, ColliderComponent::ball(0.5));
+world.set_collider(entity, ColliderComponent::new_ball(0.5));
 ```
 
 ### Cuboid (Box)
@@ -21,7 +21,7 @@ world.set_collider(entity, ColliderComponent::cuboid(1.0, 0.5, 1.0));
 Perfect for characters:
 
 ```rust
-world.set_collider(entity, ColliderComponent::capsule(0.3, 1.0));
+world.set_collider(entity, ColliderComponent::capsule(1.0, 0.3));
 ```
 
 ### Cylinder

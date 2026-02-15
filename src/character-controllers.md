@@ -10,18 +10,16 @@ The easiest way to get started:
 use nightshade::ecs::physics::character::*;
 
 fn initialize(&mut self, world: &mut World) {
-    let player_entity = spawn_first_person_player(
+    let (player_entity, camera_entity) = spawn_first_person_player(
         world,
         Vec3::new(0.0, 2.0, 0.0),
-        1.8,
-        0.3,
     );
 
     self.player = Some(player_entity);
 
     if let Some(controller) = world.get_character_controller_mut(player_entity) {
         controller.max_speed = 5.0;
-        controller.sprint_speed_multiplier = 2.0;
+        controller.is_sprinting = false;
         controller.jump_impulse = 6.0;
     }
 }
@@ -48,10 +46,9 @@ fn spawn_character(world: &mut World, position: Vec3) -> Entity {
         *controller = CharacterControllerComponent::new_capsule(0.5, 0.3);
         controller.max_speed = 3.0;
         controller.acceleration = 15.0;
-        controller.deceleration = 20.0;
         controller.jump_impulse = 4.0;
-        controller.sprint_speed_multiplier = 2.0;
-        controller.crouch_enabled = false;
+        controller.is_sprinting = false;
+        controller.is_crouching = false;
     }
 
     entity
@@ -63,13 +60,11 @@ fn spawn_character(world: &mut World, position: Vec3) -> Entity {
 | Property | Description | Default |
 |----------|-------------|---------|
 | `max_speed` | Walking speed | 5.0 |
-| `sprint_speed_multiplier` | Sprint multiplier | 1.5 |
+| `is_sprinting` | Sprint active | false |
 | `acceleration` | Speed up rate | 20.0 |
-| `deceleration` | Slow down rate | 25.0 |
 | `jump_impulse` | Jump strength | 5.0 |
-| `gravity_multiplier` | Fall speed modifier | 1.0 |
-| `crouch_enabled` | Allow crouching | true |
-| `crouch_height` | Height when crouched | 0.6 |
+| `can_jump` | Allow jumping | true |
+| `is_crouching` | Crouch active | false |
 
 ## Movement Input
 
@@ -108,7 +103,7 @@ Check if the character is grounded:
 
 ```rust
 if let Some(controller) = world.get_character_controller(player) {
-    if controller.is_grounded {
+    if controller.grounded {
         // On ground - can jump
     } else {
         // In air

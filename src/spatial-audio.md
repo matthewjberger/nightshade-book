@@ -4,14 +4,13 @@
 
 ## Audio Listener
 
-The listener is the "ear" in the scene - usually attached to the camera:
+The listener is the "ear" in the scene, represented as an entity with the `AUDIO_LISTENER` component. Usually attached to the camera:
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
     let camera = spawn_camera(world, Vec3::new(0.0, 2.0, 10.0), "Camera".to_string());
     world.resources.active_camera = Some(camera);
 
-    // Make camera the audio listener
     world.set_audio_listener(camera, AudioListener);
 }
 ```
@@ -21,7 +20,9 @@ fn initialize(&mut self, world: &mut World) {
 Attach sounds to entities for positional audio:
 
 ```rust
-fn spawn_ambient_sound(world: &mut World, position: Vec3, sound: &str) -> Entity {
+const AMBIENT_LOOP: &[u8] = include_bytes!("../assets/sounds/ambient.wav");
+
+fn spawn_ambient_sound(world: &mut World, position: Vec3, data: &[u8]) -> Entity {
     let entity = world.spawn_entities(
         AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM,
         1
@@ -32,7 +33,7 @@ fn spawn_ambient_sound(world: &mut World, position: Vec3, sound: &str) -> Entity
         ..Default::default()
     });
 
-    world.set_audio_source(entity, AudioSource::new(sound)
+    world.set_audio_source(entity, AudioSource::new(data)
         .with_spatial(true)
         .with_looping(true)
         .playing(),
@@ -47,7 +48,9 @@ fn spawn_ambient_sound(world: &mut World, position: Vec3, sound: &str) -> Entity
 Sounds get quieter with distance:
 
 ```rust
-world.set_audio_source(entity, AudioSource::new("waterfall")
+const WATERFALL: &[u8] = include_bytes!("../assets/sounds/waterfall.wav");
+
+world.set_audio_source(entity, AudioSource::new(WATERFALL)
     .with_spatial(true)
     .with_looping(true)
     .playing(),
@@ -69,43 +72,9 @@ Sounds automatically track their entity's position:
 ```rust
 fn update_helicopter(world: &mut World, helicopter: Entity, dt: f32) {
     if let Some(transform) = world.get_local_transform_mut(helicopter) {
-        // Move the helicopter
         transform.translation.x += 10.0 * dt;
     }
     world.mark_local_transform_dirty(helicopter);
-    // Audio position updates automatically
-}
-```
-
-## Doppler Effect
-
-Moving sounds experience pitch shift:
-
-```rust
-world.resources.audio.set_doppler_factor(1.0);  // 0 = off, 1 = realistic
-```
-
-## Reverb Zones
-
-Create ambient reverb for different environments:
-
-```rust
-fn set_cave_reverb(world: &mut World) {
-    world.resources.audio.set_reverb(ReverbSettings {
-        room_size: 0.9,
-        damping: 0.3,
-        wet_mix: 0.6,
-        dry_mix: 0.8,
-    });
-}
-
-fn set_outdoor_reverb(world: &mut World) {
-    world.resources.audio.set_reverb(ReverbSettings {
-        room_size: 0.2,
-        damping: 0.8,
-        wet_mix: 0.1,
-        dry_mix: 1.0,
-    });
 }
 ```
 
@@ -114,7 +83,9 @@ fn set_outdoor_reverb(world: &mut World) {
 UI sounds and music should not be spatial:
 
 ```rust
-world.set_audio_source(entity, AudioSource::new("ui_click")
+const UI_CLICK: &[u8] = include_bytes!("../assets/sounds/ui_click.wav");
+
+world.set_audio_source(entity, AudioSource::new(UI_CLICK)
     .playing(),
 );
 ```
@@ -124,21 +95,12 @@ world.set_audio_source(entity, AudioSource::new("ui_click")
 Some sounds are directional (like a speaker):
 
 ```rust
-world.set_audio_source(entity, AudioSource::new("announcement")
+const ANNOUNCEMENT: &[u8] = include_bytes!("../assets/sounds/announcement.wav");
+
+world.set_audio_source(entity, AudioSource::new(ANNOUNCEMENT)
     .with_spatial(true)
     .playing(),
 );
-```
-
-## Multiple Listeners (Split-Screen)
-
-For split-screen games:
-
-```rust
-// Not typically supported - most games use single listener
-// For split-screen, consider:
-// 1. Use the average position of both players
-// 2. Disable spatial audio and use manual panning
 ```
 
 ## Audio Occlusion
@@ -154,14 +116,11 @@ fn update_audio_occlusion(world: &mut World, source: Entity, listener: Entity) {
         let direction = (lst - src).normalize();
         let distance = (lst - src).magnitude();
 
-        // Check if something blocks the sound
         if let Some(_hit) = raycast(world, src, direction, distance) {
-            // Something in the way - muffle the sound
             if let Some(audio) = world.get_audio_source_mut(source) {
                 audio.volume = 0.3;
             }
         } else {
-            // Clear path
             if let Some(audio) = world.get_audio_source_mut(source) {
                 audio.volume = 1.0;
             }
@@ -175,22 +134,26 @@ fn update_audio_occlusion(world: &mut World, source: Entity, listener: Entity) {
 ### Ambient Soundscape
 
 ```rust
+const FOREST_AMBIENT: &[u8] = include_bytes!("../assets/sounds/forest_ambient.wav");
+const BIRD_CHIRP: &[u8] = include_bytes!("../assets/sounds/bird_chirp.wav");
+const BIRD_SONG: &[u8] = include_bytes!("../assets/sounds/bird_song.wav");
+const STREAM: &[u8] = include_bytes!("../assets/sounds/stream.wav");
+
 fn setup_forest_ambience(world: &mut World) {
-    // Background ambient loop (non-spatial)
-    spawn_ambient_sound(world, Vec3::zeros(), "forest_ambient");
+    spawn_ambient_sound(world, Vec3::zeros(), FOREST_AMBIENT);
 
-    // Positioned bird sounds
-    spawn_ambient_sound(world, Vec3::new(10.0, 5.0, 0.0), "bird_chirp");
-    spawn_ambient_sound(world, Vec3::new(-8.0, 4.0, 5.0), "bird_song");
+    spawn_ambient_sound(world, Vec3::new(10.0, 5.0, 0.0), BIRD_CHIRP);
+    spawn_ambient_sound(world, Vec3::new(-8.0, 4.0, 5.0), BIRD_SONG);
 
-    // Stream
-    spawn_ambient_sound(world, Vec3::new(0.0, 0.0, 20.0), "stream");
+    spawn_ambient_sound(world, Vec3::new(0.0, 0.0, 20.0), STREAM);
 }
 ```
 
 ### Footstep System
 
 ```rust
+const FOOTSTEP: &[u8] = include_bytes!("../assets/sounds/footstep.wav");
+
 fn play_footstep_at_position(world: &mut World, position: Vec3) {
     let entity = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
 
@@ -199,7 +162,7 @@ fn play_footstep_at_position(world: &mut World, position: Vec3) {
         ..Default::default()
     });
 
-    world.set_audio_source(entity, AudioSource::new("footstep")
+    world.set_audio_source(entity, AudioSource::new(FOOTSTEP)
         .with_spatial(true)
         .playing(),
     );

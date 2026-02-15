@@ -87,8 +87,8 @@ fn add_terrain_collision(world: &mut World, config: &TerrainConfig) {
     for z in 0..resolution {
         let mut row = Vec::new();
         for x in 0..resolution {
-            let world_x = (x as f32 / resolution as f32) * config.chunk_size;
-            let world_z = (z as f32 / resolution as f32) * config.chunk_size;
+            let world_x = (x as f32 / resolution as f32) * config.size;
+            let world_z = (z as f32 / resolution as f32) * config.size;
             row.push(sample_terrain_height(world_x, world_z, config));
         }
         heights.push(row);
@@ -103,7 +103,7 @@ fn add_terrain_collision(world: &mut World, config: &TerrainConfig) {
     world.set_collider(entity, ColliderComponent {
         shape: ColliderShape::Heightfield {
             heights,
-            scale: Vec3::new(config.chunk_size, 1.0, config.chunk_size),
+            scale: Vec3::new(config.size, 1.0, config.size),
         },
         handle: None,
     });
@@ -149,8 +149,8 @@ pub struct ChunkManager {
 
 impl ChunkManager {
     fn update(&mut self, world: &mut World, camera_pos: Vec3) {
-        let chunk_x = (camera_pos.x / self.config.chunk_size) as i32;
-        let chunk_z = (camera_pos.z / self.config.chunk_size) as i32;
+        let chunk_x = (camera_pos.x / self.config.size) as i32;
+        let chunk_z = (camera_pos.z / self.config.size) as i32;
 
         // Load nearby chunks
         for dz in -self.config.view_distance as i32..=self.config.view_distance as i32 {

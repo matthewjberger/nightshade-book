@@ -34,6 +34,9 @@ pub struct WindowTiming {
     pub delta_time: f32,
     pub raw_delta_time: f32,
     pub time_speed: f32,
+    pub last_frame_start_instant: Option<web_time::Instant>,
+    pub current_frame_start_instant: Option<web_time::Instant>,
+    pub initial_frame_start_instant: Option<web_time::Instant>,
     pub frame_counter: u32,
     pub uptime_milliseconds: u64,
 }

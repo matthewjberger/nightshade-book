@@ -116,29 +116,36 @@ pub enum LightType {
 
 | Component | Description |
 |-----------|-------------|
-| `RigidBodyComponent` | Dynamic/Kinematic/Static body |
+| `RigidBodyComponent` | Dynamic/Fixed/Kinematic body |
 | `ColliderComponent` | Collision shape |
-| `CharacterController` | Kinematic player controller |
+| `CharacterControllerComponent` | Kinematic player controller |
 | `PhysicsInterpolation` | Smooth physics rendering |
 
 ```rust
 pub struct RigidBodyComponent {
-    pub body_type: RigidBodyType,
     pub handle: Option<RigidBodyHandle>,
+    pub body_type: RigidBodyType,
+    pub translation: [f32; 3],
+    pub rotation: [f32; 4],
+    pub linvel: [f32; 3],
+    pub angvel: [f32; 3],
     pub mass: f32,
-    pub linear_damping: f32,
-    pub angular_damping: f32,
-    pub gravity_scale: f32,
-    pub can_sleep: bool,
-    pub ccd_enabled: bool,
+    pub locked_axes: u8,
 }
 
 pub enum RigidBodyType {
     Dynamic,
-    Kinematic,
-    Static,
+    Fixed,
+    KinematicPositionBased,
+    KinematicVelocityBased,
 }
 ```
+
+Constructor methods:
+- `RigidBodyComponent::new_dynamic()`
+- `RigidBodyComponent::new_static()` (creates a `Fixed` body type)
+- `RigidBodyComponent::new_kinematic_position_based()`
+- `RigidBodyComponent::new_kinematic_velocity_based()`
 
 The component flag for rigid bodies is `RIGID_BODY` (not `RIGID_BODY_COMPONENT`).
 

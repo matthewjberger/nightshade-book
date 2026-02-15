@@ -254,10 +254,39 @@ fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
 
 ## Input Handling
 
-Check if egui wants keyboard/mouse input:
+Check if egui wants keyboard/mouse input in the `ui()` method, then store the state for use in `run_systems()`:
 
 ```rust
-fn run_systems(&mut self, world: &mut World) {
+impl State for MyGame {
+    fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
+        self.ui_wants_keyboard = ctx.wants_keyboard_input();
+        self.ui_wants_pointer = ctx.wants_pointer_input();
+
+        egui::Window::new("Debug").show(ctx, |ui| {
+            ui.label("Hello, World!");
+        });
+    }
+
+    fn run_systems(&mut self, world: &mut World) {
+        if !self.ui_wants_keyboard {
+            handle_game_keyboard(world);
+        }
+
+        if !self.ui_wants_pointer {
+            handle_game_mouse(world);
+        }
+    }
+}
+```
+
+Or check input state directly in the `ui()` method to control behavior immediately:
+
+```rust
+fn ui(&mut self, world: &mut World, ctx: &egui::Context) {
+    egui::Window::new("Debug").show(ctx, |ui| {
+        ui.label("Hello, World!");
+    });
+
     if !ctx.wants_keyboard_input() {
         handle_game_keyboard(world);
     }

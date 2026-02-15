@@ -28,11 +28,8 @@ world.set_particle_emitter(entity, ParticleEmitter {
 
 | Type | Description |
 |------|-------------|
-| `Fire` | Additive blending, upward motion |
-| `Smoke` | Alpha blending, slow rise |
-| `Sparks` | Point sprites, fast motion |
-| `Snow` | Falling particles, drift |
-| `Dust` | Ground-level particles |
+| `EmitterType::Continuous` | Emits particles continuously at the configured rate |
+| `EmitterType::Burst { count }` | Emits a fixed number of particles at once |
 
 ## Emitter Shapes
 
@@ -47,7 +44,7 @@ EmitterShape::Sphere { radius: 0.5 }
 EmitterShape::Box { half_extents: Vec3::new(1.0, 0.1, 1.0) }
 
 // Emit from cone
-EmitterShape::Cone { radius: 0.5, height: 1.0 }
+EmitterShape::Cone { angle: 0.5, radius: 0.5 }
 ```
 
 ## Color Gradients
@@ -56,27 +53,17 @@ Define how particles change color over their lifetime:
 
 ```rust
 fn fire_gradient() -> ColorGradient {
-    ColorGradient {
-        colors: vec![
-            (0.0, Vec4::new(1.0, 1.0, 0.9, 0.0)),    // Start: white, transparent
-            (0.1, Vec4::new(1.0, 0.95, 0.7, 1.0)),   // Bright yellow
-            (0.3, Vec4::new(1.0, 0.8, 0.4, 0.9)),    // Orange-yellow
-            (0.6, Vec4::new(1.0, 0.5, 0.1, 0.6)),    // Orange
-            (0.85, Vec4::new(0.9, 0.2, 0.02, 0.2)),  // Red
-            (1.0, Vec4::new(0.5, 0.05, 0.0, 0.0)),   // Dark red, fade out
-        ],
-    }
+    ColorGradient::new(
+        Vec4::new(1.0, 0.95, 0.7, 1.0),
+        Vec4::new(0.5, 0.05, 0.0, 0.0),
+    )
 }
 
 fn smoke_gradient() -> ColorGradient {
-    ColorGradient {
-        colors: vec![
-            (0.0, Vec4::new(0.15, 0.12, 0.1, 0.0)),
-            (0.15, Vec4::new(0.3, 0.28, 0.25, 0.4)),
-            (0.7, Vec4::new(0.5, 0.49, 0.47, 0.2)),
-            (1.0, Vec4::new(0.65, 0.63, 0.6, 0.0)),
-        ],
-    }
+    ColorGradient::new(
+        Vec4::new(0.3, 0.28, 0.25, 0.4),
+        Vec4::new(0.65, 0.63, 0.6, 0.0),
+    )
 }
 ```
 

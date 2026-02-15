@@ -48,8 +48,8 @@ impl State for FirstPersonGame {
         self.update_footsteps(world, dt);
         self.update_ui(world);
 
-        update_physics(world, dt);
-        update_character_controller(world);
+        run_physics_systems(world);
+        sync_transforms_from_physics_system(world);
     }
 
     fn on_keyboard_input(&mut self, world: &mut World, key: KeyCode, state: ElementState) {
@@ -83,16 +83,16 @@ impl FirstPersonGame {
             ..Default::default()
         });
 
-        world.set_character_controller(player, CharacterController {
-            height: 1.8,
-            radius: 0.3,
-            step_height: 0.3,
-            max_slope: 45.0,
-            move_speed: 5.0,
-            jump_speed: 7.0,
-            gravity: 20.0,
+        world.set_character_controller(player, CharacterControllerComponent {
+            max_speed: 5.0,
+            acceleration: 20.0,
+            jump_impulse: 7.0,
+            can_jump: true,
+            is_crouching: false,
+            is_sprinting: false,
             grounded: false,
             velocity: Vec3::zeros(),
+            ..Default::default()
         });
 
         world.set_collider(player, ColliderComponent::capsule(0.3, 1.2));
@@ -147,7 +147,7 @@ impl FirstPersonGame {
             roughness: 0.9,
             ..Default::default()
         });
-        add_collider(world, floor, ColliderShape::Box {
+        add_collider(world, floor, ColliderShape::Cuboid {
             half_extents: Vec3::new(50.0, 0.1, 50.0),
         });
 
@@ -166,7 +166,7 @@ impl FirstPersonGame {
                 rotation: nalgebra_glm::quat_angle_axis(angle, &Vec3::y()),
             });
 
-            add_collider(world, wall, ColliderShape::Box {
+            add_collider(world, wall, ColliderShape::Cuboid {
                 half_extents: Vec3::new(5.0, 4.0, 0.5),
             });
         }
@@ -188,7 +188,7 @@ impl FirstPersonGame {
             });
 
             add_rigid_body(world, crate_entity, RigidBodyType::Dynamic, 10.0);
-            add_collider(world, crate_entity, ColliderShape::Box {
+            add_collider(world, crate_entity, ColliderShape::Cuboid {
                 half_extents: Vec3::new(0.5, 0.5, 0.5),
             });
         }
@@ -266,7 +266,7 @@ impl FirstPersonGame {
                 controller.velocity.z = world_move.z * speed;
 
                 if keyboard.is_key_pressed(KeyCode::Space) && controller.grounded {
-                    controller.velocity.y = controller.jump_speed;
+                    controller.velocity.y = controller.jump_impulse;
                 }
             }
         }
@@ -345,7 +345,11 @@ impl FirstPersonGame {
                 if let Some(hit) = raycast(world, origin, direction, 100.0) {
                     if let Some(body) = world.get_rigid_body_mut(hit.entity) {
                         if body.body_type == RigidBodyType::Dynamic {
-                            body.velocity += direction * 10.0;
+                            body.linvel = [
+                                body.linvel[0] + direction.x * 10.0,
+                                body.linvel[1] + direction.y * 10.0,
+                                body.linvel[2] + direction.z * 10.0,
+                            ];
                         }
                     }
 
@@ -400,16 +404,16 @@ fn main() {
 The character controller handles physics-based movement:
 
 ```rust
-CharacterController {
-    height: 1.8,        // Player height
-    radius: 0.3,        // Collision radius
-    step_height: 0.3,   // Max step up height
-    max_slope: 45.0,    // Walkable slope angle
-    move_speed: 5.0,    // Base move speed
-    jump_speed: 7.0,    // Jump velocity
-    gravity: 20.0,      // Gravity strength
-    grounded: false,    // On ground?
+CharacterControllerComponent {
+    max_speed: 5.0,
+    acceleration: 20.0,
+    jump_impulse: 7.0,
+    can_jump: true,
+    is_crouching: false,
+    is_sprinting: false,
+    grounded: false,
     velocity: Vec3::zeros(),
+    ..Default::default()
 }
 ```
 

@@ -23,7 +23,7 @@ The main engine feature. Includes everything needed for building games.
 nightshade = { git = "...", features = ["engine"] }
 ```
 
-**Includes:** `runtime`, `assets`, `scene_graph`, `picking`, `file_dialog`, `async_runtime`, `terrain`, `screenshot`, plus rand, rayon, ehttp, and WASM support libraries.
+**Includes:** `runtime`, `assets`, `scene_graph`, `picking`, `file_dialog`, `async_runtime`, `terrain`, `screenshot`, plus rand, rayon, ehttp, futures, and WASM support libraries (js-sys, wasm-bindgen, wasm-bindgen-futures, web-sys).
 
 **Provides:**
 - Window creation and event loop
@@ -70,7 +70,7 @@ These provide fine-grained control over dependencies:
 
 ### `core`
 
-Foundation: ECS (freecs), math (nalgebra, nalgebra-glm), windowing (winit), time (web-time), graph (petgraph), tracing, UUIDs.
+Foundation: ECS (freecs), math (nalgebra, nalgebra-glm), windowing (winit), time (web-time), graph (petgraph), tracing, UUIDs, JSON serialization.
 
 ### `text`
 
@@ -86,7 +86,7 @@ Scene hierarchy system with save/load. Requires `assets`.
 
 ### `terrain`
 
-Procedural terrain generation using noise. Requires `core`.
+Procedural terrain generation using noise and rand. Requires `core`.
 
 ### `file_dialog`
 
@@ -94,7 +94,7 @@ Native file dialogs using rfd and dirs. Requires `core`.
 
 ### `async_runtime`
 
-Tokio async runtime for non-blocking asset loading. Requires `core`. Falls back to pollster if disabled.
+Tokio async runtime for non-blocking operations. Requires `core`.
 
 ### `screenshot`
 
@@ -124,7 +124,7 @@ Immediate mode GUI framework. Enables `fn ui()` on the State trait.
 nightshade = { git = "...", features = ["egui"] }
 ```
 
-**Additional Dependencies:** egui, egui-winit, egui-wgpu, egui_tiles
+**Additional Dependencies:** egui, egui_extras, egui-winit, egui-wgpu, egui_tiles
 
 ### `shell`
 
@@ -151,10 +151,10 @@ nightshade = { git = "...", features = ["audio"] }
 
 ### `fft`
 
-FFT-based audio analysis for music-reactive applications. Requires `audio`.
+FFT-based audio analysis for music-reactive applications.
 
 ```toml
-nightshade = { git = "...", features = ["audio", "fft"] }
+nightshade = { git = "...", features = ["fft"] }
 ```
 
 **Provides:**
@@ -280,29 +280,25 @@ Bidirectional IPC for hosting web frontends (Leptos, Yew, etc.) inside a nightsh
 nightshade = { git = "...", features = ["webview"] }
 ```
 
-**Additional Dependencies:** wry, tiny_http, include_dir
+**Additional Dependencies:** wry, tiny_http, include_dir, wasm-bindgen, js-sys, web-sys
 
 ### `mosaic`
 
-Multi-pane desktop application framework with dockable tile-based layouts, services, themes, and built-in viewport widgets.
+Multi-pane desktop application framework with dockable tile-based layouts, services, themes, and built-in viewport widgets. Re-exports the nightshade_mosaic crate.
 
 ```toml
 nightshade = { git = "...", features = ["mosaic"] }
 ```
 
-### `mcp`
-
-Model Context Protocol server for AI-driven scene manipulation.
-
-```toml
-nightshade = { git = "...", features = ["mcp"] }
-```
-
-**Additional Dependencies:** axum, rmcp, schemars
-
 ### `windows-app-icon`
 
 Embed a custom icon into Windows executables at build time.
+
+```toml
+nightshade = { git = "...", features = ["windows-app-icon"] }
+```
+
+**Additional Dependencies:** winresource, ico, image
 
 ## Profiling Features
 
@@ -328,15 +324,33 @@ Guest-side WASM plugin API for creating plugins.
 
 WASM plugin hosting via Wasmtime. Requires `assets`.
 
+**Additional Dependencies:** wasmtime, wasmtime-wasi, anyhow
+
 ## Terminal Features
 
 ### `tui`
 
-Terminal UI framework built on the engine's rendering. Requires `runtime`.
+Terminal UI framework built on the engine's rendering. Includes `runtime` and `text`.
+
+**Additional Dependencies:** rand
 
 ### `terminal`
 
 Crossterm-based terminal applications without the full rendering pipeline.
+
+**Additional Dependencies:** crossterm, rand, freecs
+
+## Other Features
+
+### `mcp`
+
+Model Context Protocol server for AI-driven scene manipulation. Requires `async_runtime` and `behaviors`.
+
+```toml
+nightshade = { git = "...", features = ["mcp"] }
+```
+
+**Additional Dependencies:** axum, rmcp, schemars
 
 ## Feature Combinations
 
@@ -409,6 +423,7 @@ Some features have implicit dependencies:
 | `assets` | `core` |
 | `text` | `core` |
 | `terrain` | `core` |
+| `tui` | `runtime`, `text` |
 | `plugin_runtime` | `assets` |
 | `mcp` | `async_runtime`, `behaviors` |
 | `tracy` | `tracing` |

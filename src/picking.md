@@ -6,7 +6,7 @@ Picking allows you to select entities in the 3D world using mouse clicks or scre
 
 ## Ray Picking
 
-Convert a screen position to a ray and test against entity bounds.
+Convert a screen position to a picking ray.
 
 ### Screen to Ray
 
@@ -16,38 +16,38 @@ pub struct PickingRay {
     pub direction: Vec3,
 }
 
-let ray = screen_to_ray(world, screen_x, screen_y);
+let screen_pos = Vec2::new(screen_x, screen_y);
+let ray = PickingRay::from_screen_position(world, screen_pos);
 ```
 
-### Pick Closest Entity (AABB)
+### Pick Closest Entity
 
 Fast picking using axis-aligned bounding boxes:
 
 ```rust
-let options = PickingOptions::default();
+let screen_pos = Vec2::new(screen_x, screen_y);
 
-if let Some(hit) = pick_closest_entity(world, &ray, &options) {
+if let Some(hit) = pick_closest_entity(world, screen_pos) {
     let entity = hit.entity;
     let distance = hit.distance;
-    let point = hit.point;
+    let position = hit.world_position;
 
     select_entity(world, entity);
 }
 ```
 
-### Pick Closest Entity (Trimesh)
+### Pick All Entities
 
-Precise picking using actual mesh geometry. Trimesh picking requires physics registration:
+Pick all entities at a screen position:
 
 ```rust
-register_entity_hierarchy_for_trimesh_picking(world, root_entity);
+let screen_pos = Vec2::new(screen_x, screen_y);
+let hits = pick_entities(world, screen_pos);
 
-if let Some(hit) = pick_closest_entity_trimesh(world, &ray, &options) {
+for hit in &hits {
     let entity = hit.entity;
-    let point = hit.point;
-    let normal = hit.normal;
-
-    spawn_decal(world, point, normal);
+    let distance = hit.distance;
+    let position = hit.world_position;
 }
 ```
 
@@ -57,8 +57,7 @@ if let Some(hit) = pick_closest_entity_trimesh(world, &ray, &options) {
 pub struct PickingResult {
     pub entity: Entity,
     pub distance: f32,
-    pub point: Vec3,
-    pub normal: Option<Vec3>,
+    pub world_position: Vec3,
 }
 ```
 
@@ -101,11 +100,9 @@ pub struct GpuPickResult {
 ```rust
 fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: MouseButton) {
     if button == MouseButton::Left && state == ElementState::Pressed {
-        let mouse_pos = world.resources.input.mouse_position;
-        let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
+        let screen_pos = world.resources.input.mouse_position;
 
-        let options = PickingOptions::default();
-        if let Some(hit) = pick_closest_entity(world, &ray, &options) {
+        if let Some(hit) = pick_closest_entity(world, screen_pos) {
             self.selected_entity = Some(hit.entity);
             mark_as_selected(world, hit.entity);
         } else {
@@ -120,15 +117,13 @@ fn on_mouse_input(&mut self, world: &mut World, state: ElementState, button: Mou
 
 ```rust
 fn run_systems(&mut self, world: &mut World) {
-    let mouse_pos = world.resources.input.mouse_position;
-    let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
+    let screen_pos = world.resources.input.mouse_position;
 
     for entity in world.query_entities(HOVERED) {
         world.remove_hovered(entity);
     }
 
-    let options = PickingOptions::default();
-    if let Some(hit) = pick_closest_entity(world, &ray, &options) {
+    if let Some(hit) = pick_closest_entity(world, screen_pos) {
         world.set_hovered(hit.entity, Hovered);
     }
 }
@@ -139,19 +134,19 @@ fn run_systems(&mut self, world: &mut World) {
 Pick only specific entity types:
 
 ```rust
-fn pick_enemies_only(world: &World, ray: PickingRay) -> Option<PickingResult> {
+fn pick_enemies_only(world: &World, screen_pos: Vec2) -> Option<PickingResult> {
+    let ray = PickingRay::from_screen_position(world, screen_pos)?;
     let mut closest: Option<PickingResult> = None;
 
     for entity in world.query_entities(ENEMY | BOUNDING_VOLUME) {
         let bounds = world.get_bounding_volume(entity).unwrap();
         if let Some(distance) = ray_aabb_intersection(&ray, &bounds.aabb) {
-            let point = ray.origin + ray.direction * distance;
+            let world_position = ray.origin + ray.direction * distance;
             if closest.is_none() || distance < closest.as_ref().unwrap().distance {
                 closest = Some(PickingResult {
                     entity,
                     distance,
-                    point,
-                    normal: None,
+                    world_position,
                 });
             }
         }

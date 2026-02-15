@@ -68,8 +68,8 @@ impl State for ThirdPersonGame {
         self.update_camera_position(world, dt);
         self.update_animations(world);
 
-        update_physics(world, dt);
-        update_character_controller(world);
+        run_physics_systems(world);
+        sync_transforms_from_physics_system(world);
         update_animation_players(world, dt);
     }
 
@@ -100,16 +100,16 @@ impl ThirdPersonGame {
             1
         )[0];
 
-        world.set_character_controller(controller_entity, CharacterController {
-            height: 1.8,
-            radius: 0.4,
-            step_height: 0.3,
-            max_slope: 45.0,
-            move_speed: 4.0,
-            jump_speed: 8.0,
-            gravity: 20.0,
+        world.set_character_controller(controller_entity, CharacterControllerComponent {
+            max_speed: 4.0,
+            acceleration: 20.0,
+            jump_impulse: 8.0,
+            can_jump: true,
+            is_crouching: false,
+            is_sprinting: false,
             grounded: false,
             velocity: Vec3::zeros(),
+            ..Default::default()
         });
 
         world.set_collider(controller_entity, ColliderComponent::capsule(0.4, 1.2));
@@ -155,7 +155,7 @@ impl ThirdPersonGame {
             roughness: 0.9,
             ..Default::default()
         });
-        add_collider(world, floor, ColliderShape::Box {
+        add_collider(world, floor, ColliderShape::Cuboid {
             half_extents: Vec3::new(100.0, 0.1, 100.0),
         });
 
@@ -177,7 +177,7 @@ impl ThirdPersonGame {
                 ..Default::default()
             });
 
-            add_collider(world, rock, ColliderShape::Sphere { radius: scale });
+            add_collider(world, rock, ColliderShape::Ball { radius: scale });
         }
     }
 
@@ -282,7 +282,7 @@ impl ThirdPersonGame {
         if keyboard.is_key_pressed(KeyCode::Space) {
             if let Some(controller) = world.get_character_controller_mut(player) {
                 if controller.grounded {
-                    controller.velocity.y = controller.jump_speed;
+                    controller.velocity.y = controller.jump_impulse;
                 }
             }
         }
