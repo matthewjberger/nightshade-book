@@ -62,7 +62,7 @@ Everything in `engine` plus all major optional features.
 nightshade = { git = "...", features = ["full"] }
 ```
 
-**Includes:** `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `plugins`.
+**Includes:** `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `mosaic`, `plugins`.
 
 ## Granular Features
 
@@ -284,11 +284,15 @@ nightshade = { git = "...", features = ["webview"] }
 
 ### `mosaic`
 
-Multi-pane desktop application framework with dockable tile-based layouts, services, themes, and built-in viewport widgets. Re-exports the nightshade_mosaic crate.
+Multi-pane desktop application framework built on `egui_tiles`. Provides dockable tile-based layouts, a `Widget` trait for serializable panes, theming with 11 presets, modal dialogs, toast notifications, command palettes, keyboard shortcuts, file dialogs, project save/load, status bars, FPS counters, undo/redo history, clipboard helpers, drag-and-drop support, and a built-in `ViewportWidget` for rendering camera outputs.
+
+Requires `egui`.
 
 ```toml
 nightshade = { git = "...", features = ["mosaic"] }
 ```
+
+**Key types:** `Mosaic`, `Widget`, `Pane`, `WidgetContext`, `ViewportWidget`, `ThemeState`, `Modals`, `Toasts`, `StatusBar`, `CommandPalette`, `ShortcutManager`, `History`, `Settings`, `EventLog`, `FpsCounter`, `MosaicConfig`
 
 ### `windows-app-icon`
 
@@ -416,7 +420,8 @@ Some features have implicit dependencies:
 |---------|------------|
 | `engine` | `runtime`, `assets`, `scene_graph`, `picking`, `terrain`, `file_dialog`, `async_runtime`, `screenshot` |
 | `runtime` | `core`, `text`, `behaviors` |
-| `full` | `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `plugins` |
+| `full` | `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `mosaic`, `plugins` |
+| `mosaic` | `egui` |
 | `shell` | `egui` |
 | `fbx` | `assets` |
 | `scene_graph` | `assets` |

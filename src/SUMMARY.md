@@ -75,6 +75,7 @@
 # User Interface
 
 - [egui Integration](egui.md)
+- [Mosaic Framework](mosaic.md)
 - [Immediate Mode UI](immediate-ui.md)
 - [HUD Text](hud-text.md)
 
