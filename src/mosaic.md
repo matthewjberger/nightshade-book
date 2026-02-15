@@ -413,7 +413,9 @@ shortcuts.process(ctx);
 
 ## File Dialogs
 
-File dialog functions are available on native platforms when the `file_dialog` feature is also enabled (included in `engine` by default):
+Mosaic re-exports the cross-platform file I/O functions from `nightshade::filesystem` for convenience. See the [File System](filesystem.md) chapter for full documentation of all types and functions.
+
+Native-only functions (`pick_file`, `pick_folder`, `save_file_dialog`, `read_file`, `write_file`) require the `file_dialog` feature, which is included in `engine` by default:
 
 ```rust
 use nightshade::mosaic::{FileFilter, pick_file, pick_folder, save_file_dialog, read_file, write_file};
@@ -427,13 +429,30 @@ if let Some(path) = pick_file(&filters) {
     let bytes = read_file(&path).unwrap();
 }
 
-if let Some(path) = save_file_dialog(&filters) {
+if let Some(path) = save_file_dialog(&filters, Some("data.json")) {
     write_file(&path, data.as_bytes()).unwrap();
 }
 
 if let Some(folder) = pick_folder() {
     // use folder path
 }
+```
+
+For cross-platform save/load that works on both native and WASM without `#[cfg]` gates, use `save_file` and `request_file_load`:
+
+```rust
+use nightshade::filesystem::{save_file, request_file_load, FileFilter};
+
+// Save (native: save dialog, WASM: browser download)
+let filters = [FileFilter {
+    name: "JSON".to_string(),
+    extensions: vec!["json".to_string()],
+}];
+save_file("data.json", &bytes, &filters)?;
+
+// Load (native: file picker + sync read, WASM: file input + async read)
+let pending = request_file_load(&filters);
+// poll pending.take() each frame
 ```
 
 ## Settings Persistence
@@ -577,6 +596,27 @@ Or save/load a named layout:
 let save = mosaic.save_layout("Main", "1.0.0");
 mosaic.load_layout(save);
 ```
+
+### Cross-Platform File Save/Load
+
+Mosaic provides convenience methods that use `nightshade::filesystem` under the hood. These work on both native and WASM with no `#[cfg]` gates:
+
+```rust
+// Save layout to file (native: save dialog, WASM: browser download)
+mosaic.save_project_to_file("my_layout.json")?;
+
+// Request file load (returns PendingFileLoad)
+let pending = mosaic.request_project_load();
+
+// Poll each frame:
+if let Some(file) = pending.take() {
+    mosaic.load_project_from_bytes(&file.bytes)?;
+}
+```
+
+- `save_project_to_file(filename)` — serializes the tile tree to JSON and calls `nightshade::filesystem::save_file`
+- `request_project_load()` — calls `nightshade::filesystem::request_file_load` with a JSON filter
+- `load_project_from_bytes(bytes)` — deserializes and restores the tile tree from raw bytes
 
 ## Widget Management
 

@@ -90,7 +90,7 @@ Procedural terrain generation using noise and rand. Requires `core`.
 
 ### `file_dialog`
 
-Native file dialogs using rfd and dirs. Requires `core`.
+Native file dialogs using rfd and dirs. Enables the native-only functions in `nightshade::filesystem` (`pick_file`, `pick_folder`, `save_file_dialog`, `read_file`, `write_file`). The cross-platform functions (`save_file`, `request_file_load`) are always available on WASM and require this feature on native. See the [File System](filesystem.md) chapter. Requires `core`.
 
 ### `async_runtime`
 
