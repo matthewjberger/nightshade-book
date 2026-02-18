@@ -190,16 +190,16 @@
 </span><span class="boring">fn main() {
 </span>world.set_local_transform(entity, LocalTransform {
     translation: Vec3::new(0.0, 1.0, 0.0),
-    rotation: UnitQuaternion::identity(),
+    rotation: Quat::identity(),
     scale: Vec3::new(1.0, 1.0, 1.0),
 });
 
 world.set_render_mesh(entity, RenderMesh {
-    mesh_name: "cube".to_string(),
-    gpu_mesh_id: None,
+    name: "cube".to_string(),
+    id: None,
 });
 
-world.set_material_ref(entity, MaterialRef::new("default".to_string()));
+world.set_material_ref(entity, MaterialRef::new("Default"));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="spawning-multiple-entities"><a class="header" href="#spawning-multiple-entities">Spawning Multiple Entities</a></h2>
 <p>Spawn multiple entities at once:</p>
@@ -215,71 +215,122 @@ for (index, entity) in entities.iter().enumerate() {
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="helper-functions"><a class="header" href="#helper-functions">Helper Functions</a></h2>
-<p>Nightshade provides convenience functions for common entities:</p>
+<p>Nightshade provides convenience functions for common entities. Primitive spawn helpers and <code>fly_camera_system</code> / <code>escape_key_exit_system</code> are available from the prelude.</p>
 <h3 id="cameras"><a class="header" href="#cameras">Cameras</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Main Camera".to_string());
 world.resources.active_camera = Some(camera);
 
-// Pan-orbit camera
 let orbit_camera = spawn_pan_orbit_camera(
     world,
-    Vec3::zeros(),  // focus point
-    10.0,           // radius
-    0.5,            // yaw
-    0.4,            // pitch
+    Vec3::zeros(),
+    10.0,
+    0.5,
+    0.4,
     "Orbit Camera".to_string(),
 );
 <span class="boring">}</span></code></pre></pre>
 <h3 id="lights"><a class="header" href="#lights">Lights</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>spawn_sun(world);
+</span>let sun = spawn_sun(world);
+<span class="boring">}</span></code></pre></pre>
+<p>To create a point light, manually spawn an entity with the <code>LIGHT</code> flag and set the <code>Light</code> component with <code>LightType::Point</code>:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let light = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LIGHT,
+    1,
+)[0];
 
-spawn_point_light(world, Vec3::new(0.0, 3.0, 0.0), Vec3::new(1.0, 0.8, 0.6), 5.0);
+world.set_local_transform(light, LocalTransform {
+    translation: Vec3::new(0.0, 3.0, 0.0),
+    ..Default::default()
+});
+
+world.set_light(light, Light {
+    light_type: LightType::Point,
+    color: Vec3::new(1.0, 0.8, 0.6),
+    intensity: 5.0,
+    range: 10.0,
+    cast_shadows: true,
+    shadow_bias: 0.005,
+    inner_cone_angle: 0.0,
+    outer_cone_angle: 0.0,
+});
 <span class="boring">}</span></code></pre></pre>
 <h3 id="primitives"><a class="header" href="#primitives">Primitives</a></h3>
+<p>All primitive spawn helpers are available from the prelude:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::mesh::primitives::*;
-
-spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
-spawn_sphere(world, Vec3::new(2.0, 1.0, 0.0), 0.5);
-spawn_plane(world, Vec3::zeros(), Vec2::new(10.0, 10.0));
+</span>spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
+spawn_sphere_at(world, Vec3::new(2.0, 1.0, 0.0));
+spawn_plane_at(world, Vec3::zeros());
+spawn_cylinder_at(world, Vec3::new(4.0, 1.0, 0.0));
+spawn_cone_at(world, Vec3::new(6.0, 1.0, 0.0));
+spawn_torus_at(world, Vec3::new(8.0, 1.0, 0.0));
 <span class="boring">}</span></code></pre></pre>
 <h3 id="physics-objects"><a class="header" href="#physics-objects">Physics Objects</a></h3>
+<p>There are no dedicated physics spawn helpers. Create physics entities manually by combining the appropriate component flags:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::physics::*;
+</span>let dynamic_cube = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY
+    | RENDER_MESH | MATERIAL_REF | RIGID_BODY | COLLIDER,
+    1,
+)[0];
 
-// Dynamic cube
-spawn_dynamic_physics_cube(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(1.0, 1.0, 1.0), 1.0);
+world.set_local_transform(dynamic_cube, LocalTransform {
+    translation: Vec3::new(0.0, 5.0, 0.0),
+    ..Default::default()
+});
 
-// Static floor
-spawn_static_physics_cube(world, Vec3::new(0.0, -0.5, 0.0), Vec3::new(50.0, 1.0, 50.0));
+world.set_render_mesh(dynamic_cube, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
 
-// Dynamic sphere
-spawn_dynamic_physics_sphere(world, Vec3::new(0.0, 10.0, 0.0), 0.5, 1.0);
+world.set_material_ref(dynamic_cube, MaterialRef::new("Default"));
+
+world.set_rigid_body(dynamic_cube, RigidBodyComponent {
+    body_type: RigidBodyType::Dynamic,
+    ..Default::default()
+});
+<span class="boring">}</span></code></pre></pre>
+<p>For a static floor:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let floor = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY
+    | RENDER_MESH | MATERIAL_REF | RIGID_BODY | COLLIDER,
+    1,
+)[0];
+
+world.set_local_transform(floor, LocalTransform {
+    translation: Vec3::new(0.0, -0.5, 0.0),
+    scale: Vec3::new(50.0, 1.0, 50.0),
+    ..Default::default()
+});
+
+world.set_render_mesh(floor, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
+
+world.set_material_ref(floor, MaterialRef::new("Default"));
+
+world.set_rigid_body(floor, RigidBodyComponent {
+    body_type: RigidBodyType::Fixed,
+    ..Default::default()
+});
 <span class="boring">}</span></code></pre></pre>
 <h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// First-person player
-let (player, camera) = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0));
-
-// Custom character controller
-let controller = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | CHARACTER_CONTROLLER,
-    1,
-)[0];
-
-if let Some(cc) = world.get_character_controller_mut(controller) {
-    *cc = CharacterControllerComponent::new_capsule(0.5, 0.3);
-    cc.max_speed = 5.0;
-    cc.jump_impulse = 6.0;
-}
+</span>let (player_entity, camera_entity) = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0));
 <span class="boring">}</span></code></pre></pre>
+<p><code>spawn_first_person_player</code> takes the world and position, and returns a tuple of <code>(Entity, Entity)</code> for the player entity and camera entity.</p>
 <h2 id="loading-models"><a class="header" href="#loading-models">Loading Models</a></h2>
 <p>Load glTF/GLB models:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -289,7 +340,6 @@ if let Some(cc) = world.get_character_controller_mut(controller) {
 let model_bytes = include_bytes!("../assets/character.glb");
 let result = import_gltf_from_bytes(model_bytes)?;
 
-// Register textures
 for (name, (rgba_data, width, height)) in result.textures {
     world.queue_command(WorldCommand::LoadTexture {
         name,
@@ -299,18 +349,15 @@ for (name, (rgba_data, width, height)) in result.textures {
     });
 }
 
-// Register meshes
 for (name, mesh) in result.meshes {
     mesh_cache_insert(&amp;mut world.resources.mesh_cache, name, mesh);
 }
 
-// Spawn prefab
 for prefab in result.prefabs {
-    let entity = spawn_prefab_with_skins(
+    let entity = spawn_prefab_with_animations(
         world,
         &amp;prefab,
         &amp;result.animations,
-        &amp;result.skins,
         Vec3::new(0.0, 0.0, 0.0),
     );
 }
@@ -319,11 +366,9 @@ for prefab in result.prefabs {
 <p>Remove entities from the world:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Immediate despawn
-world.despawn(entity);
+</span>world.despawn_entities(&amp;[entity]);
 
-// Deferred despawn (safe during iteration)
-world.command_queue.despawn(entity);
+despawn_recursive_immediate(world, entity);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="entity-with-parent"><a class="header" href="#entity-with-parent">Entity with Parent</a></h2>
 <p>Spawn an entity as a child:</p>
@@ -334,7 +379,7 @@ let child = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | PARENT, 1)
 
 world.update_parent(child, Some(Parent(Some(parent))));
 world.set_local_transform(child, LocalTransform {
-    translation: Vec3::new(0.0, 1.0, 0.0),  // 1 unit above parent
+    translation: Vec3::new(0.0, 1.0, 0.0),
     ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>

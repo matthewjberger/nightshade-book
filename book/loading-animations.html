@@ -204,11 +204,10 @@ fn load_character(world: &amp;mut World) -&gt; Option&lt;Entity&gt; {
 
     // Spawn with animations and skins
     result.prefabs.first().map(|prefab| {
-        spawn_prefab_with_skins(
+        spawn_prefab_with_animations(
             world,
             prefab,
             &amp;result.animations,
-            &amp;result.skins,
             Vec3::zeros(),
         )
     })
@@ -369,7 +368,6 @@ fn attach_hat(world: &amp;mut World, character: Entity, hat: Entity) {
 </span>struct CharacterFactory {
     prefab: Prefab,
     animations: Vec&lt;AnimationClip&gt;,
-    skins: Vec&lt;SkinData&gt;,
 }
 
 impl CharacterFactory {
@@ -378,16 +376,14 @@ impl CharacterFactory {
         Some(Self {
             prefab: result.prefabs.into_iter().next()?,
             animations: result.animations,
-            skins: result.skins,
         })
     }
 
     fn spawn(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
-        spawn_prefab_with_skins(
+        spawn_prefab_with_animations(
             world,
             &amp;self.prefab,
             &amp;self.animations,
-            &amp;self.skins,
             position,
         )
     }

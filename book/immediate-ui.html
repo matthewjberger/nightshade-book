@@ -185,7 +185,7 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>impl State for MyGame {
-    fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+    fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {
         ui.panel(PanelPosition::Left, 200.0, |ui| {
             ui.label("Left Panel");
             if ui.button("Click me") {
@@ -315,7 +315,7 @@ ui.separator();
 <h2 id="pause-menu-example"><a class="header" href="#pause-menu-example">Pause Menu Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+</span>fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {
     if self.paused {
         ui.panel(PanelPosition::Central, 300.0, |ui| {
             ui.label("PAUSED");
@@ -339,7 +339,7 @@ ui.separator();
 <h2 id="settings-menu-example"><a class="header" href="#settings-menu-example">Settings Menu Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+</span>fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {
     if self.show_settings {
         ui.panel(PanelPosition::Central, 400.0, |ui| {
             ui.label("Settings");
@@ -374,7 +374,7 @@ ui.separator();
 <h2 id="inventory-ui-example"><a class="header" href="#inventory-ui-example">Inventory UI Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+</span>fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {
     ui.panel(PanelPosition::Right, 250.0, |ui| {
         ui.label("Inventory");
         ui.separator();
@@ -397,7 +397,7 @@ ui.separator();
 <h2 id="dialog-box-example"><a class="header" href="#dialog-box-example">Dialog Box Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn immediate_ui(&amp;mut self, ui: &amp;mut ImmediateUi, world: &amp;mut World) {
+</span>fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {
     if let Some(dialog) = &amp;self.current_dialog {
         ui.panel(PanelPosition::Bottom, 150.0, |ui| {
             ui.label(&amp;dialog.speaker);
@@ -444,7 +444,7 @@ world.resources.user_interface.button_hover_color = Vec4::new(0.3, 0.3, 0.3, 1.0
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="egui.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="filesystem.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
@@ -458,7 +458,7 @@ world.resources.user_interface.button_hover_color = Vec4::new(0.3, 0.3, 0.3, 1.0
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="egui.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="filesystem.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 

@@ -202,52 +202,16 @@ pub enum LatticeInterpolation {
 <h2 id="creating-a-lattice"><a class="header" href="#creating-a-lattice">Creating a Lattice</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn spawn_lattice(world: &amp;mut World, bounds: Aabb, resolution: UVec3) -&gt; Entity {
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LATTICE,
-        1
-    )[0];
-
-    let total_points = (resolution.x * resolution.y * resolution.z) as usize;
-    let mut control_points = Vec::with_capacity(total_points);
-
-    for z in 0..resolution.z {
-        for y in 0..resolution.y {
-            for x in 0..resolution.x {
-                let t = Vec3::new(
-                    x as f32 / (resolution.x - 1) as f32,
-                    y as f32 / (resolution.y - 1) as f32,
-                    z as f32 / (resolution.z - 1) as f32,
-                );
-                let pos = bounds.min + (bounds.max - bounds.min).component_mul(&amp;t);
-                control_points.push(pos);
-            }
-        }
-    }
-
-    world.set_lattice(entity, Lattice {
-        resolution,
-        bounds,
-        control_points,
-        interpolation: LatticeInterpolation::Bezier,
-    });
-
-    entity
-}
+</span>let min = Vec3::new(-1.0, -1.0, -1.0);
+let max = Vec3::new(1.0, 1.0, 1.0);
+let dims = UVec3::new(4, 4, 4);
+let lattice_entity = create_lattice_entity(world, min, max, dims);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="influenced-meshes"><a class="header" href="#influenced-meshes">Influenced Meshes</a></h2>
-<p>Mark meshes to be deformed by a lattice:</p>
+<p>Register a mesh entity for lattice deformation:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct LatticeInfluenced {
-    pub lattice_entity: Entity,
-    pub original_positions: Vec&lt;Vec3&gt;,
-}
-
-world.set_lattice_influenced(mesh_entity, LatticeInfluenced {
-    lattice_entity: lattice,
-    original_positions: mesh_positions.clone(),
-});
+</span>register_entity_for_lattice_deformation(world, mesh_entity, lattice_entity);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="manipulating-control-points"><a class="header" href="#manipulating-control-points">Manipulating Control Points</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -272,21 +236,11 @@ world.set_lattice_influenced(mesh_entity, LatticeInfluenced {
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="deformation-system"><a class="header" href="#deformation-system">Deformation System</a></h2>
-<p>The deformation is applied automatically each frame:</p>
+<p>Call the lattice deformation system each frame:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn lattice_deformation_system(world: &amp;mut World) {
-    for entity in world.query(LATTICE_INFLUENCED | RENDER_MESH) {
-        let influenced = world.get_lattice_influenced(entity).unwrap();
-        let lattice = world.get_lattice(influenced.lattice_entity).unwrap();
-
-        let deformed_positions = compute_deformed_positions(
-            &amp;influenced.original_positions,
-            lattice
-        );
-
-        update_mesh_positions(world, entity, &amp;deformed_positions);
-    }
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    lattice_deformation_system(world);
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="interpolation-modes"><a class="header" href="#interpolation-modes">Interpolation Modes</a></h2>
@@ -380,7 +334,7 @@ world.set_lattice_influenced(mesh_entity, LatticeInfluenced {
 }
 
 fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let dt = world.resources.time.delta_seconds;
+    let dt = world.resources.window.timing.delta_time;
     self.breathing.time += dt;
 
     if let Some(lat) = world.get_lattice_mut(self.breathing.lattice) {

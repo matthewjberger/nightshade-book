@@ -189,13 +189,11 @@
 </span><span class="boring">fn main() {
 </span>pub struct LocalTransform {
     pub translation: Vec3,
-    pub rotation: UnitQuaternion&lt;f32&gt;,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
-pub struct GlobalTransform {
-    pub matrix: Mat4,
-}
+pub struct GlobalTransform(pub Mat4);
 
 pub struct Parent(pub Option&lt;Entity&gt;);
 <span class="boring">}</span></code></pre></pre>
@@ -212,33 +210,51 @@ pub struct Parent(pub Option&lt;Entity&gt;);
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct RenderMesh {
-    pub mesh_name: String,
-    pub gpu_mesh_id: Option&lt;MeshId&gt;,
+    pub name: String,
+    pub id: Option&lt;MeshId&gt;,
 }
 
 pub struct MaterialRef {
-    pub material_name: String,
+    pub name: String,
+    pub id: Option&lt;MaterialId&gt;,
 }
-
-pub struct Visibility {
-    pub visible: bool,
-}
+<span class="boring">}</span></code></pre></pre>
+<p><code>MaterialRef::new(name)</code> takes <code>impl Into&lt;String&gt;</code>, so you can pass <code>&amp;str</code> directly:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>MaterialRef::new("Default")
 <span class="boring">}</span></code></pre></pre>
 <h2 id="camera-components"><a class="header" href="#camera-components">Camera Components</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>Camera</code></td><td>Projection mode and smoothing</td></tr>
-<tr><td><code>PerspectiveCamera</code></td><td>FOV, aspect, near/far planes</td></tr>
-<tr><td><code>OrthographicCamera</code></td><td>Size, near/far for orthographic</td></tr>
 <tr><td><code>PanOrbitCamera</code></td><td>Orbiting camera controller</td></tr>
 </tbody></table>
 </div>
+<p>There is a single <code>CAMERA</code> component flag. The projection type is determined by the <code>Projection</code> enum inside the <code>Camera</code> struct:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct PerspectiveCamera {
-    pub fov: f32,
-    pub aspect: f32,
-    pub near: f32,
-    pub far: f32,
+</span>pub struct Camera {
+    pub projection: Projection,
+    pub smoothing: Option&lt;Smoothing&gt;,
+}
+
+pub enum Projection {
+    Perspective(PerspectiveCamera),
+    Orthographic(OrthographicCamera),
+}
+
+pub struct PerspectiveCamera {
+    pub aspect_ratio: Option&lt;f32&gt;,
+    pub y_fov_rad: f32,
+    pub z_far: Option&lt;f32&gt;,
+    pub z_near: f32,
+}
+
+pub struct OrthographicCamera {
+    pub x_mag: f32,
+    pub y_mag: f32,
+    pub z_far: f32,
+    pub z_near: f32,
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="lighting"><a class="header" href="#lighting">Lighting</a></h2>
@@ -267,25 +283,40 @@ pub enum LightType {
 <span class="boring">}</span></code></pre></pre>
 <h2 id="physics-components"><a class="header" href="#physics-components">Physics Components</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>RigidBodyComponent</code></td><td>Dynamic/Kinematic/Static body</td></tr>
+<tr><td><code>RigidBodyComponent</code></td><td>Dynamic/Fixed/Kinematic body</td></tr>
 <tr><td><code>ColliderComponent</code></td><td>Collision shape</td></tr>
-<tr><td><code>CharacterController</code></td><td>Kinematic player controller</td></tr>
+<tr><td><code>CharacterControllerComponent</code></td><td>Kinematic player controller</td></tr>
 <tr><td><code>PhysicsInterpolation</code></td><td>Smooth physics rendering</td></tr>
 </tbody></table>
 </div>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct RigidBodyComponent {
-    pub body_type: RigidBodyType,
     pub handle: Option&lt;RigidBodyHandle&gt;,
+    pub body_type: RigidBodyType,
+    pub translation: [f32; 3],
+    pub rotation: [f32; 4],
+    pub linvel: [f32; 3],
+    pub angvel: [f32; 3],
+    pub mass: f32,
+    pub locked_axes: u8,
 }
 
 pub enum RigidBodyType {
     Dynamic,
-    Kinematic,
-    Static,
+    Fixed,
+    KinematicPositionBased,
+    KinematicVelocityBased,
 }
 <span class="boring">}</span></code></pre></pre>
+<p>Constructor methods:</p>
+<ul>
+<li><code>RigidBodyComponent::new_dynamic()</code></li>
+<li><code>RigidBodyComponent::new_static()</code> (creates a <code>Fixed</code> body type)</li>
+<li><code>RigidBodyComponent::new_kinematic_position_based()</code></li>
+<li><code>RigidBodyComponent::new_kinematic_velocity_based()</code></li>
+</ul>
+<p>The component flag for rigid bodies is <code>RIGID_BODY</code> (not <code>RIGID_BODY_COMPONENT</code>).</p>
 <h2 id="animation-components"><a class="header" href="#animation-components">Animation Components</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>AnimationPlayer</code></td><td>Animation playback control</td></tr>
@@ -298,7 +329,9 @@ pub enum RigidBodyType {
 </span><span class="boring">fn main() {
 </span>pub struct AnimationPlayer {
     pub clips: Vec&lt;AnimationClip&gt;,
-    pub current_clip: usize,
+    pub current_clip: Option&lt;usize&gt;,
+    pub blend_from_clip: Option&lt;usize&gt;,
+    pub blend_factor: f32,
     pub playing: bool,
     pub speed: f32,
     pub time: f32,

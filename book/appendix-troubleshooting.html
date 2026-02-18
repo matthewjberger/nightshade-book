@@ -180,10 +180,10 @@
 <h2 id="compilation-errors"><a class="header" href="#compilation-errors">Compilation Errors</a></h2>
 <h3 id="feature-x-is-not-enabled"><a class="header" href="#feature-x-is-not-enabled">"feature <code>X</code> is not enabled"</a></h3>
 <p>You're using a feature that isn't enabled in your <code>Cargo.toml</code>. Add the required feature:</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "physics", "audio"] }
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "wgpu", "physics", "audio"] }
 </code></pre>
 <p>See <a href="appendix-features.html">Feature Flags</a> for the complete list.</p>
-<h3 id="cannot-find-function-spawn_primitive"><a class="header" href="#cannot-find-function-spawn_primitive">"cannot find function <code>spawn_primitive</code>"</a></h3>
+<h3 id="cannot-find-function-spawn_cube_at"><a class="header" href="#cannot-find-function-spawn_cube_at">"cannot find function <code>spawn_cube_at</code>"</a></h3>
 <p>Import the prelude:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -272,10 +272,9 @@ transform.translation = Vec3::new(0.0, 2.0, 0.0);
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Enable CCD for fast objects
-world.set_rigid_body(entity, RigidBodyComponent {
-    ccd_enabled: true,
-    ..Default::default()
-});
+let mut body = RigidBodyComponent::new_dynamic();
+body.ccd_enabled = true;
+world.set_rigid_body(entity, body);
 <span class="boring">}</span></code></pre></pre>
 <h3 id="animation-not-playing"><a class="header" href="#animation-not-playing">Animation not playing</a></h3>
 <ol>
@@ -305,7 +304,7 @@ world.set_rigid_body(entity, RigidBodyComponent {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// glTF animations are often on child nodes
-for child in world.get_children(model_root) {
+for child in world.resources.children_cache.get(&amp;model_root).cloned().unwrap_or_default() {
     if let Some(player) = world.get_animation_player_mut(child) {
         player.play("idle");
     }
@@ -323,7 +322,7 @@ play_sound(world, "shoot");
 <ol start="2">
 <li><strong>Check audio feature is enabled:</strong></li>
 </ol>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "audio"] }
+<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "wgpu", "audio"] }
 </code></pre>
 <ol start="3">
 <li><strong>Verify file format:</strong> Supported formats are WAV, OGG, MP3, FLAC.</li>
@@ -335,7 +334,7 @@ play_sound(world, "shoot");
 </ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>println!("Entities: {}", world.entity_count());
+</span>println!("Entities: {}", world.query_entities(RENDER_MESH).count());
 <span class="boring">}</span></code></pre></pre>
 <ol start="2">
 <li><strong>Disable expensive effects:</strong></li>
@@ -366,7 +365,7 @@ add_collider(world, entity, ColliderShape::Box { ... });
 </ol>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.despawn(entity);
+</span>world.despawn_entities(&amp;[entity]);
 <span class="boring">}</span></code></pre></pre>
 <ol start="2">
 <li><strong>Unload unused textures:</strong></li>
@@ -385,10 +384,10 @@ add_collider(world, entity, ColliderShape::Box { ... });
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Bad - allocates every frame
-let entities: Vec&lt;Entity&gt; = world.query(TRANSFORM).collect();
+let entities: Vec&lt;Entity&gt; = world.query_entities(LOCAL_TRANSFORM).collect();
 
 // Good - iterate directly
-for entity in world.query(TRANSFORM) {
+for entity in world.query_entities(LOCAL_TRANSFORM) {
     // ...
 }
 <span class="boring">}</span></code></pre></pre>
@@ -407,15 +406,15 @@ for entity in world.query(TRANSFORM) {
 <p>Missing or incorrect lighting:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
-world.resources.graphics.ambient_intensity = 0.1;
+</span>spawn_sun(world);
+world.resources.graphics.ambient_light = [0.1, 0.1, 0.1, 1.0];
 <span class="boring">}</span></code></pre></pre>
 <h3 id="objects-are-too-bright--washed-out"><a class="header" href="#objects-are-too-bright--washed-out">Objects are too bright / washed out</a></h3>
-<p>Adjust exposure and tonemapping:</p>
+<p>Adjust tonemapping and color grading:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.graphics.exposure = 1.0;
-world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+</span>world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
+world.resources.graphics.color_grading.brightness = 0.0;
 <span class="boring">}</span></code></pre></pre>
 <h3 id="textures-look-wrong"><a class="header" href="#textures-look-wrong">Textures look wrong</a></h3>
 <ol>

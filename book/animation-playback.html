@@ -185,13 +185,13 @@
 </span><span class="boring">fn main() {
 </span>pub struct AnimationPlayer {
     pub clips: Vec&lt;AnimationClip&gt;,
-    pub current_clip: usize,
-    pub playing: bool,
-    pub speed: f32,
+    pub current_clip: Option&lt;usize&gt;,
     pub time: f32,
+    pub speed: f32,
     pub looping: bool,
-    pub crossfade_duration: f32,
-    pub bone_mapping: HashMap&lt;String, Entity&gt;,
+    pub playing: bool,
+    pub blend_from_clip: Option&lt;usize&gt;,
+    pub blend_factor: f32,
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="basic-playback"><a class="header" href="#basic-playback">Basic Playback</a></h2>
@@ -199,9 +199,7 @@
 </span><span class="boring">fn main() {
 </span>fn play_animation(world: &amp;mut World, entity: Entity, clip_index: usize) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.current_clip = clip_index;
-        player.time = 0.0;
-        player.playing = true;
+        player.play(clip_index);
         player.looping = true;
     }
 }
@@ -220,13 +218,13 @@
 </span><span class="boring">fn main() {
 </span>fn pause_animation(world: &amp;mut World, entity: Entity) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.playing = false;
+        player.pause();
     }
 }
 
 fn resume_animation(world: &amp;mut World, entity: Entity) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.playing = true;
+        player.resume();
     }
 }
 <span class="boring">}</span></code></pre></pre>
@@ -245,8 +243,10 @@ fn resume_animation(world: &amp;mut World, entity: Entity) {
 </span>fn is_animation_finished(world: &amp;World, entity: Entity) -&gt; bool {
     if let Some(player) = world.get_animation_player(entity) {
         if !player.looping {
-            let clip = &amp;player.clips[player.current_clip];
-            return player.time &gt;= clip.duration;
+            if let Some(index) = player.current_clip {
+                let clip = &amp;player.clips[index];
+                return player.time &gt;= clip.duration;
+            }
         }
     }
     false
@@ -254,11 +254,12 @@ fn resume_animation(world: &amp;mut World, entity: Entity) {
 
 fn get_animation_progress(world: &amp;World, entity: Entity) -&gt; f32 {
     if let Some(player) = world.get_animation_player(entity) {
-        let clip = &amp;player.clips[player.current_clip];
-        player.time / clip.duration
-    } else {
-        0.0
+        if let Some(index) = player.current_clip {
+            let clip = &amp;player.clips[index];
+            return player.time / clip.duration;
+        }
     }
+    0.0
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="animation-by-name"><a class="header" href="#animation-by-name">Animation by Name</a></h2>
@@ -269,9 +270,7 @@ fn get_animation_progress(world: &amp;World, entity: Entity) -&gt; f32 {
     if let Some(player) = world.get_animation_player_mut(entity) {
         for (index, clip) in player.clips.iter().enumerate() {
             if clip.name.to_lowercase().contains(&amp;name.to_lowercase()) {
-                player.current_clip = index;
-                player.time = 0.0;
-                player.playing = true;
+                player.play(index);
                 return true;
             }
         }
@@ -334,9 +333,7 @@ fn update_character_animation(
 </span><span class="boring">fn main() {
 </span>fn play_once(world: &amp;mut World, entity: Entity, clip_index: usize) {
     if let Some(player) = world.get_animation_player_mut(entity) {
-        player.current_clip = clip_index;
-        player.time = 0.0;
-        player.playing = true;
+        player.play(clip_index);
         player.looping = false;
     }
 }

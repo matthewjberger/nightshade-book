@@ -184,20 +184,21 @@ struct MinimalGame;
 
 impl State for MinimalGame {
     fn initialize(&amp;mut self, world: &amp;mut World) {
-        spawn_fly_camera(world);
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
 
-        let cube = spawn_primitive(world, Primitive::Cube);
-        world.set_local_transform(cube, LocalTransform {
-            translation: Vec3::new(0.0, 0.0, -5.0),
-            ..Default::default()
-        });
+        spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0));
 
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        spawn_sun(world);
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        fly_camera_system(world);
     }
 }
 
 fn main() {
-    nightshade::run(MinimalGame);
+    nightshade::launch(MinimalGame);
 }</code></pre></pre>
 <h2 id="step-by-step-breakdown"><a class="header" href="#step-by-step-breakdown">Step-by-Step Breakdown</a></h2>
 <h3 id="1-import-the-prelude"><a class="header" href="#1-import-the-prelude">1. Import the Prelude</a></h3>
@@ -211,8 +212,8 @@ fn main() {
 <li><code>World</code> struct</li>
 <li><code>Entity</code> type</li>
 <li>Math types (<code>Vec3</code>, <code>Vec4</code>, <code>Mat4</code>, etc.)</li>
-<li>Component flags (<code>LOCAL_TRANSFORM</code>, <code>MESH_COMPONENT</code>, etc.)</li>
-<li>Common functions (<code>spawn_primitive</code>, <code>spawn_fly_camera</code>, etc.)</li>
+<li>Component flags (<code>LOCAL_TRANSFORM</code>, <code>RENDER_MESH</code>, etc.)</li>
+<li>Common functions (<code>spawn_cube_at</code>, <code>spawn_camera</code>, etc.)</li>
 </ul>
 <h3 id="2-define-your-game-state"><a class="header" href="#2-define-your-game-state">2. Define Your Game State</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -241,36 +242,32 @@ fn main() {
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>initialize</code></td><td>Setup at startup</td></tr>
 <tr><td><code>run_systems</code></td><td>Game logic each frame</td></tr>
+<tr><td><code>ui</code></td><td>egui-based UI</td></tr>
+<tr><td><code>immediate_ui</code></td><td>Built-in immediate mode UI</td></tr>
 <tr><td><code>on_keyboard_input</code></td><td>Key press/release</td></tr>
 <tr><td><code>on_mouse_input</code></td><td>Mouse button events</td></tr>
-<tr><td><code>on_mouse_motion</code></td><td>Mouse movement</td></tr>
-<tr><td><code>on_window_resize</code></td><td>Window size changes</td></tr>
+<tr><td><code>on_gamepad_event</code></td><td>Gamepad input</td></tr>
 <tr><td><code>configure_render_graph</code></td><td>Custom rendering</td></tr>
+<tr><td><code>next_state</code></td><td>State transitions</td></tr>
 </tbody></table>
 </div>
 <h3 id="4-set-up-the-scene"><a class="header" href="#4-set-up-the-scene">4. Set Up the Scene</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Camera (required to see anything)
-    spawn_fly_camera(world);
+    let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+    world.resources.active_camera = Some(camera);
 
-    // A visible object
-    let cube = spawn_primitive(world, Primitive::Cube);
-    world.set_local_transform(cube, LocalTransform {
-        translation: Vec3::new(0.0, 0.0, -5.0),
-        ..Default::default()
-    });
+    spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0));
 
-    // Light (required for PBR materials)
-    spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+    spawn_sun(world);
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="5-run-the-application"><a class="header" href="#5-run-the-application">5. Run the Application</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024">fn main() {
-    nightshade::run(MinimalGame);
+    nightshade::launch(MinimalGame);
 }</code></pre></pre>
-<p>The <code>run</code> function:</p>
+<p>The <code>launch</code> function:</p>
 <ol>
 <li>Creates the window</li>
 <li>Initializes the renderer</li>
@@ -286,7 +283,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "https://github.com/user/nightshade", features = ["engine"] }
+nightshade = { git = "https://github.com/user/nightshade", features = ["engine", "wgpu"] }
 </code></pre>
 <h2 id="running"><a class="header" href="#running">Running</a></h2>
 <pre><code class="language-bash">cargo run --release
@@ -305,25 +302,16 @@ nightshade = { git = "https://github.com/user/nightshade", features = ["engine"]
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
-    spawn_fly_camera(world);
+    let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+    world.resources.active_camera = Some(camera);
 
-    // Ground plane
-    let ground = spawn_primitive(world, Primitive::Plane);
-    world.set_local_transform(ground, LocalTransform {
-        scale: Vec3::new(10.0, 1.0, 10.0),
-        ..Default::default()
-    });
+    spawn_plane_at(world, Vec3::zeros());
 
-    // Multiple cubes
     for index in 0..5 {
-        let cube = spawn_primitive(world, Primitive::Cube);
-        world.set_local_transform(cube, LocalTransform {
-            translation: Vec3::new(index as f32 * 2.0 - 4.0, 0.5, -5.0),
-            ..Default::default()
-        });
+        spawn_cube_at(world, Vec3::new(index as f32 * 2.0 - 4.0, 0.5, -5.0));
     }
 
-    spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+    spawn_sun(world);
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="add-animation"><a class="header" href="#add-animation">Add Animation</a></h3>
@@ -336,19 +324,16 @@ nightshade = { git = "https://github.com/user/nightshade", features = ["engine"]
 
 impl State for MinimalGame {
     fn initialize(&amp;mut self, world: &amp;mut World) {
-        spawn_fly_camera(world);
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
 
-        self.cube = Some(spawn_primitive(world, Primitive::Cube));
-        world.set_local_transform(self.cube.unwrap(), LocalTransform {
-            translation: Vec3::new(0.0, 0.0, -5.0),
-            ..Default::default()
-        });
+        self.cube = Some(spawn_cube_at(world, Vec3::new(0.0, 0.0, -5.0)));
 
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        spawn_sun(world);
     }
 
     fn run_systems(&amp;mut self, world: &amp;mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
         self.time += dt;
 
         if let Some(cube) = self.cube {
@@ -366,8 +351,8 @@ impl State for MinimalGame {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>impl State for MinimalGame {
-    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-        if state == KeyState::Pressed {
+    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
+        if state == ElementState::Pressed {
             match key {
                 KeyCode::Escape =&gt; std::process::exit(0),
                 KeyCode::Space =&gt; self.spawn_cube(world),

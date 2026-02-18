@@ -498,8 +498,9 @@ impl Default for VisualDemo {
 
 impl State for VisualDemo {
     fn initialize(&amp;mut self, world: &amp;mut World) {
-        spawn_fly_camera(world);
-        spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
+        spawn_sun(world);
 
         // Load some geometry
         load_gltf(world, "assets/models/scene.glb");
@@ -510,7 +511,7 @@ impl State for VisualDemo {
     }
 
     fn run_systems(&amp;mut self, world: &amp;mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
         self.time += dt;
 
         // Analyze audio
@@ -568,7 +569,7 @@ impl State for VisualDemo {
 }
 
 fn main() {
-    nightshade::run(VisualDemo::default());
+    nightshade::launch(VisualDemo::default());
 }</code></pre></pre>
 <h2 id="parameter-reference"><a class="header" href="#parameter-reference">Parameter Reference</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Description</th></tr></thead><tbody>

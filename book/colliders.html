@@ -181,42 +181,28 @@
 <h3 id="ball-sphere"><a class="header" href="#ball-sphere">Ball (Sphere)</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Ball { radius: 0.5 },
-    handle: None,
-});
+</span>world.set_collider(entity, ColliderComponent::new_ball(0.5));
 <span class="boring">}</span></code></pre></pre>
 <h3 id="cuboid-box"><a class="header" href="#cuboid-box">Cuboid (Box)</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Cuboid {
-        half_extents: Vec3::new(1.0, 0.5, 1.0),  // Half-sizes
-    },
-    handle: None,
-});
+</span>world.set_collider(entity, ColliderComponent::cuboid(1.0, 0.5, 1.0));
 <span class="boring">}</span></code></pre></pre>
 <h3 id="capsule"><a class="header" href="#capsule">Capsule</a></h3>
 <p>Perfect for characters:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Capsule {
-        half_height: 0.5,  // Height of cylindrical section
-        radius: 0.3,
-    },
-    handle: None,
-});
+</span>world.set_collider(entity, ColliderComponent::capsule(1.0, 0.3));
 <span class="boring">}</span></code></pre></pre>
 <h3 id="cylinder"><a class="header" href="#cylinder">Cylinder</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Cylinder {
-        half_height: 1.0,
         radius: 0.5,
+        height: 2.0,
     },
-    handle: None,
+    ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>
 <h3 id="cone"><a class="header" href="#cone">Cone</a></h3>
@@ -224,10 +210,10 @@
 </span><span class="boring">fn main() {
 </span>world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Cone {
-        half_height: 1.0,
         radius: 0.5,
+        height: 2.0,
     },
-    handle: None,
+    ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>
 <h3 id="triangle-mesh"><a class="header" href="#triangle-mesh">Triangle Mesh</a></h3>
@@ -245,7 +231,7 @@ let indices: Vec&lt;[u32; 3]&gt; = mesh.indices
 
 world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Trimesh { vertices, indices },
-    handle: None,
+    ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>
 <h3 id="heightfield"><a class="header" href="#heightfield">Heightfield</a></h3>
@@ -259,7 +245,7 @@ world.set_collider(entity, ColliderComponent {
         heights,
         scale: Vec3::new(100.0, 50.0, 100.0),
     },
-    handle: None,
+    ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>
 <h3 id="compound"><a class="header" href="#compound">Compound</a></h3>
@@ -267,13 +253,13 @@ world.set_collider(entity, ColliderComponent {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let shapes = vec![
-    (ColliderShape::Cuboid { half_extents: Vec3::new(0.5, 0.1, 0.5) }, body_offset),
+    (ColliderShape::Cuboid { x: 0.5, y: 0.1, z: 0.5 }, body_offset),
     (ColliderShape::Ball { radius: 0.3 }, head_offset),
 ];
 
 world.set_collider(entity, ColliderComponent {
     shape: ColliderShape::Compound { shapes },
-    handle: None,
+    ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>
 <h2 id="physics-materials"><a class="header" href="#physics-materials">Physics Materials</a></h2>

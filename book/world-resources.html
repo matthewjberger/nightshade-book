@@ -182,17 +182,8 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct World {
-    // Entity storage with component arrays
     pub entities: EntityStorage,
-
-    // Global singleton resources
     pub resources: Resources,
-
-    // Hierarchy tracking
-    pub children_cache: HashMap&lt;Entity, Vec&lt;Entity&gt;&gt;,
-
-    // Deferred operations
-    pub command_queue: CommandQueue,
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="resources"><a class="header" href="#resources">Resources</a></h2>
@@ -200,81 +191,106 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Resources {
-    // Timing
-    pub time: Time,
-    pub window: WindowState,
-
-    // Input
-    pub input: Input,
-
-    // Rendering
-    pub graphics: Graphics,
-    pub texture_cache: TextureCache,
-    pub material_registry: MaterialRegistry,
-    pub mesh_cache: MeshCache,
-    pub active_camera: Option&lt;Entity&gt;,
-
-    // Physics
-    pub physics: PhysicsWorld,
-
-    // Audio
-    pub audio_engine: AudioEngine,
-
-    // Navigation
-    pub navmesh_world: NavMeshWorld,
-
-    // Events
-    pub event_bus: EventBus,
-
-    // Assets
-    pub prefab_cache: PrefabCache,
-    pub animation_cache: AnimationCache,
-
-    // UI
+    pub world_id: u64,
+    pub is_runtime: bool,
+    pub window: Window,
+    pub secondary_windows: SecondaryWindows,
     pub user_interface: UserInterface,
-
-    // Text
+    pub immediate_ui: ImmediateUi,
+    pub graphics: Graphics,
+    pub input: Input,
+    #[cfg(feature = "audio")]
+    pub audio: AudioEngine,
+    #[cfg(feature = "physics")]
+    pub physics: PhysicsWorld,
+    pub navmesh: NavMeshWorld,
     pub text_cache: TextCache,
+    pub mesh_cache: MeshCache,
+    pub animation_cache: AnimationCache,
+    pub prefab_cache: PrefabCache,
+    pub material_registry: MaterialRegistry,
+    pub texture_cache: TextureCache,
+    pub pending_font_loads: Vec&lt;PendingFontLoad&gt;,
+    pub active_camera: Option&lt;Entity&gt;,
+    pub event_bus: EventBus,
+    pub command_queue: Vec&lt;WorldCommand&gt;,
+    pub transform_dirty_entities: Vec&lt;Entity&gt;,
+    pub children_cache: HashMap&lt;Entity, Vec&lt;Entity&gt;&gt;,
+    pub children_cache_valid: bool,
+    pub cleanup_frame_counter: u64,
+    pub dropped_files: Vec&lt;DroppedFile&gt;,
+    pub skinning_offsets: HashMap&lt;Entity, usize&gt;,
+    pub total_skinning_joints: u32,
+    #[cfg(feature = "scripting")]
+    pub script_runtime: ScriptRuntime,
+    #[cfg(feature = "openxr")]
+    pub xr: XrResources,
+    #[cfg(all(feature = "steam", not(target_arch = "wasm32")))]
+    pub steam: SteamResources,
+    #[cfg(feature = "physics")]
+    pub picking_world: PickingWorld,
+    pub gpu_picking: GpuPicking,
+    #[cfg(feature = "sdf_sculpt")]
+    pub sdf_world: SdfWorld,
+    #[cfg(feature = "sdf_sculpt")]
+    pub sdf_materials: SdfMaterialRegistry,
+    pub mesh_render_state: MeshRenderState,
+    #[cfg(feature = "scene_graph")]
+    pub asset_registry: AssetRegistry,
+    pub entity_names: HashMap&lt;String, Entity&gt;,
+    pub pending_particle_textures: Vec&lt;ParticleTextureUpload&gt;,
+    pub ibl_views: IblViews,
 }
 <span class="boring">}</span></code></pre></pre>
+<p>There is no separate <code>Time</code> resource. Timing information is accessed through <code>world.resources.window.timing</code>.</p>
 <h2 id="accessing-resources"><a class="header" href="#accessing-resources">Accessing Resources</a></h2>
 <p>Resources are accessed through <code>world.resources</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    // Get delta time
     let dt = world.resources.window.timing.delta_time;
 
-    // Check input
     if world.resources.input.keyboard.is_key_pressed(KeyCode::Space) {
         self.jump();
     }
 
-    // Modify graphics settings
     world.resources.graphics.bloom_enabled = true;
     world.resources.graphics.bloom_intensity = 0.5;
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="common-resources"><a class="header" href="#common-resources">Common Resources</a></h2>
 <h3 id="time--timing"><a class="header" href="#time--timing">Time &amp; Timing</a></h3>
+<p>Timing is accessed through <code>world.resources.window.timing</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let dt = world.resources.window.timing.delta_time;
 let fps = world.resources.window.timing.frames_per_second;
 let elapsed = world.resources.window.timing.uptime_milliseconds as f32 / 1000.0;
 <span class="boring">}</span></code></pre></pre>
+<p>The <code>WindowTiming</code> struct contains:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct WindowTiming {
+    pub frames_per_second: f32,
+    pub delta_time: f32,
+    pub raw_delta_time: f32,
+    pub time_speed: f32,
+    pub last_frame_start_instant: Option&lt;web_time::Instant&gt;,
+    pub current_frame_start_instant: Option&lt;web_time::Instant&gt;,
+    pub initial_frame_start_instant: Option&lt;web_time::Instant&gt;,
+    pub frame_counter: u32,
+    pub uptime_milliseconds: u64,
+}
+<span class="boring">}</span></code></pre></pre>
 <h3 id="input"><a class="header" href="#input">Input</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Keyboard
-if world.resources.input.keyboard.is_key_pressed(KeyCode::KeyW) {
+</span>if world.resources.input.keyboard.is_key_pressed(KeyCode::KeyW) {
     move_forward();
 }
 
-// Mouse position
 let mouse_pos = world.resources.input.mouse.position;
 
-// Mouse buttons
 if world.resources.input.mouse.state.contains(MouseState::LEFT_JUST_PRESSED) {
     shoot();
 }
@@ -282,53 +298,41 @@ if world.resources.input.mouse.state.contains(MouseState::LEFT_JUST_PRESSED) {
 <h3 id="graphics-settings"><a class="header" href="#graphics-settings">Graphics Settings</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Enable/disable features
-world.resources.graphics.show_grid = true;
+</span>world.resources.graphics.show_grid = true;
 world.resources.graphics.atmosphere = Atmosphere::Sky;
 world.resources.graphics.bloom_enabled = true;
 world.resources.graphics.ssao_enabled = true;
 
-// Tonemapping
-world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 <span class="boring">}</span></code></pre></pre>
 <h3 id="active-camera"><a class="header" href="#active-camera">Active Camera</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Set active camera
-world.resources.active_camera = Some(camera_entity);
+</span>world.resources.active_camera = Some(camera_entity);
 
-// Get active camera
 if let Some(camera) = world.resources.active_camera {
     let transform = world.get_global_transform(camera);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="deferred-commands"><a class="header" href="#deferred-commands">Deferred Commands</a></h2>
-<p>Some operations must be deferred to avoid invalidating iterators:</p>
+<h2 id="world-commands"><a class="header" href="#world-commands">World Commands</a></h2>
+<p>Operations that require GPU access or must be deferred are queued as <code>WorldCommand</code> values and processed during the render phase:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Queue entity spawn
-world.command_queue.spawn(|world| {
-    let entity = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
-    world.set_local_transform(entity, LocalTransform::default());
-});
-
-// Queue entity despawn
-world.command_queue.despawn(entity);
-
-// Flush at safe point (called automatically at frame end)
-world.command_queue.flush(world);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="queuing-world-commands"><a class="header" href="#queuing-world-commands">Queuing World Commands</a></h2>
-<p>For GPU resource operations:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Load texture
-world.queue_command(WorldCommand::LoadTexture {
+</span>world.queue_command(WorldCommand::LoadTexture {
     name: "my_texture".to_string(),
     rgba_data: texture_bytes,
     width: 256,
     height: 256,
 });
+
+world.queue_command(WorldCommand::DespawnRecursive { entity });
+world.queue_command(WorldCommand::LoadHdrSkybox { hdr_data });
+world.queue_command(WorldCommand::CaptureScreenshot { path: None });
+<span class="boring">}</span></code></pre></pre>
+<p>For immediate recursive despawning without deferral:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>despawn_recursive_immediate(world, entity);
 <span class="boring">}</span></code></pre></pre>
 
                     </main>

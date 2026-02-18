@@ -192,39 +192,24 @@ nightshade = { git = "...", features = ["engine", "terrain"] }
 
 fn initialize(&amp;mut self, world: &amp;mut World) {
     let config = TerrainConfig::default();
-    spawn_terrain(world, config, Vec3::zeros());
+    let material_id = MaterialRef::new("terrain");
+    spawn_terrain_with_material(world, &amp;config, material_id);
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="terrain-configuration"><a class="header" href="#terrain-configuration">Terrain Configuration</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct TerrainConfig {
-    pub chunk_size: f32,         // Size of each terrain chunk
-    pub view_distance: u32,      // How many chunks to render
-    pub patches_per_chunk: u32,  // Subdivision level
-    pub max_tessellation: u32,   // Maximum tessellation level
-    pub min_tessellation: u32,   // Minimum tessellation level
-    pub height_scale: f32,       // Vertical scale
-    pub noise_frequency: f32,    // Noise detail frequency
-    pub noise_octaves: u32,      // Noise layers
-    pub lod_distances: [f32; 5], // LOD transition distances
-}
-
-impl Default for TerrainConfig {
-    fn default() -&gt; Self {
-        Self {
-            chunk_size: 64.0,
-            view_distance: 8,
-            patches_per_chunk: 8,
-            max_tessellation: 16,
-            min_tessellation: 1,
-            height_scale: 50.0,
-            noise_frequency: 0.01,
-            noise_octaves: 6,
-            lod_distances: [50.0, 150.0, 400.0, 800.0, 1600.0],
-        }
-    }
-}
+</span>let config = TerrainConfig {
+    size: 512.0,
+    resolution: 256,
+    height_scale: 50.0,
+    noise: NoiseConfig {
+        noise_type: NoiseType::Perlin,
+        frequency: 0.01,
+        octaves: 6,
+        ..Default::default()
+    },
+};
 <span class="boring">}</span></code></pre></pre>
 <h2 id="terrain-with-custom-material"><a class="header" href="#terrain-with-custom-material">Terrain with Custom Material</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -236,7 +221,8 @@ impl Default for TerrainConfig {
     ..Default::default()
 };
 
-spawn_terrain_with_material(world, config, Vec3::zeros(), snow_material);
+let material_id = MaterialRef::new("snow_terrain");
+spawn_terrain_with_material(world, &amp;config, material_id);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="sampling-terrain-height"><a class="header" href="#sampling-terrain-height">Sampling Terrain Height</a></h2>
 <p>Get the terrain height at any position:</p>
@@ -267,8 +253,8 @@ fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, confi
     for z in 0..resolution {
         let mut row = Vec::new();
         for x in 0..resolution {
-            let world_x = (x as f32 / resolution as f32) * config.chunk_size;
-            let world_z = (z as f32 / resolution as f32) * config.chunk_size;
+            let world_x = (x as f32 / resolution as f32) * config.size;
+            let world_z = (z as f32 / resolution as f32) * config.size;
             row.push(sample_terrain_height(world_x, world_z, config));
         }
         heights.push(row);
@@ -276,14 +262,14 @@ fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, confi
 
     // Create heightfield collider
     let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | COLLIDER_COMPONENT,
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | COLLIDER,
         1
     )[0];
 
     world.set_collider(entity, ColliderComponent {
         shape: ColliderShape::Heightfield {
             heights,
-            scale: Vec3::new(config.chunk_size, 1.0, config.chunk_size),
+            scale: Vec3::new(config.size, 1.0, config.size),
         },
         handle: None,
     });
@@ -325,8 +311,8 @@ fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, confi
 
 impl ChunkManager {
     fn update(&amp;mut self, world: &amp;mut World, camera_pos: Vec3) {
-        let chunk_x = (camera_pos.x / self.config.chunk_size) as i32;
-        let chunk_z = (camera_pos.z / self.config.chunk_size) as i32;
+        let chunk_x = (camera_pos.x / self.config.size) as i32;
+        let chunk_z = (camera_pos.z / self.config.size) as i32;
 
         // Load nearby chunks
         for dz in -self.config.view_distance as i32..=self.config.view_distance as i32 {
@@ -342,7 +328,7 @@ impl ChunkManager {
         self.loaded_chunks.retain(|&amp;(cx, cz), entity| {
             let dist = ((cx - chunk_x).abs().max((cz - chunk_z).abs())) as u32;
             if dist &gt; self.config.view_distance + 1 {
-                world.despawn(*entity);
+                world.despawn_entities(&amp;[*entity]);
                 false
             } else {
                 true
@@ -355,15 +341,16 @@ impl ChunkManager {
 <p>Terrain automatically adjusts detail based on distance:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// LOD levels are determined by distance from camera
-// lod_distances[0] = highest detail
-// lod_distances[4] = lowest detail
-
-let config = TerrainConfig {
-    lod_distances: [50.0, 150.0, 400.0, 800.0, 1600.0],
-    max_tessellation: 16,
-    min_tessellation: 1,
-    ..Default::default()
+</span>let config = TerrainConfig {
+    size: 512.0,
+    resolution: 256,
+    height_scale: 50.0,
+    noise: NoiseConfig {
+        noise_type: NoiseType::Perlin,
+        frequency: 0.01,
+        octaves: 6,
+        ..Default::default()
+    },
 };
 <span class="boring">}</span></code></pre></pre>
 <h2 id="wireframe-toggle"><a class="header" href="#wireframe-toggle">Wireframe Toggle</a></h2>
@@ -374,8 +361,8 @@ let config = TerrainConfig {
 
 static WIREFRAME: AtomicBool = AtomicBool::new(false);
 
-fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed &amp;&amp; key == KeyCode::KeyT {
+fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed &amp;&amp; key == KeyCode::KeyT {
         let current = WIREFRAME.load(Ordering::Relaxed);
         WIREFRAME.store(!current, Ordering::Relaxed);
     }

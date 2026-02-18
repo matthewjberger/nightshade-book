@@ -185,38 +185,23 @@
 <p>Illuminates the entire scene from a direction, simulating distant light sources like the sun:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn spawn_sun(world: &amp;mut World) -&gt; Entity {
-    let entity = world.spawn_entities(
-        LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
-        1
-    )[0];
+</span>use nightshade::prelude::*;
 
-    world.set_light(entity, Light {
-        light_type: LightType::Directional,
-        color: Vec3::new(1.0, 0.98, 0.95),
-        intensity: 2.0,
-        cast_shadows: true,
-        shadow_bias: 0.001,
-        ..Default::default()
-    });
-
-    // Point light downward at an angle
-    world.set_local_transform(entity, LocalTransform {
-        rotation: nalgebra_glm::quat_look_at(
-            &amp;Vec3::new(-0.5, -1.0, -0.3).normalize(),
-            &amp;Vec3::y(),
-        ),
-        ..Default::default()
-    });
-
-    entity
+let sun = spawn_sun(world);
+<span class="boring">}</span></code></pre></pre>
+<p><code>spawn_sun</code> returns the <code>Entity</code> for the directional light, which you can further configure:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(light) = world.get_light_mut(sun) {
+    light.color = Vec3::new(1.0, 0.98, 0.95);
+    light.intensity = 2.0;
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="point-light"><a class="header" href="#point-light">Point Light</a></h3>
 <p>Emits light in all directions from a point:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn spawn_point_light(world: &amp;mut World, position: Vec3, color: Vec3, intensity: f32) -&gt; Entity {
+</span>fn create_point_light(world: &amp;mut World, position: Vec3, color: Vec3, intensity: f32) -&gt; Entity {
     let entity = world.spawn_entities(
         LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
         1
@@ -243,7 +228,7 @@
 <p>Cone-shaped light, perfect for flashlights or stage lighting:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn spawn_spotlight(world: &amp;mut World, position: Vec3, direction: Vec3) -&gt; Entity {
+</span>fn create_spotlight(world: &amp;mut World, position: Vec3, direction: Vec3) -&gt; Entity {
     let entity = world.spawn_entities(
         LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
         1
@@ -323,7 +308,7 @@
     let Some(camera_transform) = world.get_global_transform(camera) else { return };
 
     let position = camera_transform.translation();
-    let forward = camera_transform.forward();
+    let forward = camera_transform.forward_vector();
 
     if let Some(transform) = world.get_local_transform_mut(flashlight) {
         transform.translation = position;
@@ -345,22 +330,19 @@ world.resources.graphics.shadow_distance = 100.0;
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.resources.graphics.atmosphere = Atmosphere::Sky;
-world.resources.graphics.ambient_intensity = 0.3;
+world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
 <span class="boring">}</span></code></pre></pre>
 <h2 id="multiple-lights"><a class="header" href="#multiple-lights">Multiple Lights</a></h2>
-<p>Nightshade supports multiple lights in a scene:</p>
+<p>Nightshade supports multiple lights in a scene. Create point and spot lights manually as shown above:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn setup_lighting(world: &amp;mut World) {
-    // Main sun
     spawn_sun(world);
 
-    // Fill lights
-    spawn_point_light(world, Vec3::new(5.0, 3.0, 5.0), Vec3::new(0.8, 0.9, 1.0), 2.0);
-    spawn_point_light(world, Vec3::new(-5.0, 3.0, -5.0), Vec3::new(1.0, 0.8, 0.7), 1.5);
+    create_point_light(world, Vec3::new(5.0, 3.0, 5.0), Vec3::new(0.8, 0.9, 1.0), 2.0);
+    create_point_light(world, Vec3::new(-5.0, 3.0, -5.0), Vec3::new(1.0, 0.8, 0.7), 1.5);
 
-    // Accent spotlight
-    spawn_spotlight(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+    create_spotlight(world, Vec3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
 }
 <span class="boring">}</span></code></pre></pre>
 

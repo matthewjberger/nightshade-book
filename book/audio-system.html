@@ -185,111 +185,40 @@
 <pre><code class="language-toml">[dependencies]
 nightshade = { git = "...", features = ["engine", "audio"] }
 </code></pre>
-<h2 id="playing-sounds"><a class="header" href="#playing-sounds">Playing Sounds</a></h2>
-<h3 id="basic-playback"><a class="header" href="#basic-playback">Basic Playback</a></h3>
+<h2 id="loading-sounds"><a class="header" href="#loading-sounds">Loading Sounds</a></h2>
+<p>Load sounds at initialization using <code>world.resources.audio.load_sound</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::audio::*;
 
-// Play a sound effect
-play_sound(world, "explosion", PlaybackSettings::default());
-
-// Play with custom settings
-play_sound(world, "footstep", PlaybackSettings {
-    volume: 0.5,
-    speed: 1.0,
-    loop_sound: false,
-});
-<span class="boring">}</span></code></pre></pre>
-<h3 id="loading-sounds"><a class="header" href="#loading-sounds">Loading Sounds</a></h3>
-<p>Load sounds at initialization:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>const EXPLOSION_WAV: &amp;[u8] = include_bytes!("../assets/sounds/explosion.wav");
+const EXPLOSION_WAV: &amp;[u8] = include_bytes!("../assets/sounds/explosion.wav");
 const MUSIC_OGG: &amp;[u8] = include_bytes!("../assets/sounds/music.ogg");
 
 fn initialize(&amp;mut self, world: &amp;mut World) {
-    load_sound(world, "explosion", EXPLOSION_WAV);
-    load_sound(world, "music", MUSIC_OGG);
+    world.resources.audio.load_sound("explosion", EXPLOSION_WAV);
+    world.resources.audio.load_sound("music", MUSIC_OGG);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="background-music"><a class="header" href="#background-music">Background Music</a></h2>
-<h3 id="play-music"><a class="header" href="#play-music">Play Music</a></h3>
+<h2 id="playing-sounds"><a class="header" href="#playing-sounds">Playing Sounds</a></h2>
+<h3 id="basic-playback"><a class="header" href="#basic-playback">Basic Playback</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn start_music(world: &amp;mut World) {
-    play_sound(world, "music", PlaybackSettings {
-        volume: 0.7,
-        speed: 1.0,
-        loop_sound: true,
-    });
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="control-music"><a class="header" href="#control-music">Control Music</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Stop music
-stop_sound(world, "music");
-
-// Pause music
-pause_sound(world, "music");
-
-// Resume music
-resume_sound(world, "music");
-
-// Fade out
-fade_sound(world, "music", 0.0, 2.0);  // Fade to 0 volume over 2 seconds
-<span class="boring">}</span></code></pre></pre>
-<h2 id="volume-control"><a class="header" href="#volume-control">Volume Control</a></h2>
-<h3 id="master-volume"><a class="header" href="#master-volume">Master Volume</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.audio_engine.set_master_volume(0.8);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="category-volumes"><a class="header" href="#category-volumes">Category Volumes</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Music volume
-world.resources.audio_engine.set_music_volume(0.7);
-
-// Effects volume
-world.resources.audio_engine.set_sfx_volume(1.0);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="sound-variations"><a class="header" href="#sound-variations">Sound Variations</a></h2>
-<p>Play random variations:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn play_footstep(world: &amp;mut World) {
-    let sounds = ["footstep_1", "footstep_2", "footstep_3", "footstep_4"];
-    let index = rand::random::&lt;usize&gt;() % sounds.len();
-    play_sound(world, sounds[index], PlaybackSettings::default());
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="pitch-variation"><a class="header" href="#pitch-variation">Pitch Variation</a></h2>
-<p>Add variety with pitch:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn play_with_variation(world: &amp;mut World, sound: &amp;str) {
-    let pitch = 0.9 + rand::random::&lt;f32&gt;() * 0.2;  // 0.9 to 1.1
-    play_sound(world, sound, PlaybackSettings {
-        speed: pitch,
-        ..Default::default()
-    });
-}
+</span>let handle = world.resources.audio.load_sound("explosion", EXPLOSION_WAV);
+world.resources.audio.play(handle);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio-source-component"><a class="header" href="#audio-source-component">Audio Source Component</a></h2>
 <p>Attach sounds to entities:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let entity = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+</span>const ENGINE_LOOP: &amp;[u8] = include_bytes!("../assets/sounds/engine_loop.wav");
 
-world.set_audio_source(entity, AudioSource {
-    sound_name: "engine_loop".to_string(),
-    spatial: true,
-    volume: 1.0,
-    loop_sound: true,
-    playing: true,
-});
+let entity = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+
+world.set_audio_source(entity, AudioSource::new(ENGINE_LOOP)
+    .with_spatial(true)
+    .with_looping(true)
+    .playing(),
+);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio-listener"><a class="header" href="#audio-listener">Audio Listener</a></h2>
 <p>Mark the entity that "hears" sounds (usually the camera):</p>
@@ -297,39 +226,46 @@ world.set_audio_source(entity, AudioSource {
 </span><span class="boring">fn main() {
 </span>world.set_audio_listener(camera_entity, AudioListener);
 <span class="boring">}</span></code></pre></pre>
+<h2 id="sound-variations"><a class="header" href="#sound-variations">Sound Variations</a></h2>
+<p>Play random variations:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const FOOTSTEP_1: &amp;[u8] = include_bytes!("../assets/sounds/footstep_1.wav");
+const FOOTSTEP_2: &amp;[u8] = include_bytes!("../assets/sounds/footstep_2.wav");
+const FOOTSTEP_3: &amp;[u8] = include_bytes!("../assets/sounds/footstep_3.wav");
+const FOOTSTEP_4: &amp;[u8] = include_bytes!("../assets/sounds/footstep_4.wav");
+
+fn initialize(&amp;mut self, world: &amp;mut World) {
+    world.resources.audio.load_sound("footstep_1", FOOTSTEP_1);
+    world.resources.audio.load_sound("footstep_2", FOOTSTEP_2);
+    world.resources.audio.load_sound("footstep_3", FOOTSTEP_3);
+    world.resources.audio.load_sound("footstep_4", FOOTSTEP_4);
+}
+
+fn play_footstep(world: &amp;mut World) {
+    let sounds = ["footstep_1", "footstep_2", "footstep_3", "footstep_4"];
+    let index = rand::random::&lt;usize&gt;() % sounds.len();
+    let handle = world.resources.audio.load_sound(sounds[index], &amp;[]);
+    world.resources.audio.play(handle);
+}
+<span class="boring">}</span></code></pre></pre>
 <h2 id="triggering-sounds-on-events"><a class="header" href="#triggering-sounds-on-events">Triggering Sounds on Events</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    // Play sound on collision
     for event in world.resources.physics.collision_events() {
         if event.started {
-            play_sound(world, "impact", PlaybackSettings::default());
+            let handle = world.resources.audio.load_sound("impact", IMPACT_WAV);
+            world.resources.audio.play(handle);
         }
-    }
-
-    // Play sound on input
-    if world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) {
-        play_sound(world, "jump", PlaybackSettings::default());
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="sound-cooldowns"><a class="header" href="#sound-cooldowns">Sound Cooldowns</a></h2>
-<p>Prevent sound spam:</p>
+<h2 id="stopping-sounds"><a class="header" href="#stopping-sounds">Stopping Sounds</a></h2>
+<p>Stop a sound attached to an entity:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct SoundCooldowns {
-    footstep_timer: f32,
-}
-
-fn try_play_footstep(world: &amp;mut World, cooldowns: &amp;mut SoundCooldowns, dt: f32) {
-    cooldowns.footstep_timer -= dt;
-
-    if cooldowns.footstep_timer &lt;= 0.0 {
-        play_sound(world, "footstep", PlaybackSettings::default());
-        cooldowns.footstep_timer = 0.3;  // 300ms cooldown
-    }
-}
+</span>world.resources.audio.stop_sound(entity);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="supported-formats"><a class="header" href="#supported-formats">Supported Formats</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Format</th><th>Extension</th><th>Notes</th></tr></thead><tbody>
@@ -339,17 +275,6 @@ fn try_play_footstep(world: &amp;mut World, cooldowns: &amp;mut SoundCooldowns, 
 <tr><td>FLAC</td><td>.flac</td><td>Lossless compression</td></tr>
 </tbody></table>
 </div>
-<h2 id="memory-management"><a class="header" href="#memory-management">Memory Management</a></h2>
-<p>Unload sounds when not needed:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Unload a specific sound
-unload_sound(world, "explosion");
-
-// Unload all sounds (e.g., on level change)
-clear_all_sounds(world);
-<span class="boring">}</span></code></pre></pre>
-
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

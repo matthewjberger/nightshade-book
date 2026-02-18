@@ -188,31 +188,21 @@
 let entity = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
 
 world.set_particle_emitter(entity, ParticleEmitter {
-    emitter_type: EmitterType::Fire,
+    max_particles: 1000,
+    emission_rate: 50.0,
+    lifetime: 1.5,
+    initial_velocity: Vec3::new(0.0, 1.0, 0.0),
+    velocity_randomness: 0.3,
+    size: 0.2,
+    color: fire_gradient(),
     shape: EmitterShape::Point,
-    position: Vec3::new(0.0, 0.0, 0.0),
-    direction: Vec3::new(0.0, 1.0, 0.0),
-    spawn_rate: 50.0,
-    particle_lifetime_min: 0.5,
-    particle_lifetime_max: 1.5,
-    initial_velocity_min: 1.0,
-    initial_velocity_max: 3.0,
-    velocity_spread: 0.3,
-    gravity: Vec3::new(0.0, -1.0, 0.0),
-    size_start: 0.2,
-    size_end: 0.05,
-    color_gradient: fire_gradient(),
-    enabled: true,
     ..Default::default()
 });
 <span class="boring">}</span></code></pre></pre>
 <h2 id="emitter-types"><a class="header" href="#emitter-types">Emitter Types</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>Fire</code></td><td>Additive blending, upward motion</td></tr>
-<tr><td><code>Smoke</code></td><td>Alpha blending, slow rise</td></tr>
-<tr><td><code>Sparks</code></td><td>Point sprites, fast motion</td></tr>
-<tr><td><code>Snow</code></td><td>Falling particles, drift</td></tr>
-<tr><td><code>Dust</code></td><td>Ground-level particles</td></tr>
+<tr><td><code>EmitterType::Continuous</code></td><td>Emits particles continuously at the configured rate</td></tr>
+<tr><td><code>EmitterType::Burst { count }</code></td><td>Emits a fixed number of particles at once</td></tr>
 </tbody></table>
 </div>
 <h2 id="emitter-shapes"><a class="header" href="#emitter-shapes">Emitter Shapes</a></h2>
@@ -228,34 +218,24 @@ EmitterShape::Sphere { radius: 0.5 }
 EmitterShape::Box { half_extents: Vec3::new(1.0, 0.1, 1.0) }
 
 // Emit from cone
-EmitterShape::Cone { radius: 0.5, height: 1.0 }
+EmitterShape::Cone { angle: 0.5, radius: 0.5 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="color-gradients"><a class="header" href="#color-gradients">Color Gradients</a></h2>
 <p>Define how particles change color over their lifetime:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn fire_gradient() -&gt; ColorGradient {
-    ColorGradient {
-        colors: vec![
-            (0.0, Vec4::new(1.0, 1.0, 0.9, 0.0)),    // Start: white, transparent
-            (0.1, Vec4::new(1.0, 0.95, 0.7, 1.0)),   // Bright yellow
-            (0.3, Vec4::new(1.0, 0.8, 0.4, 0.9)),    // Orange-yellow
-            (0.6, Vec4::new(1.0, 0.5, 0.1, 0.6)),    // Orange
-            (0.85, Vec4::new(0.9, 0.2, 0.02, 0.2)),  // Red
-            (1.0, Vec4::new(0.5, 0.05, 0.0, 0.0)),   // Dark red, fade out
-        ],
-    }
+    ColorGradient::new(
+        Vec4::new(1.0, 0.95, 0.7, 1.0),
+        Vec4::new(0.5, 0.05, 0.0, 0.0),
+    )
 }
 
 fn smoke_gradient() -&gt; ColorGradient {
-    ColorGradient {
-        colors: vec![
-            (0.0, Vec4::new(0.15, 0.12, 0.1, 0.0)),
-            (0.15, Vec4::new(0.3, 0.28, 0.25, 0.4)),
-            (0.7, Vec4::new(0.5, 0.49, 0.47, 0.2)),
-            (1.0, Vec4::new(0.65, 0.63, 0.6, 0.0)),
-        ],
-    }
+    ColorGradient::new(
+        Vec4::new(0.3, 0.28, 0.25, 0.4),
+        Vec4::new(0.65, 0.63, 0.6, 0.0),
+    )
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="fire-effect"><a class="header" href="#fire-effect">Fire Effect</a></h2>
@@ -263,66 +243,54 @@ fn smoke_gradient() -&gt; ColorGradient {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn spawn_campfire(world: &amp;mut World, position: Vec3) {
-    // Fire core (bright, fast)
-    let core = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let core = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(core, LocalTransform {
+        translation: position,
+        ..Default::default()
+    });
     world.set_particle_emitter(core, ParticleEmitter {
-        emitter_type: EmitterType::Fire,
+        max_particles: 2000,
+        emission_rate: 50.0,
+        lifetime: 0.5,
+        initial_velocity: Vec3::new(0.0, 1.5, 0.0),
+        velocity_randomness: 0.12,
+        size: 0.12,
+        color: fire_gradient(),
         shape: EmitterShape::Sphere { radius: 0.04 },
-        position,
-        direction: Vec3::new(0.0, 1.0, 0.0),
-        spawn_rate: 50.0,
-        particle_lifetime_min: 0.25,
-        particle_lifetime_max: 0.5,
-        initial_velocity_min: 0.8,
-        initial_velocity_max: 1.5,
-        velocity_spread: 0.12,
-        gravity: Vec3::new(0.0, 2.5, 0.0),
-        size_start: 0.12,
-        size_end: 0.04,
-        color_gradient: fire_gradient(),
-        emissive_strength: 18.0,
-        turbulence_strength: 1.2,
-        turbulence_frequency: 4.5,
         ..Default::default()
     });
 
-    // Smoke (slow, expanding)
-    let smoke = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let smoke = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(smoke, LocalTransform {
+        translation: position + Vec3::new(0.0, 0.5, 0.0),
+        ..Default::default()
+    });
     world.set_particle_emitter(smoke, ParticleEmitter {
-        emitter_type: EmitterType::Smoke,
+        max_particles: 500,
+        emission_rate: 25.0,
+        lifetime: 10.0,
+        initial_velocity: Vec3::new(0.1, 0.7, 0.05),
+        velocity_randomness: 0.3,
+        size: 0.2,
+        color: smoke_gradient(),
         shape: EmitterShape::Sphere { radius: 0.1 },
-        position: position + Vec3::new(0.0, 0.5, 0.0),
-        direction: Vec3::new(0.1, 1.0, 0.05).normalize(),
-        spawn_rate: 25.0,
-        particle_lifetime_min: 5.0,
-        particle_lifetime_max: 10.0,
-        initial_velocity_min: 0.3,
-        initial_velocity_max: 0.7,
-        gravity: Vec3::new(0.05, 0.2, 0.02),
-        drag: 0.05,
-        size_start: 0.2,
-        size_end: 2.5,
-        color_gradient: smoke_gradient(),
-        turbulence_strength: 0.6,
-        turbulence_frequency: 0.2,
         ..Default::default()
     });
 
-    // Embers (sparks)
-    let embers = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let embers = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(embers, LocalTransform {
+        translation: position + Vec3::new(0.0, 0.1, 0.0),
+        ..Default::default()
+    });
     world.set_particle_emitter(embers, ParticleEmitter {
-        emitter_type: EmitterType::Sparks,
+        max_particles: 200,
+        emission_rate: 8.0,
+        lifetime: 4.0,
+        initial_velocity: Vec3::new(0.0, 2.0, 0.0),
+        velocity_randomness: 0.5,
+        size: 0.02,
+        color: ColorGradient::default(),
         shape: EmitterShape::Sphere { radius: 0.15 },
-        position: position + Vec3::new(0.0, 0.1, 0.0),
-        spawn_rate: 8.0,
-        particle_lifetime_min: 2.0,
-        particle_lifetime_max: 4.0,
-        initial_velocity_min: 0.5,
-        initial_velocity_max: 2.0,
-        gravity: Vec3::new(0.0, -0.3, 0.0),
-        size_start: 0.02,
-        size_end: 0.01,
-        emissive_strength: 25.0,
         ..Default::default()
     });
 }
@@ -331,62 +299,57 @@ fn smoke_gradient() -&gt; ColorGradient {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn spawn_snow_blizzard(world: &amp;mut World) {
-    let snow = world.spawn_entities(PARTICLE_EMITTER, 1)[0];
+    let snow = world.spawn_entities(PARTICLE_EMITTER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+    world.set_local_transform(snow, LocalTransform {
+        translation: Vec3::new(0.0, 30.0, 0.0),
+        ..Default::default()
+    });
 
     world.set_particle_emitter(snow, ParticleEmitter {
-        emitter_type: EmitterType::Snow,
+        max_particles: 10000,
+        emission_rate: 500.0,
+        lifetime: 15.0,
+        initial_velocity: Vec3::new(-0.1, -1.0, -0.05),
+        velocity_randomness: 0.3,
+        size: 0.03,
+        color: ColorGradient::default(),
         shape: EmitterShape::Box {
             half_extents: Vec3::new(50.0, 0.1, 50.0),
         },
-        position: Vec3::new(0.0, 30.0, 0.0),
-        direction: Vec3::new(-0.1, -1.0, -0.05).normalize(),
-        spawn_rate: 500.0,
-        particle_lifetime_min: 8.0,
-        particle_lifetime_max: 15.0,
-        initial_velocity_min: 0.5,
-        initial_velocity_max: 2.0,
-        velocity_spread: 0.3,
-        gravity: Vec3::new(-0.1, -0.5, -0.05),
-        drag: 0.02,
-        size_start: 0.03,
-        size_end: 0.02,
-        turbulence_strength: 0.8,
-        turbulence_frequency: 0.5,
         ..Default::default()
     });
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="updating-emitters"><a class="header" href="#updating-emitters">Updating Emitters</a></h2>
+<p>Call the particle update system each frame:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let dt = world.resources.window.timing.delta_time;
+    update_particle_emitters(world, dt);
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="controlling-emitters"><a class="header" href="#controlling-emitters">Controlling Emitters</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Enable/disable
-if let Some(emitter) = world.get_particle_emitter_mut(entity) {
-    emitter.enabled = false;
+</span>if let Some(emitter) = world.get_particle_emitter_mut(entity) {
+    emitter.emission_rate = 0.0;
 }
 
-// Burst spawn
-if let Some(emitter) = world.get_particle_emitter_mut(entity) {
-    emitter.burst_count = 50;  // Spawn 50 particles immediately
-}
-
-// Change position
-if let Some(emitter) = world.get_particle_emitter_mut(entity) {
-    emitter.position = new_position;
+if let Some(transform) = world.get_local_transform_mut(entity) {
+    transform.translation = new_position;
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="particle-properties"><a class="header" href="#particle-properties">Particle Properties</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Property</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>spawn_rate</code></td><td>Particles per second</td></tr>
-<tr><td><code>burst_count</code></td><td>One-time particle spawn</td></tr>
-<tr><td><code>particle_lifetime_min/max</code></td><td>Random lifetime range</td></tr>
-<tr><td><code>initial_velocity_min/max</code></td><td>Random speed range</td></tr>
-<tr><td><code>velocity_spread</code></td><td>Direction randomization</td></tr>
-<tr><td><code>gravity</code></td><td>Constant acceleration</td></tr>
-<tr><td><code>drag</code></td><td>Air resistance</td></tr>
-<tr><td><code>size_start/end</code></td><td>Size over lifetime</td></tr>
-<tr><td><code>emissive_strength</code></td><td>Glow intensity</td></tr>
-<tr><td><code>turbulence_strength</code></td><td>Noise movement</td></tr>
-<tr><td><code>turbulence_frequency</code></td><td>Noise frequency</td></tr>
+<tr><td><code>max_particles</code></td><td>Maximum active particles</td></tr>
+<tr><td><code>emission_rate</code></td><td>Particles per second</td></tr>
+<tr><td><code>lifetime</code></td><td>Particle lifetime in seconds</td></tr>
+<tr><td><code>initial_velocity</code></td><td>Starting velocity vector</td></tr>
+<tr><td><code>velocity_randomness</code></td><td>Direction randomization</td></tr>
+<tr><td><code>size</code></td><td>Particle size</td></tr>
+<tr><td><code>color</code></td><td>ColorGradient over lifetime</td></tr>
+<tr><td><code>shape</code></td><td>EmitterShape for spawn region</td></tr>
 </tbody></table>
 </div>
                     </main>

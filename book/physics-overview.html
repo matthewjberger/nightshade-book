@@ -201,12 +201,12 @@ physics.fixed_timestep = 1.0 / 60.0;
 <ul>
 <li><strong>Dynamic</strong>: Affected by gravity and forces</li>
 <li><strong>Kinematic</strong>: Moved by code, affects dynamic bodies</li>
-<li><strong>Static</strong>: Immovable, infinite mass</li>
+<li><strong>Fixed</strong>: Immovable, infinite mass</li>
 </ul>
 <h3 id="colliders"><a class="header" href="#colliders">Colliders</a></h3>
 <p>Shapes used for collision detection:</p>
 <ul>
-<li>Box, Sphere, Capsule, Cylinder</li>
+<li>Cuboid, Ball, Capsule, Cylinder</li>
 <li>Triangle mesh, Heightfield</li>
 <li>Compound shapes</li>
 </ul>
@@ -218,21 +218,10 @@ physics.fixed_timestep = 1.0 / 60.0;
 </span>use nightshade::ecs::physics::*;
 
 fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Static floor
-    spawn_static_physics_cube(
-        world,
-        Vec3::new(0.0, -0.5, 0.0),
-        Vec3::new(50.0, 1.0, 50.0),
-    );
+    spawn_cube_at(world, Vec3::new(0.0, -0.5, 0.0));
 
-    // Dynamic cubes
     for index in 0..10 {
-        spawn_dynamic_physics_cube(
-            world,
-            Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
-            1.0,  // mass
-        );
+        spawn_cube_at(world, Vec3::new(0.0, 2.0 + index as f32 * 1.5, 0.0));
     }
 }
 <span class="boring">}</span></code></pre></pre>

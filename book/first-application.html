@@ -182,7 +182,7 @@
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 
 fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }
 
 #[derive(Default)]
@@ -194,11 +194,9 @@ impl State for MyGame {
     }
 
     fn initialize(&amp;mut self, world: &amp;mut World) {
-        // Setup happens here
     }
 
     fn run_systems(&amp;mut self, world: &amp;mut World) {
-        // Game logic runs every frame
     }
 }</code></pre></pre>
 <h2 id="adding-a-camera"><a class="header" href="#adding-a-camera">Adding a Camera</a></h2>
@@ -219,8 +217,6 @@ impl State for MyGame {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Camera setup...
-
     spawn_sun(world);
 }
 <span class="boring">}</span></code></pre></pre>
@@ -231,20 +227,14 @@ impl State for MyGame {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
     world.resources.graphics.show_grid = true;
     world.resources.graphics.atmosphere = Atmosphere::Sky;
-
-    // Camera and lighting...
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="adding-geometry"><a class="header" href="#adding-geometry">Adding Geometry</a></h2>
-<p>Spawn a cube using the built-in primitive:</p>
+<p>Spawn a cube using the built-in primitive (available from the prelude):</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::mesh::primitives::spawn_cube;
-
-fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Previous setup...
-
-    spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
+</span>fn initialize(&amp;mut self, world: &amp;mut World) {
+    spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="camera-controls"><a class="header" href="#camera-controls">Camera Controls</a></h2>
@@ -258,10 +248,9 @@ fn initialize(&amp;mut self, world: &amp;mut World) {
 <span class="boring">}</span></code></pre></pre>
 <h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
-use nightshade::ecs::mesh::primitives::spawn_cube;
 
 fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }
 
 #[derive(Default)]
@@ -285,9 +274,9 @@ impl State for MyGame {
 
         spawn_sun(world);
 
-        spawn_cube(world, Vec3::new(0.0, 1.0, 0.0), 1.0);
-        spawn_cube(world, Vec3::new(3.0, 0.5, 0.0), 0.5);
-        spawn_cube(world, Vec3::new(-2.0, 1.5, 2.0), 1.5);
+        spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
+        spawn_cube_at(world, Vec3::new(3.0, 0.5, 0.0));
+        spawn_cube_at(world, Vec3::new(-2.0, 1.5, 2.0));
     }
 
     fn run_systems(&amp;mut self, world: &amp;mut World) {

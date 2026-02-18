@@ -183,28 +183,19 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let entity = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RIGID_BODY_COMPONENT | COLLIDER_COMPONENT,
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RIGID_BODY | COLLIDER,
     1
 )[0];
 
-world.set_rigid_body(entity, RigidBodyComponent {
-    body_type: RigidBodyType::Dynamic,
-    handle: None,  // Set by physics sync
-});
+world.set_rigid_body(entity, RigidBodyComponent::new_dynamic());
 
-world.set_collider(entity, ColliderComponent {
-    shape: ColliderShape::Ball { radius: 0.5 },
-    handle: None,
-});
+world.set_collider(entity, ColliderComponent::new_ball(0.5));
 <span class="boring">}</span></code></pre></pre>
 <h3 id="kinematic-bodies"><a class="header" href="#kinematic-bodies">Kinematic Bodies</a></h3>
 <p>Controlled by code, not affected by forces:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_rigid_body(entity, RigidBodyComponent {
-    body_type: RigidBodyType::Kinematic,
-    handle: None,
-});
+</span>world.set_rigid_body(entity, RigidBodyComponent::new_kinematic_position_based());
 <span class="boring">}</span></code></pre></pre>
 <p>Move kinematic bodies by updating their transform:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -218,10 +209,7 @@ world.mark_local_transform_dirty(kinematic_entity);
 <p>Immovable objects (floors, walls):</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_rigid_body(entity, RigidBodyComponent {
-    body_type: RigidBodyType::Static,
-    handle: None,
-});
+</span>world.set_rigid_body(entity, RigidBodyComponent::new_static());
 <span class="boring">}</span></code></pre></pre>
 <h2 id="helper-functions"><a class="header" href="#helper-functions">Helper Functions</a></h2>
 <h3 id="spawning-physics-cubes"><a class="header" href="#spawning-physics-cubes">Spawning Physics Cubes</a></h3>
@@ -229,50 +217,12 @@ world.mark_local_transform_dirty(kinematic_entity);
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::physics::*;
 
-// Dynamic cube
-let cube = spawn_dynamic_physics_cube(
-    world,
-    Vec3::new(0.0, 5.0, 0.0),  // position
-    Vec3::new(1.0, 1.0, 1.0),  // size
-    1.0,                        // mass
-);
-
-// With custom material
-let cube = spawn_dynamic_physics_cube_with_material(
-    world,
-    Vec3::new(0.0, 5.0, 0.0),
-    Vec3::new(1.0, 1.0, 1.0),
-    2.0,
-    my_material,
-);
-
-// Static cube
-spawn_static_physics_cube(
-    world,
-    Vec3::new(0.0, -0.5, 0.0),
-    Vec3::new(50.0, 1.0, 50.0),
-);
+let cube = spawn_cube_at(world, Vec3::new(0.0, 5.0, 0.0));
 <span class="boring">}</span></code></pre></pre>
 <h3 id="spawning-physics-spheres"><a class="header" href="#spawning-physics-spheres">Spawning Physics Spheres</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let sphere = spawn_dynamic_physics_sphere(
-    world,
-    Vec3::new(0.0, 10.0, 0.0),
-    0.5,   // radius
-    1.0,   // mass
-);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="spawning-physics-cylinders"><a class="header" href="#spawning-physics-cylinders">Spawning Physics Cylinders</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let cylinder = spawn_dynamic_physics_cylinder(
-    world,
-    Vec3::new(0.0, 5.0, 0.0),
-    0.5,   // half_height
-    0.3,   // radius
-    2.0,   // mass
-);
+</span>let sphere = spawn_sphere_at(world, Vec3::new(0.0, 10.0, 0.0));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="applying-forces"><a class="header" href="#applying-forces">Applying Forces</a></h2>
 <p>Access the Rapier rigid body directly:</p>

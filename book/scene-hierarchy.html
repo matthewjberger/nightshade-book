@@ -181,22 +181,22 @@
 <h3 id="setting-a-parent"><a class="header" href="#setting-a-parent">Setting a Parent</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_parent(child_entity, Parent { entity: parent_entity });
+</span>world.set_parent(child_entity, Parent(Some(parent_entity)));
 world.set_local_transform_dirty(child_entity, LocalTransformDirty);
 <span class="boring">}</span></code></pre></pre>
 <p>When you set a parent, the child's <code>LocalTransform</code> becomes relative to the parent's position, rotation, and scale.</p>
 <h3 id="getting-children"><a class="header" href="#getting-children">Getting Children</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let children = world.get_children(parent_entity);
-for child in children {
-    // Process each child
+</span>if let Some(children) = world.resources.children_cache.get(&amp;parent_entity) {
+    for child in children {
+    }
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="removing-a-parent"><a class="header" href="#removing-a-parent">Removing a Parent</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.remove_parent(child_entity);
+</span>world.set_parent(child_entity, Parent(None));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="transform-propagation"><a class="header" href="#transform-propagation">Transform Propagation</a></h2>
 <p>Each frame, transforms propagate through the hierarchy:</p>
@@ -221,14 +221,12 @@ for child in children {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct LocalTransform {
-    pub position: Vec3,
-    pub rotation: UnitQuaternion&lt;f32&gt;,
+    pub translation: Vec3,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
-pub struct GlobalTransform {
-    pub matrix: Mat4,
-}
+pub struct GlobalTransform(pub Mat4);
 <span class="boring">}</span></code></pre></pre>
 <ul>
 <li><strong>LocalTransform</strong>: Position, rotation, scale relative to parent (or world if no parent)</li>
@@ -294,29 +292,29 @@ let scene = deserialize_scene_binary(&amp;bytes)?;
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn spawn_robot_arm(world: &amp;mut World) -&gt; Entity {
-    let base = spawn_cube(world, Vec3::zeros(), 1.0);
+    let base = spawn_cube_at(world, Vec3::zeros());
     world.set_name(base, Name("Base".to_string()));
 
-    let lower_arm = spawn_cube(world, Vec3::new(0.0, 1.5, 0.0), 0.3);
+    let lower_arm = spawn_cube_at(world, Vec3::new(0.0, 1.5, 0.0));
     world.set_name(lower_arm, Name("Lower Arm".to_string()));
-    world.set_parent(lower_arm, Parent { entity: base });
+    world.set_parent(lower_arm, Parent(Some(base)));
 
-    let upper_arm = spawn_cube(world, Vec3::new(0.0, 2.0, 0.0), 0.3);
+    let upper_arm = spawn_cube_at(world, Vec3::new(0.0, 2.0, 0.0));
     world.set_name(upper_arm, Name("Upper Arm".to_string()));
-    world.set_parent(upper_arm, Parent { entity: lower_arm });
+    world.set_parent(upper_arm, Parent(Some(lower_arm)));
 
-    let hand = spawn_cube(world, Vec3::new(0.0, 1.5, 0.0), 0.2);
+    let hand = spawn_cube_at(world, Vec3::new(0.0, 1.5, 0.0));
     world.set_name(hand, Name("Hand".to_string()));
-    world.set_parent(hand, Parent { entity: upper_arm });
+    world.set_parent(hand, Parent(Some(upper_arm)));
 
     base
 }
 
 fn rotate_arm(world: &amp;mut World, lower_arm: Entity, angle: f32) {
     if let Some(transform) = world.get_local_transform_mut(lower_arm) {
-        transform.rotation = UnitQuaternion::from_axis_angle(
-            &amp;Vec3::z_axis(),
-            angle
+        transform.rotation = nalgebra_glm::quat_angle_axis(
+            angle,
+            &amp;Vec3::z(),
         );
     }
     world.set_local_transform_dirty(lower_arm, LocalTransformDirty);

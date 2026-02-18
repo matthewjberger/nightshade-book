@@ -195,7 +195,7 @@ enum SpawnMode {
     #[default]
     Cube,
     Sphere,
-    Capsule,
+    Cylinder,
     Chain,
     Ragdoll,
 }
@@ -213,28 +213,31 @@ impl Default for PhysicsPlayground {
 
 impl State for PhysicsPlayground {
     fn initialize(&amp;mut self, world: &amp;mut World) {
-        spawn_fly_camera(world);
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
         self.setup_environment(world);
         self.setup_ui(world);
 
-        world.resources.input.cursor_locked = true;
+        world.resources.graphics.show_cursor = false;
     }
 
     fn run_systems(&amp;mut self, world: &amp;mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
 
+        fly_camera_system(world);
         self.update_held_object(world);
         self.update_ui(world);
 
-        update_physics(world, dt);
+        run_physics_systems(world);
+        sync_transforms_from_physics_system(world);
     }
 
-    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-        if state == KeyState::Pressed {
+    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
+        if state == ElementState::Pressed {
             match key {
                 KeyCode::Digit1 =&gt; self.spawn_mode = SpawnMode::Cube,
                 KeyCode::Digit2 =&gt; self.spawn_mode = SpawnMode::Sphere,
-                KeyCode::Digit3 =&gt; self.spawn_mode = SpawnMode::Capsule,
+                KeyCode::Digit3 =&gt; self.spawn_mode = SpawnMode::Cylinder,
                 KeyCode::Digit4 =&gt; self.spawn_mode = SpawnMode::Chain,
                 KeyCode::Digit5 =&gt; self.spawn_mode = SpawnMode::Ragdoll,
                 KeyCode::KeyR =&gt; self.reset_scene(world),
@@ -245,7 +248,7 @@ impl State for PhysicsPlayground {
         }
     }
 
-    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+    fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {
         match (button, state) {
             (MouseButton::Left, ElementState::Pressed) =&gt; {
                 self.spawn_object(world);
@@ -266,24 +269,20 @@ impl State for PhysicsPlayground {
 
 impl PhysicsPlayground {
     fn setup_environment(&amp;mut self, world: &amp;mut World) {
-        let floor = spawn_primitive(world, Primitive::Plane);
-        world.set_local_transform(floor, LocalTransform {
-            scale: Vec3::new(50.0, 1.0, 50.0),
-            ..Default::default()
-        });
-        world.set_material(floor, Material {
+        let floor = spawn_plane_at(world, Vec3::zeros());
+        set_material_with_textures(world,floor, Material {
             base_color: [0.3, 0.3, 0.35, 1.0],
             roughness: 0.8,
             ..Default::default()
         });
-        add_collider(world, floor, ColliderShape::Box {
+        add_collider(world, floor, ColliderShape::Cuboid {
             half_extents: Vec3::new(50.0, 0.1, 50.0),
         });
 
         self.spawn_walls(world);
 
-        spawn_directional_light(world, Vec3::new(-0.5, -1.0, -0.3));
-        world.resources.graphics.ambient_intensity = 0.2;
+        spawn_sun(world);
+        world.resources.graphics.ambient_light = [0.2, 0.2, 0.2, 1.0];
     }
 
     fn spawn_walls(&amp;mut self, world: &amp;mut World) {
@@ -295,18 +294,13 @@ impl PhysicsPlayground {
         ];
 
         for (position, half_extents) in wall_positions {
-            let wall = spawn_primitive(world, Primitive::Cube);
-            world.set_local_transform(wall, LocalTransform {
-                translation: position,
-                scale: half_extents * 2.0,
-                ..Default::default()
-            });
-            world.set_material(wall, Material {
+            let wall = spawn_cube_at(world, position);
+            set_material_with_textures(world,wall, Material {
                 base_color: [0.4, 0.4, 0.45, 1.0],
                 roughness: 0.9,
                 ..Default::default()
             });
-            add_collider(world, wall, ColliderShape::Box { half_extents });
+            add_collider(world, wall, ColliderShape::Cuboid { half_extents });
         }
     }
 
@@ -332,28 +326,26 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let spawn_position = transform.translation +
-            transform.rotation * Vec3::new(0.0, 0.0, -5.0);
+        let spawn_position = transform.translation() +
+            transform.forward_vector() * 5.0;
 
         match self.spawn_mode {
             SpawnMode::Cube =&gt; self.spawn_cube(world, spawn_position),
             SpawnMode::Sphere =&gt; self.spawn_sphere(world, spawn_position),
-            SpawnMode::Capsule =&gt; self.spawn_capsule(world, spawn_position),
+            SpawnMode::Cylinder =&gt; self.spawn_cylinder(world, spawn_position),
             SpawnMode::Chain =&gt; self.spawn_chain(world, spawn_position),
             SpawnMode::Ragdoll =&gt; self.spawn_ragdoll(world, spawn_position),
         }
     }
 
     fn spawn_cube(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
-        let cube = spawn_primitive(world, Primitive::Cube);
+        let cube = spawn_cube_at(world, position);
 
-        world.set_local_transform(cube, LocalTransform {
-            translation: position,
-            rotation: random_rotation(),
-            ..Default::default()
-        });
+        if let Some(transform) = world.get_local_transform_mut(cube) {
+            transform.rotation = random_rotation();
+        }
 
-        world.set_material(cube, Material {
+        set_material_with_textures(world,cube, Material {
             base_color: random_color(),
             roughness: 0.7,
             metallic: 0.1,
@@ -361,7 +353,7 @@ impl PhysicsPlayground {
         });
 
         add_rigid_body(world, cube, RigidBodyType::Dynamic, 1.0);
-        add_collider(world, cube, ColliderShape::Box {
+        add_collider(world, cube, ColliderShape::Cuboid {
             half_extents: Vec3::new(0.5, 0.5, 0.5),
         });
 
@@ -369,14 +361,9 @@ impl PhysicsPlayground {
     }
 
     fn spawn_sphere(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
-        let sphere = spawn_primitive(world, Primitive::Sphere);
+        let sphere = spawn_sphere_at(world, position);
 
-        world.set_local_transform(sphere, LocalTransform {
-            translation: position,
-            ..Default::default()
-        });
-
-        world.set_material(sphere, Material {
+        set_material_with_textures(world,sphere, Material {
             base_color: random_color(),
             roughness: 0.3,
             metallic: 0.8,
@@ -384,21 +371,19 @@ impl PhysicsPlayground {
         });
 
         add_rigid_body(world, sphere, RigidBodyType::Dynamic, 1.0);
-        add_collider(world, sphere, ColliderShape::Sphere { radius: 0.5 });
+        add_collider(world, sphere, ColliderShape::Ball { radius: 0.5 });
 
         sphere
     }
 
-    fn spawn_capsule(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
-        let capsule = spawn_primitive(world, Primitive::Capsule);
+    fn spawn_cylinder(&amp;self, world: &amp;mut World, position: Vec3) -&gt; Entity {
+        let capsule = spawn_cylinder_at(world, position);
 
-        world.set_local_transform(capsule, LocalTransform {
-            translation: position,
-            rotation: random_rotation(),
-            ..Default::default()
-        });
+        if let Some(transform) = world.get_local_transform_mut(capsule) {
+            transform.rotation = random_rotation();
+        }
 
-        world.set_material(capsule, Material {
+        set_material_with_textures(world,capsule, Material {
             base_color: random_color(),
             roughness: 0.5,
             metallic: 0.3,
@@ -422,14 +407,12 @@ impl PhysicsPlayground {
         for index in 0..link_count {
             let position = start_position + Vec3::new(0.0, -(index as f32 * link_spacing), 0.0);
 
-            let link = spawn_primitive(world, Primitive::Capsule);
-            world.set_local_transform(link, LocalTransform {
-                translation: position,
-                scale: Vec3::new(0.2, 0.3, 0.2),
-                ..Default::default()
-            });
+            let link = spawn_cylinder_at(world, position);
+            if let Some(transform) = world.get_local_transform_mut(link) {
+                transform.scale = Vec3::new(0.2, 0.3, 0.2);
+            }
 
-            world.set_material(link, Material {
+            set_material_with_textures(world,link, Material {
                 base_color: [0.7, 0.7, 0.75, 1.0],
                 roughness: 0.3,
                 metallic: 0.9,
@@ -437,7 +420,7 @@ impl PhysicsPlayground {
             });
 
             if index == 0 {
-                add_rigid_body(world, link, RigidBodyType::Static, 0.0);
+                add_rigid_body(world, link, RigidBodyType::Fixed, 0.0);
             } else {
                 add_rigid_body(world, link, RigidBodyType::Dynamic, 0.5);
             }
@@ -507,22 +490,20 @@ impl PhysicsPlayground {
     }
 
     fn spawn_body_part(&amp;self, world: &amp;mut World, position: Vec3, half_extents: Vec3, color: [f32; 4]) -&gt; Entity {
-        let part = spawn_primitive(world, Primitive::Cube);
+        let part = spawn_cube_at(world, position);
 
-        world.set_local_transform(part, LocalTransform {
-            translation: position,
-            scale: half_extents * 2.0,
-            ..Default::default()
-        });
+        if let Some(transform) = world.get_local_transform_mut(part) {
+            transform.scale = half_extents * 2.0;
+        }
 
-        world.set_material(part, Material {
+        set_material_with_textures(world,part, Material {
             base_color: color,
             roughness: 0.8,
             ..Default::default()
         });
 
         add_rigid_body(world, part, RigidBodyType::Dynamic, half_extents.x * half_extents.y * half_extents.z * 8.0);
-        add_collider(world, part, ColliderShape::Box { half_extents });
+        add_collider(world, part, ColliderShape::Cuboid { half_extents });
 
         part
     }
@@ -531,8 +512,8 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let origin = transform.translation;
-        let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+        let origin = transform.translation();
+        let direction = transform.forward_vector();
 
         if let Some(hit) = raycast(world, origin, direction, 20.0) {
             if world.get_rigid_body(hit.entity).is_some() {
@@ -556,8 +537,8 @@ impl PhysicsPlayground {
                 let Some(camera) = world.resources.active_camera else { return };
                 let Some(transform) = world.get_global_transform(camera) else { return };
 
-                let throw_direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
-                body.velocity = throw_direction * 20.0;
+                let throw_direction = transform.forward_vector();
+                body.linvel = [throw_direction.x * 20.0, throw_direction.y * 20.0, throw_direction.z * 20.0];
             }
         }
     }
@@ -567,13 +548,13 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(camera_transform) = world.get_global_transform(camera) else { return };
 
-        let target = camera_transform.translation +
-            camera_transform.rotation * Vec3::new(0.0, 0.0, -self.grab_distance);
+        let target = camera_transform.translation() +
+            camera_transform.forward_vector() * self.grab_distance;
 
         if let Some(transform) = world.get_local_transform(entity) {
             let to_target = target - transform.translation;
             if let Some(body) = world.get_rigid_body_mut(entity) {
-                body.velocity = to_target * 20.0;
+                body.linvel = [to_target.x * 20.0, to_target.y * 20.0, to_target.z * 20.0];
             }
         }
     }
@@ -582,11 +563,11 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let origin = transform.translation;
-        let direction = transform.rotation * Vec3::new(0.0, 0.0, -1.0);
+        let origin = transform.translation();
+        let direction = transform.forward_vector();
 
         if let Some(hit) = raycast(world, origin, direction, 50.0) {
-            world.despawn(hit.entity);
+            world.despawn_entities(&amp;[hit.entity]);
         }
     }
 
@@ -594,23 +575,27 @@ impl PhysicsPlayground {
         let Some(camera) = world.resources.active_camera else { return };
         let Some(transform) = world.get_global_transform(camera) else { return };
 
-        let explosion_center = transform.translation +
-            transform.rotation * Vec3::new(0.0, 0.0, -5.0);
+        let explosion_center = transform.translation() +
+            transform.forward_vector() * 5.0;
         let explosion_radius = 10.0;
         let explosion_force = 50.0;
 
-        for entity in world.query(RIGID_BODY_COMPONENT | GLOBAL_TRANSFORM) {
+        for entity in world.query_entities(RIGID_BODY | GLOBAL_TRANSFORM) {
             if let (Some(body), Some(entity_transform)) = (
                 world.get_rigid_body_mut(entity),
                 world.get_global_transform(entity),
             ) {
-                let to_entity = entity_transform.translation - explosion_center;
+                let to_entity = entity_transform.translation() - explosion_center;
                 let distance = to_entity.magnitude();
 
                 if distance &lt; explosion_radius &amp;&amp; distance &gt; 0.1 {
                     let falloff = 1.0 - (distance / explosion_radius);
                     let force = to_entity.normalize() * explosion_force * falloff;
-                    body.velocity += force;
+                    body.linvel = [
+                        body.linvel[0] + force.x,
+                        body.linvel[1] + force.y,
+                        body.linvel[2] + force.z,
+                    ];
                 }
             }
         }
@@ -627,7 +612,7 @@ impl PhysicsPlayground {
 
     fn reset_scene(&amp;mut self, world: &amp;mut World) {
         let entities_to_remove: Vec&lt;Entity&gt; = world
-            .query(RIGID_BODY_COMPONENT)
+            .query_entities(RIGID_BODY)
             .filter(|e| {
                 world.get_rigid_body(*e)
                     .map(|b| b.body_type == RigidBodyType::Dynamic)
@@ -635,9 +620,7 @@ impl PhysicsPlayground {
             })
             .collect();
 
-        for entity in entities_to_remove {
-            world.despawn(entity);
-        }
+        world.despawn_entities(&amp;entities_to_remove);
 
         self.holding_entity = None;
         self.selected_entity = None;
@@ -673,7 +656,7 @@ fn pseudo_random() -&gt; f32 {
 }
 
 fn main() {
-    nightshade::run(PhysicsPlayground::default());
+    nightshade::launch(PhysicsPlayground::default());
 }</code></pre></pre>
 <h2 id="features-demonstrated"><a class="header" href="#features-demonstrated">Features Demonstrated</a></h2>
 <h3 id="object-spawning"><a class="header" href="#object-spawning">Object Spawning</a></h3>
@@ -681,7 +664,7 @@ fn main() {
 <ul>
 <li>Cubes</li>
 <li>Spheres</li>
-<li>Capsules</li>
+<li>Cylinders</li>
 </ul>
 <h3 id="joint-systems"><a class="header" href="#joint-systems">Joint Systems</a></h3>
 <p><strong>Chain</strong>: A series of capsules connected by spherical joints, anchored at the top.</p>
@@ -712,7 +695,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "physics"] }
 </code></pre>
 
                     </main>

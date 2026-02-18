@@ -229,12 +229,11 @@ impl State for ThirdPersonGame {
         self.setup_lighting(world);
         self.setup_enemies(world);
 
-        world.resources.input.cursor_locked = true;
-        world.resources.input.cursor_visible = false;
+        world.resources.graphics.show_cursor = false;
     }
 
     fn run_systems(&amp;mut self, world: &amp;mut World) {
-        let dt = world.resources.timing.delta_time;
+        let dt = world.resources.window.timing.delta_time;
 
         self.update_camera_input(world);
         self.update_player_movement(world, dt);
@@ -242,12 +241,12 @@ impl State for ThirdPersonGame {
         self.update_camera_position(world, dt);
         self.update_animations(world);
 
-        update_physics(world, dt);
-        update_character_controller(world);
+        run_physics_systems(world);
+        sync_transforms_from_physics_system(world);
         update_animation_players(world, dt);
     }
 
-    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+    fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {
         if state == ElementState::Pressed {
             match button {
                 MouseButton::Left =&gt; self.attack(world),
@@ -270,31 +269,25 @@ impl ThirdPersonGame {
         });
 
         let controller_entity = world.spawn_entities(
-            LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CHARACTER_CONTROLLER | COLLIDER_COMPONENT,
+            LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CHARACTER_CONTROLLER | COLLIDER,
             1
         )[0];
 
-        world.set_character_controller(controller_entity, CharacterController {
-            height: 1.8,
-            radius: 0.4,
-            step_height: 0.3,
-            max_slope: 45.0,
-            move_speed: 4.0,
-            jump_speed: 8.0,
-            gravity: 20.0,
+        world.set_character_controller(controller_entity, CharacterControllerComponent {
+            max_speed: 4.0,
+            acceleration: 20.0,
+            jump_impulse: 8.0,
+            can_jump: true,
+            is_crouching: false,
+            is_sprinting: false,
             grounded: false,
             velocity: Vec3::zeros(),
+            ..Default::default()
         });
 
-        world.set_collider(controller_entity, ColliderComponent {
-            shape: ColliderShape::Capsule {
-                half_height: 0.6,
-                radius: 0.4,
-            },
-            handle: None,
-        });
+        world.set_collider(controller_entity, ColliderComponent::capsule(0.4, 1.2));
 
-        world.set_parent(player, Parent(controller_entity));
+        world.set_parent(player, Parent(Some(controller_entity)));
         world.set_local_transform(player, LocalTransform {
             translation: Vec3::new(0.0, -0.9, 0.0),
             ..Default::default()
@@ -315,11 +308,13 @@ impl ThirdPersonGame {
         )[0];
 
         world.set_camera(camera, Camera {
-            fov: 60.0_f32.to_radians(),
-            near: 0.1,
-            far: 1000.0,
-            active: true,
-            ..Default::default()
+            projection: Projection::Perspective(PerspectiveCamera {
+                y_fov_rad: 60.0_f32.to_radians(),
+                z_near: 0.1,
+                z_far: Some(1000.0),
+                aspect_ratio: None,
+            }),
+            smoothing: None,
         });
 
         world.resources.active_camera = Some(camera);
@@ -327,22 +322,18 @@ impl ThirdPersonGame {
     }
 
     fn setup_level(&amp;mut self, world: &amp;mut World) {
-        let floor = spawn_primitive(world, Primitive::Plane);
-        world.set_local_transform(floor, LocalTransform {
-            scale: Vec3::new(100.0, 1.0, 100.0),
-            ..Default::default()
-        });
-        world.set_material(floor, Material {
+        let floor = spawn_plane_at(world, Vec3::zeros());
+        set_material_with_textures(world, floor, Material {
             base_color: [0.2, 0.5, 0.2, 1.0],
             roughness: 0.9,
             ..Default::default()
         });
-        add_collider(world, floor, ColliderShape::Box {
+        add_collider(world, floor, ColliderShape::Cuboid {
             half_extents: Vec3::new(100.0, 0.1, 100.0),
         });
 
         for index in 0..20 {
-            let rock = spawn_primitive(world, Primitive::Sphere);
+            let rock = spawn_sphere_at(world, Vec3::zeros());
             let x = (index % 5) as f32 * 15.0 - 30.0 + rand_range(-2.0, 2.0);
             let z = (index / 5) as f32 * 15.0 - 30.0 + rand_range(-2.0, 2.0);
             let scale = rand_range(0.5, 2.0);
@@ -353,20 +344,20 @@ impl ThirdPersonGame {
                 ..Default::default()
             });
 
-            world.set_material(rock, Material {
+            set_material_with_textures(world, rock, Material {
                 base_color: [0.4, 0.4, 0.4, 1.0],
                 roughness: 0.95,
                 ..Default::default()
             });
 
-            add_collider(rock, ColliderShape::Sphere { radius: scale });
+            add_collider(world, rock, ColliderShape::Ball { radius: scale });
         }
     }
 
     fn setup_lighting(&amp;mut self, world: &amp;mut World) {
-        spawn_directional_light(world, Vec3::new(-0.3, -1.0, -0.5));
+        spawn_sun(world);
 
-        world.resources.graphics.ambient_intensity = 0.2;
+        world.resources.graphics.ambient_light = [0.2, 0.2, 0.2, 1.0];
     }
 
     fn setup_enemies(&amp;mut self, world: &amp;mut World) {
@@ -387,12 +378,12 @@ impl ThirdPersonGame {
     }
 
     fn update_camera_input(&amp;mut self, world: &amp;mut World) {
-        let mouse_delta = world.resources.input.mouse.delta;
-        let scroll = world.resources.input.mouse.scroll_delta;
+        let position_delta = world.resources.input.mouse.position_delta;
+        let scroll = world.resources.input.mouse.wheel_delta;
 
         let sensitivity = 0.003;
-        self.camera_yaw -= mouse_delta.x * sensitivity;
-        self.camera_pitch -= mouse_delta.y * sensitivity;
+        self.camera_yaw -= position_delta.x * sensitivity;
+        self.camera_pitch -= position_delta.y * sensitivity;
 
         self.camera_pitch = self.camera_pitch.clamp(-1.2, 1.2);
 
@@ -461,10 +452,10 @@ impl ThirdPersonGame {
             self.player_state = PlayerState::Idle;
         }
 
-        if keyboard.is_key_just_pressed(KeyCode::Space) {
+        if keyboard.is_key_pressed(KeyCode::Space) {
             if let Some(controller) = world.get_character_controller_mut(player) {
                 if controller.grounded {
-                    controller.velocity.y = controller.jump_speed;
+                    controller.velocity.y = controller.jump_impulse;
                 }
             }
         }
@@ -491,7 +482,7 @@ impl ThirdPersonGame {
         let Some(camera) = self.camera else { return };
 
         if let Some(player_transform) = world.get_global_transform(player) {
-            let target = player_transform.translation + Vec3::new(0.0, 1.5, 0.0);
+            let target = player_transform.translation() + Vec3::new(0.0, 1.5, 0.0);
             self.camera_target = nalgebra_glm::lerp(
                 &amp;self.camera_target,
                 &amp;target,
@@ -522,7 +513,8 @@ impl ThirdPersonGame {
     fn update_animations(&amp;mut self, world: &amp;mut World) {
         let Some(player) = self.player else { return };
 
-        for child in world.get_children(player) {
+        let children = world.resources.children_cache.get(&amp;player).cloned().unwrap_or_default();
+        for child in children {
             if let Some(animation_player) = world.get_animation_player_mut(child) {
                 let animation_name = match self.player_state {
                     PlayerState::Idle =&gt; "idle",
@@ -555,15 +547,15 @@ impl ThirdPersonGame {
         let Some(player) = self.player else { return };
 
         if let Some(transform) = world.get_global_transform(player) {
-            let attack_origin = transform.translation + Vec3::new(0.0, 1.0, 0.0);
-            let forward = transform.rotation * Vec3::new(0.0, 0.0, 1.0);
+            let attack_origin = transform.translation() + Vec3::new(0.0, 1.0, 0.0);
+            let forward = transform.forward_vector();
             let attack_range = 2.0;
 
-            for entity in world.query(GLOBAL_TRANSFORM) {
+            for entity in world.query_entities(GLOBAL_TRANSFORM) {
                 if entity == player { continue; }
 
                 if let Some(target_transform) = world.get_global_transform(entity) {
-                    let to_target = target_transform.translation - attack_origin;
+                    let to_target = target_transform.translation() - attack_origin;
                     let distance = to_target.magnitude();
                     let dot = forward.dot(&amp;to_target.normalize());
 
@@ -604,7 +596,7 @@ fn rand_range(min: f32, max: f32) -&gt; f32 {
 }
 
 fn main() {
-    nightshade::run(ThirdPersonGame::default());
+    nightshade::launch(ThirdPersonGame::default());
 }</code></pre></pre>
 <h2 id="key-systems"><a class="header" href="#key-systems">Key Systems</a></h2>
 <h3 id="orbit-camera"><a class="header" href="#orbit-camera">Orbit Camera</a></h3>
@@ -662,7 +654,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "...", features = ["engine", "physics"] }
+nightshade = { git = "...", features = ["engine", "wgpu", "physics"] }
 </code></pre>
 
                     </main>

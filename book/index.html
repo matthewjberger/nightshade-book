@@ -227,6 +227,15 @@
 <li><strong>Debug Rendering</strong> - Lines, boxes, spheres for visualization</li>
 <li><strong>HUD Text</strong> - Screen-space text rendering with anchoring</li>
 <li><strong>Screenshot Capture</strong> - Save frames to PNG</li>
+<li><strong>Developer Console</strong> - In-game command console with custom commands</li>
+</ul>
+<h3 id="platform"><a class="header" href="#platform">Platform</a></h3>
+<ul>
+<li><strong>OpenXR VR</strong> - Virtual reality with head/hand tracking and locomotion</li>
+<li><strong>Steam</strong> - Achievements, stats, multiplayer, and friends integration</li>
+<li><strong>Webview</strong> - Host web frontends (Leptos, Yew) with bidirectional IPC</li>
+<li><strong>Mosaic</strong> - Multi-pane desktop application framework with dockable widgets</li>
+<li><strong>WASM Plugins</strong> - Extend the engine with WebAssembly plugins</li>
 </ul>
 <h2 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h2>
 <p>Nightshade follows a simple architecture centered around the <code>State</code> trait and the <code>World</code> container:</p>
@@ -282,12 +291,11 @@
 </ul>
 <p>Nightshade may not be ideal for:</p>
 <ul>
-<li><strong>2D-only games</strong> - Consider a dedicated 2D engine</li>
-<li><strong>AAA production</strong> - Missing some advanced features (GI, complex animation graphs)</li>
+<li><strong>2D-only games</strong> - Consider a dedicated 2D engine (though Nightshade does support sprites)</li>
 <li><strong>Mobile</strong> - Not yet optimized for mobile platforms</li>
 </ul>
 <h2 id="version"><a class="header" href="#version">Version</a></h2>
-<p>This documentation covers <strong>Nightshade v0.6.69</strong> using <strong>Rust 2024 Edition</strong>.</p>
+<p>This documentation covers <strong>Nightshade</strong> using <strong>Rust 2024 Edition</strong>.</p>
 <h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
 <ul>
 <li><a href="https://github.com/matthewjberger/nightshade">GitHub Repository</a> - Source code and issue tracker</li>

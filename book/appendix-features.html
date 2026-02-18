@@ -177,61 +177,128 @@
                     <main>
                         <h1 id="feature-flags"><a class="header" href="#feature-flags">Feature Flags</a></h1>
 <p>Nightshade uses Cargo feature flags to enable optional functionality. This allows you to include only the features you need, reducing compile times and binary size.</p>
-<h2 id="core-features"><a class="header" href="#core-features">Core Features</a></h2>
-<h3 id="engine"><a class="header" href="#engine"><code>engine</code></a></h3>
-<p>The main engine feature. Required for all applications.</p>
+<h2 id="default-features"><a class="header" href="#default-features">Default Features</a></h2>
+<p>Nightshade defaults to <code>["engine", "wgpu"]</code>:</p>
+<pre><code class="language-toml">[dependencies]
+nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
+</code></pre>
+<p>This gives you the full engine with the wgpu rendering backend. You only need to specify features explicitly if you want additional optional features or a minimal configuration.</p>
+<h2 id="aggregate-features"><a class="header" href="#aggregate-features">Aggregate Features</a></h2>
+<h3 id="engine-default"><a class="header" href="#engine-default"><code>engine</code> (default)</a></h3>
+<p>The main engine feature. Includes everything needed for building games.</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["engine"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
+<p><strong>Includes:</strong> <code>runtime</code>, <code>assets</code>, <code>scene_graph</code>, <code>picking</code>, <code>file_dialog</code>, <code>async_runtime</code>, <code>terrain</code>, <code>screenshot</code>, plus rand, rayon, ehttp, futures, and WASM support libraries (js-sys, wasm-bindgen, wasm-bindgen-futures, web-sys).</p>
+<p><strong>Provides:</strong></p>
 <ul>
 <li>Window creation and event loop</li>
 <li>wgpu rendering backend</li>
 <li>ECS (freecs)</li>
 <li>Transform hierarchy</li>
 <li>Camera systems</li>
-<li>Mesh rendering</li>
-<li>Material system</li>
-<li>Lighting (directional, point, spot)</li>
-<li>Post-processing (bloom, tonemapping)</li>
+<li>Mesh rendering and GPU instancing</li>
+<li>PBR material system</li>
+<li>Lighting (directional, point, spot) with shadows</li>
+<li>Post-processing (bloom, SSAO, depth of field, tonemapping)</li>
+<li>Procedural atmospheres (sky, clouds, space, nebula)</li>
 <li>glTF/GLB model loading</li>
-<li>Input handling (keyboard, mouse)</li>
-<li>Timing system</li>
+<li>Scene save/load</li>
+<li>Input handling (keyboard, mouse, touch)</li>
+<li>Procedural terrain</li>
+<li>Picking (bounding box ray casting)</li>
+<li>File dialogs</li>
+<li>Screenshot capture</li>
 </ul>
-<h3 id="physics"><a class="header" href="#physics"><code>physics</code></a></h3>
-<p>Rapier3D physics integration.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "physics"] }
+<h3 id="runtime"><a class="header" href="#runtime"><code>runtime</code></a></h3>
+<p>Minimal rendering without asset loading. Use for lightweight apps that don't need glTF/image loading.</p>
+<pre><code class="language-toml">nightshade = { default-features = false, features = ["runtime", "wgpu", "egui"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>Rigid body simulation (dynamic, kinematic, static)</li>
-<li>Collider shapes (box, sphere, capsule, cylinder, cone, convex hull, trimesh, heightfield)</li>
-<li>Collision detection and callbacks</li>
-<li>Physics joints (fixed, revolute, prismatic, spherical, rope, spring)</li>
-<li>Character controllers</li>
-<li>Raycasting</li>
-<li>Continuous collision detection (CCD)</li>
-</ul>
-<p><strong>Additional Dependencies:</strong> rapier3d</p>
+<p><strong>Includes:</strong> <code>core</code>, <code>text</code>, <code>behaviors</code>.</p>
+<h3 id="full"><a class="header" href="#full"><code>full</code></a></h3>
+<p>Everything in <code>engine</code> plus all major optional features.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["full"] }
+</code></pre>
+<p><strong>Includes:</strong> <code>engine</code>, <code>wgpu</code>, <code>egui</code>, <code>shell</code>, <code>audio</code>, <code>physics</code>, <code>gamepad</code>, <code>navmesh</code>, <code>scripting</code>, <code>fbx</code>, <code>lattice</code>, <code>sdf_sculpt</code>, <code>mosaic</code>, <code>editor</code>, <code>plugins</code>.</p>
+<h2 id="granular-features"><a class="header" href="#granular-features">Granular Features</a></h2>
+<p>These provide fine-grained control over dependencies:</p>
+<h3 id="core"><a class="header" href="#core"><code>core</code></a></h3>
+<p>Foundation: ECS (freecs), math (nalgebra, nalgebra-glm), windowing (winit), time (web-time), graph (petgraph), tracing, UUIDs, JSON serialization.</p>
+<h3 id="text"><a class="header" href="#text"><code>text</code></a></h3>
+<p>3D text rendering using fontdue. Requires <code>core</code>.</p>
+<h3 id="assets"><a class="header" href="#assets"><code>assets</code></a></h3>
+<p>Asset loading: gltf, image, half, bincode, serde_json, lz4 compression. Requires <code>core</code>.</p>
+<h3 id="scene_graph"><a class="header" href="#scene_graph"><code>scene_graph</code></a></h3>
+<p>Scene hierarchy system with save/load. Requires <code>assets</code>.</p>
+<h3 id="terrain"><a class="header" href="#terrain"><code>terrain</code></a></h3>
+<p>Procedural terrain generation using noise and rand. Requires <code>core</code>.</p>
+<h3 id="file_dialog"><a class="header" href="#file_dialog"><code>file_dialog</code></a></h3>
+<p>Native file dialogs using rfd and dirs. Enables the native-only functions in <code>nightshade::filesystem</code> (<code>pick_file</code>, <code>pick_folder</code>, <code>save_file_dialog</code>, <code>read_file</code>, <code>write_file</code>). The cross-platform functions (<code>save_file</code>, <code>request_file_load</code>) are always available on WASM and require this feature on native. See the <a href="filesystem.html">File System</a> chapter. Requires <code>core</code>.</p>
+<h3 id="async_runtime"><a class="header" href="#async_runtime"><code>async_runtime</code></a></h3>
+<p>Tokio async runtime for non-blocking operations. Requires <code>core</code>.</p>
+<h3 id="screenshot"><a class="header" href="#screenshot"><code>screenshot</code></a></h3>
+<p>PNG screenshot saving using image.</p>
+<h3 id="picking"><a class="header" href="#picking"><code>picking</code></a></h3>
+<p>Ray-based entity picking with bounding box intersection. Trimesh picking requires <code>physics</code>.</p>
+<h3 id="behaviors"><a class="header" href="#behaviors"><code>behaviors</code></a></h3>
+<p>Built-in behavior components and systems.</p>
+<h2 id="rendering"><a class="header" href="#rendering">Rendering</a></h2>
+<h3 id="wgpu-default"><a class="header" href="#wgpu-default"><code>wgpu</code> (default)</a></h3>
+<p>WebGPU-based rendering backend supporting DirectX 12, Metal, Vulkan, and WebGPU.</p>
+<h2 id="optional-features"><a class="header" href="#optional-features">Optional Features</a></h2>
+<h3 id="egui"><a class="header" href="#egui"><code>egui</code></a></h3>
+<p>Immediate mode GUI framework. Enables <code>fn ui()</code> on the State trait.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["egui"] }
+</code></pre>
+<p><strong>Additional Dependencies:</strong> egui, egui_extras, egui-winit, egui-wgpu, egui_tiles</p>
+<h3 id="shell"><a class="header" href="#shell"><code>shell</code></a></h3>
+<p>Developer console with command registration. Press backtick to open. Requires <code>egui</code>.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["shell"] }
+</code></pre>
 <h3 id="audio"><a class="header" href="#audio"><code>audio</code></a></h3>
-<p>Kira audio engine integration.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "audio"] }
+<p>Audio playback using Kira.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["audio"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
+<p><strong>Provides:</strong></p>
 <ul>
 <li>Sound loading (WAV, OGG, MP3, FLAC)</li>
 <li>Sound playback with volume, pitch, panning</li>
-<li>Spatial/3D audio</li>
-<li>Audio listener component</li>
-<li>Sound emitter components</li>
+<li>Spatial/3D audio with distance attenuation</li>
+<li>Audio listener and source components</li>
 <li>Looping and one-shot sounds</li>
-<li>Sound pooling</li>
 </ul>
-<p><strong>Additional Dependencies:</strong> kira</p>
+<h3 id="fft"><a class="header" href="#fft"><code>fft</code></a></h3>
+<p>FFT-based audio analysis for music-reactive applications.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["fft"] }
+</code></pre>
+<p><strong>Provides:</strong></p>
+<ul>
+<li>Real-time FFT spectral analysis</li>
+<li>Six-band frequency decomposition (sub-bass to highs)</li>
+<li>Beat detection (kick, snare, hi-hat)</li>
+<li>BPM estimation and beat phase tracking</li>
+<li>Spectral features (centroid, flatness, rolloff, flux)</li>
+<li>Onset detection with adaptive thresholding</li>
+</ul>
+<p><strong>Additional Dependencies:</strong> rustfft</p>
+<h3 id="physics"><a class="header" href="#physics"><code>physics</code></a></h3>
+<p>Rapier3D physics integration.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["physics"] }
+</code></pre>
+<p><strong>Provides:</strong></p>
+<ul>
+<li>Rigid body simulation (dynamic, kinematic, static)</li>
+<li>Collider shapes (box, sphere, capsule, cylinder, cone, convex hull, trimesh, heightfield)</li>
+<li>Collision detection</li>
+<li>Character controllers</li>
+<li>Physics interpolation for smooth rendering</li>
+<li>Trimesh picking (when combined with <code>picking</code>)</li>
+</ul>
+<p><strong>Additional Dependencies:</strong> rapier3d</p>
 <h3 id="gamepad"><a class="header" href="#gamepad"><code>gamepad</code></a></h3>
 <p>Gamepad/controller support via gilrs.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "gamepad"] }
+<pre><code class="language-toml">nightshade = { git = "...", features = ["gamepad"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
+<p><strong>Provides:</strong></p>
 <ul>
 <li>Gamepad detection and hot-plugging</li>
 <li>Button input (face buttons, triggers, bumpers, D-pad)</li>
@@ -240,232 +307,193 @@
 <li>Rumble/vibration</li>
 <li>Multiple gamepad support</li>
 </ul>
-<p><strong>Additional Dependencies:</strong> gilrs</p>
-<h2 id="advanced-features"><a class="header" href="#advanced-features">Advanced Features</a></h2>
-<h3 id="terrain"><a class="header" href="#terrain"><code>terrain</code></a></h3>
-<p>Procedural terrain generation with LOD.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "terrain"] }
-</code></pre>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>Procedural noise-based terrain</li>
-<li>GPU tessellation</li>
-<li>Level-of-detail (LOD) system</li>
-<li>Chunk streaming</li>
-<li>Terrain height sampling</li>
-<li>Custom terrain materials</li>
-</ul>
-<h3 id="grass"><a class="header" href="#grass"><code>grass</code></a></h3>
-<p>GPU-accelerated grass rendering.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "grass"] }
-</code></pre>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>Instanced grass blades (up to 500,000)</li>
-<li>Wind animation</li>
-<li>Grass interaction/bending</li>
-<li>Multiple grass species</li>
-<li>LOD-based density</li>
-<li>Terrain integration</li>
-<li>Subsurface scattering</li>
-<li>Anisotropic specular</li>
-</ul>
-<p><strong>Requires:</strong> <code>terrain</code> feature for terrain integration</p>
 <h3 id="navmesh"><a class="header" href="#navmesh"><code>navmesh</code></a></h3>
 <p>AI navigation mesh generation via Recast.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "navmesh"] }
+<pre><code class="language-toml">nightshade = { git = "...", features = ["navmesh"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
+<p><strong>Provides:</strong></p>
 <ul>
-<li>Navigation mesh generation from geometry</li>
-<li>Pathfinding queries</li>
-<li>NavMesh agent component</li>
-<li>Off-mesh connections (ladders, teleports)</li>
-<li>Area costs/weights</li>
-<li>Dynamic obstacle avoidance</li>
+<li>Navigation mesh generation from world geometry</li>
+<li>A* and Dijkstra pathfinding</li>
+<li>NavMesh agent component with autonomous movement</li>
+<li>Height sampling on navigation mesh</li>
+<li>Debug visualization</li>
 </ul>
-<p><strong>Additional Dependencies:</strong> recast-rs</p>
-<h3 id="screenshot"><a class="header" href="#screenshot"><code>screenshot</code></a></h3>
-<p>Screenshot capture functionality.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "screenshot"] }
+<p><strong>Additional Dependencies:</strong> rerecast, glam</p>
+<h3 id="scripting"><a class="header" href="#scripting"><code>scripting</code></a></h3>
+<p>Rhai scripting runtime for dynamic behavior.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["scripting"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>Frame capture to PNG</li>
-<li>Custom resolution screenshots</li>
-<li>HDR capture</li>
-</ul>
-<h2 id="rendering-features"><a class="header" href="#rendering-features">Rendering Features</a></h2>
-<h3 id="psx"><a class="header" href="#psx"><code>psx</code></a></h3>
-<p>PlayStation 1-style retro rendering.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "psx"] }
+<h3 id="fbx"><a class="header" href="#fbx"><code>fbx</code></a></h3>
+<p>FBX model loading using ufbx. Requires <code>assets</code>.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["fbx"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>Vertex snapping (wobbly vertices)</li>
-<li>Affine texture mapping</li>
-<li>Low-resolution rendering</li>
-<li>Dithering</li>
-<li>Limited color palette</li>
-</ul>
-<h3 id="ssao"><a class="header" href="#ssao"><code>ssao</code></a></h3>
-<p>Screen-space ambient occlusion.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "ssao"] }
+<h3 id="lattice"><a class="header" href="#lattice"><code>lattice</code></a></h3>
+<p>Lattice deformation system for free-form mesh deformation.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["lattice"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>SSAO render pass</li>
-<li>Configurable radius and intensity</li>
-<li>Blur pass for soft shadows</li>
-</ul>
-<h3 id="fft"><a class="header" href="#fft"><code>fft</code></a></h3>
-<p>FFT-based audio analysis for music-reactive applications.</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "audio", "fft"] }
+<h3 id="sdf_sculpt"><a class="header" href="#sdf_sculpt"><code>sdf_sculpt</code></a></h3>
+<p>Signed Distance Field sculpting system.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["sdf_sculpt"] }
 </code></pre>
-<p><strong>Includes:</strong></p>
+<h2 id="platform-features"><a class="header" href="#platform-features">Platform Features</a></h2>
+<h3 id="openxr"><a class="header" href="#openxr"><code>openxr</code></a></h3>
+<p>OpenXR VR support. Uses Vulkan backend. Provides <code>launch_xr()</code> entry point, VR input (head/hand tracking, controllers), and locomotion.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["openxr"] }
+</code></pre>
+<p><strong>Additional Dependencies:</strong> openxr, ash, wgpu-hal, gpu-allocator</p>
+<h3 id="steam"><a class="header" href="#steam"><code>steam</code></a></h3>
+<p>Steamworks integration for achievements, stats, multiplayer, and friends.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["steam"] }
+</code></pre>
+<p><strong>Additional Dependencies:</strong> steamworks, steamworks-sys</p>
+<h3 id="webview"><a class="header" href="#webview"><code>webview</code></a></h3>
+<p>Bidirectional IPC for hosting web frontends (Leptos, Yew, etc.) inside a nightshade window.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["webview"] }
+</code></pre>
+<p><strong>Additional Dependencies:</strong> wry, tiny_http, include_dir, wasm-bindgen, js-sys, web-sys</p>
+<h3 id="mosaic"><a class="header" href="#mosaic"><code>mosaic</code></a></h3>
+<p>Multi-pane desktop application framework built on <code>egui_tiles</code>. Provides dockable tile-based layouts, a <code>Widget</code> trait for serializable panes, theming with 11 presets, modal dialogs, toast notifications, command palettes, keyboard shortcuts, file dialogs, project save/load, status bars, FPS counters, undo/redo history, clipboard helpers, drag-and-drop support, and a built-in <code>ViewportWidget</code> for rendering camera outputs.</p>
+<p>Requires <code>egui</code>.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["mosaic"] }
+</code></pre>
+<p><strong>Key types:</strong> <code>Mosaic</code>, <code>Widget</code>, <code>Pane</code>, <code>WidgetContext</code>, <code>ViewportWidget</code>, <code>ThemeState</code>, <code>Modals</code>, <code>Toasts</code>, <code>StatusBar</code>, <code>CommandPalette</code>, <code>ShortcutManager</code>, <code>Settings</code>, <code>EventLog</code>, <code>FpsCounter</code>, <code>MosaicConfig</code>, <code>ProjectSaveFile</code>, <code>LayoutEvent</code></p>
+<h3 id="editor"><a class="header" href="#editor"><code>editor</code></a></h3>
+<p>Scene editor infrastructure for building custom editors. Provides gizmo manipulation, undo/redo, component inspectors, entity picking, selection management, clipboard operations, keyboard shortcuts, scene tree UI, context menus, camera controls, and asset loading utilities.</p>
+<p>Requires <code>mosaic</code> and <code>picking</code>.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["editor"] }
+</code></pre>
+<p><strong>Provides:</strong></p>
 <ul>
-<li>Real-time FFT spectral analysis</li>
-<li>Six-band frequency decomposition (sub-bass to highs)</li>
-<li>Beat detection (kick, snare, hi-hat)</li>
-<li>BPM estimation and beat phase tracking</li>
-<li>Music structure detection (buildups, drops, breakdowns)</li>
-<li>Spectral features (centroid, flatness, rolloff, flux)</li>
-<li>Onset detection with adaptive thresholding</li>
+<li>Transform gizmos (translate, rotate, scale) with local/global coordinate spaces</li>
+<li>Modal transform operations (Blender-style G/R/S keys with axis constraints)</li>
+<li>Undo/redo history with entity snapshots</li>
+<li>Component inspector UI for all built-in components</li>
+<li>GPU-based entity picking and marquee selection</li>
+<li>Entity selection with multi-select, copy/paste, duplicate</li>
+<li>Scene tree with drag-and-drop reparenting</li>
+<li>Context menus and add-node modal</li>
+<li>Camera view presets and ortho toggle</li>
+<li>Keyboard shortcut handler (Blender-style)</li>
+<li>Code editor with syntax highlighting (syntect, native only)</li>
+<li>Clipboard integration (arboard, native only)</li>
 </ul>
-<p><strong>Additional Dependencies:</strong> rustfft</p>
-<p><strong>Requires:</strong> <code>audio</code> feature</p>
+<p><strong>Additional Dependencies:</strong> syntect (native only), arboard (native only)</p>
+<p><strong>Key types:</strong> <code>EditorContext</code>, <code>UndoHistory</code>, <code>ComponentInspectorUi</code>, <code>InspectorContext</code>, <code>WorldTreeUi</code>, <code>EntitySelection</code>, <code>TreeCache</code>, <code>GizmoInteraction</code>, <code>InputSignal</code></p>
+<h3 id="windows-app-icon"><a class="header" href="#windows-app-icon"><code>windows-app-icon</code></a></h3>
+<p>Embed a custom icon into Windows executables at build time.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["windows-app-icon"] }
+</code></pre>
+<p><strong>Additional Dependencies:</strong> winresource, ico, image</p>
+<h2 id="profiling-features"><a class="header" href="#profiling-features">Profiling Features</a></h2>
+<h3 id="tracing"><a class="header" href="#tracing"><code>tracing</code></a></h3>
+<p>Rolling log files and <code>RUST_LOG</code> support via tracing-appender.</p>
+<h3 id="tracy"><a class="header" href="#tracy"><code>tracy</code></a></h3>
+<p>Real-time profiling with Tracy. Implies <code>tracing</code>.</p>
+<h3 id="chrome"><a class="header" href="#chrome"><code>chrome</code></a></h3>
+<p>Chrome tracing output for <code>chrome://tracing</code>. Implies <code>tracing</code>.</p>
+<h2 id="plugin-features"><a class="header" href="#plugin-features">Plugin Features</a></h2>
+<h3 id="plugins"><a class="header" href="#plugins"><code>plugins</code></a></h3>
+<p>Guest-side WASM plugin API for creating plugins.</p>
+<h3 id="plugin_runtime"><a class="header" href="#plugin_runtime"><code>plugin_runtime</code></a></h3>
+<p>WASM plugin hosting via Wasmtime. Requires <code>assets</code>.</p>
+<p><strong>Additional Dependencies:</strong> wasmtime, wasmtime-wasi, anyhow</p>
+<h2 id="terminal-features"><a class="header" href="#terminal-features">Terminal Features</a></h2>
+<h3 id="tui"><a class="header" href="#tui"><code>tui</code></a></h3>
+<p>Terminal UI framework built on the engine's rendering. Includes <code>runtime</code> and <code>text</code>.</p>
+<p><strong>Additional Dependencies:</strong> rand</p>
+<h3 id="terminal"><a class="header" href="#terminal"><code>terminal</code></a></h3>
+<p>Crossterm-based terminal applications without the full rendering pipeline.</p>
+<p><strong>Additional Dependencies:</strong> crossterm, rand, freecs</p>
+<h2 id="other-features"><a class="header" href="#other-features">Other Features</a></h2>
+<h3 id="mcp"><a class="header" href="#mcp"><code>mcp</code></a></h3>
+<p>Model Context Protocol server for AI-driven scene manipulation. Requires <code>async_runtime</code> and <code>behaviors</code>.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["mcp"] }
+</code></pre>
+<p><strong>Additional Dependencies:</strong> axum, rmcp, schemars</p>
 <h2 id="feature-combinations"><a class="header" href="#feature-combinations">Feature Combinations</a></h2>
-<h3 id="minimal-game"><a class="header" href="#minimal-game">Minimal Game</a></h3>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine"] }
+<h3 id="minimal-rendering-app"><a class="header" href="#minimal-rendering-app">Minimal Rendering App</a></h3>
+<pre><code class="language-toml">nightshade = { default-features = false, features = ["runtime", "wgpu", "egui"] }
 </code></pre>
-<p>Just rendering and input. Good for simple visualizations.</p>
+<p>Lightweight egui app without asset loading.</p>
 <h3 id="standard-game"><a class="header" href="#standard-game">Standard Game</a></h3>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics", "audio", "gamepad"] }
+<pre><code class="language-toml">nightshade = { git = "...", features = ["egui", "physics", "audio", "gamepad"] }
 </code></pre>
-<p>Full game features without terrain/grass.</p>
+<p>Full game features with UI, physics, audio, and gamepad.</p>
 <h3 id="open-world-game"><a class="header" href="#open-world-game">Open World Game</a></h3>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = [
-    "engine",
+<pre><code class="language-toml">nightshade = { git = "...", features = [
+    "egui",
     "physics",
     "audio",
     "gamepad",
-    "terrain",
-    "grass",
     "navmesh",
 ] }
 </code></pre>
-<p>Everything for large outdoor environments.</p>
-<h3 id="retro-game"><a class="header" href="#retro-game">Retro Game</a></h3>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "physics", "psx"] }
+<p>Everything for large outdoor environments with AI pathfinding.</p>
+<h3 id="vr-game"><a class="header" href="#vr-game">VR Game</a></h3>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["openxr", "physics", "audio"] }
 </code></pre>
-<p>PlayStation 1-style rendering with physics.</p>
+<p>Virtual reality with physics and audio.</p>
 <h3 id="music-visualizer"><a class="header" href="#music-visualizer">Music Visualizer</a></h3>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "...", features = ["engine", "audio", "fft"] }
+<pre><code class="language-toml">nightshade = { git = "...", features = ["audio", "fft"] }
 </code></pre>
 <p>Audio-reactive visualizations with FFT analysis.</p>
+<h3 id="desktop-tool"><a class="header" href="#desktop-tool">Desktop Tool</a></h3>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["mosaic", "egui"] }
+</code></pre>
+<p>Multi-pane desktop application with dockable widgets.</p>
+<h3 id="custom-scene-editor"><a class="header" href="#custom-scene-editor">Custom Scene Editor</a></h3>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["editor", "fbx", "physics", "navmesh"] }
+</code></pre>
+<p>Full scene editor with gizmos, inspectors, undo/redo, FBX import, physics colliders, and navmesh editing.</p>
 <h2 id="feature-dependencies"><a class="header" href="#feature-dependencies">Feature Dependencies</a></h2>
 <p>Some features have implicit dependencies:</p>
 <div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Depends On</th></tr></thead><tbody>
-<tr><td><code>grass</code></td><td>Optionally uses <code>terrain</code></td></tr>
-<tr><td><code>navmesh</code></td><td>None</td></tr>
-<tr><td><code>terrain</code></td><td>None</td></tr>
-<tr><td><code>psx</code></td><td>None</td></tr>
-<tr><td><code>ssao</code></td><td>None</td></tr>
-<tr><td><code>audio</code></td><td>None</td></tr>
-<tr><td><code>physics</code></td><td>None</td></tr>
-<tr><td><code>gamepad</code></td><td>None</td></tr>
-<tr><td><code>fft</code></td><td>Requires <code>audio</code></td></tr>
-</tbody></table>
-</div>
-<h2 id="compile-time-impact"><a class="header" href="#compile-time-impact">Compile-Time Impact</a></h2>
-<p>Features affect compile times and binary sizes:</p>
-<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Compile Time</th><th>Binary Size</th></tr></thead><tbody>
-<tr><td><code>engine</code></td><td>Base</td><td>Base</td></tr>
-<tr><td><code>physics</code></td><td>+15-20%</td><td>+2-3 MB</td></tr>
-<tr><td><code>audio</code></td><td>+10-15%</td><td>+1-2 MB</td></tr>
-<tr><td><code>gamepad</code></td><td>+5-10%</td><td>+0.5 MB</td></tr>
-<tr><td><code>terrain</code></td><td>+5%</td><td>+0.5 MB</td></tr>
-<tr><td><code>grass</code></td><td>+5%</td><td>+0.5 MB</td></tr>
-<tr><td><code>navmesh</code></td><td>+10-15%</td><td>+1-2 MB</td></tr>
-<tr><td><code>screenshot</code></td><td>+2%</td><td>+0.2 MB</td></tr>
-<tr><td><code>psx</code></td><td>+2%</td><td>+0.1 MB</td></tr>
-<tr><td><code>ssao</code></td><td>+2%</td><td>+0.1 MB</td></tr>
-<tr><td><code>fft</code></td><td>+5%</td><td>+0.5 MB</td></tr>
+<tr><td><code>engine</code></td><td><code>runtime</code>, <code>assets</code>, <code>scene_graph</code>, <code>picking</code>, <code>terrain</code>, <code>file_dialog</code>, <code>async_runtime</code>, <code>screenshot</code></td></tr>
+<tr><td><code>runtime</code></td><td><code>core</code>, <code>text</code>, <code>behaviors</code></td></tr>
+<tr><td><code>full</code></td><td><code>engine</code>, <code>wgpu</code>, <code>egui</code>, <code>shell</code>, <code>audio</code>, <code>physics</code>, <code>gamepad</code>, <code>navmesh</code>, <code>scripting</code>, <code>fbx</code>, <code>lattice</code>, <code>sdf_sculpt</code>, <code>mosaic</code>, <code>editor</code>, <code>plugins</code></td></tr>
+<tr><td><code>mosaic</code></td><td><code>egui</code></td></tr>
+<tr><td><code>editor</code></td><td><code>mosaic</code>, <code>picking</code></td></tr>
+<tr><td><code>shell</code></td><td><code>egui</code></td></tr>
+<tr><td><code>fbx</code></td><td><code>assets</code></td></tr>
+<tr><td><code>scene_graph</code></td><td><code>assets</code></td></tr>
+<tr><td><code>assets</code></td><td><code>core</code></td></tr>
+<tr><td><code>text</code></td><td><code>core</code></td></tr>
+<tr><td><code>terrain</code></td><td><code>core</code></td></tr>
+<tr><td><code>tui</code></td><td><code>runtime</code>, <code>text</code></td></tr>
+<tr><td><code>plugin_runtime</code></td><td><code>assets</code></td></tr>
+<tr><td><code>mcp</code></td><td><code>async_runtime</code>, <code>behaviors</code></td></tr>
+<tr><td><code>tracy</code></td><td><code>tracing</code></td></tr>
+<tr><td><code>chrome</code></td><td><code>tracing</code></td></tr>
+<tr><td><code>openxr</code></td><td><code>wgpu</code> (Vulkan backend)</td></tr>
 </tbody></table>
 </div>
 <h2 id="checking-enabled-features"><a class="header" href="#checking-enabled-features">Checking Enabled Features</a></h2>
-<p>At runtime, check if features are enabled:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[cfg(feature = "physics")]
-fn setup_physics(world: &amp;mut World) {
-    // Physics-specific code
-}
-
-#[cfg(feature = "audio")]
-fn setup_audio(world: &amp;mut World) {
-    // Audio-specific code
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="conditional-compilation"><a class="header" href="#conditional-compilation">Conditional Compilation</a></h2>
-<p>Write code that works with or without features:</p>
+<p>Use <code>cfg</code> attributes for conditional compilation:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
-    spawn_fly_camera(world);
-    spawn_directional_light(world, Vec3::new(-1.0, -1.0, -1.0));
+    let camera = spawn_camera(world, Vec3::new(5.0, 3.0, 5.0), "Camera".to_string());
+    world.resources.active_camera = Some(camera);
+    spawn_sun(world);
 
     #[cfg(feature = "physics")]
     {
-        let cube = spawn_primitive(world, Primitive::Cube);
-        add_rigid_body(world, cube, RigidBodyType::Dynamic, 1.0);
-        add_collider(world, cube, ColliderShape::Box {
-            half_extents: Vec3::new(0.5, 0.5, 0.5),
-        });
+        let entity = world.spawn_entities(
+            RIGID_BODY | COLLIDER | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | RENDER_MESH,
+            1,
+        )[0];
+        world.set_rigid_body(entity, RigidBodyComponent::new_dynamic());
+        world.set_collider(entity, ColliderComponent::cuboid(0.5, 0.5, 0.5));
     }
 
     #[cfg(feature = "audio")]
     {
-        load_sound(world, "music", "assets/audio/background.ogg");
-        play_sound(world, "music");
-    }
-
-    #[cfg(feature = "terrain")]
-    {
-        spawn_terrain(world, TerrainConfig::default(), Vec3::zeros());
+        let source = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+        world.set_audio_source(source, AudioSource::new("music").with_looping(true).playing());
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="default-features"><a class="header" href="#default-features">Default Features</a></h2>
-<p>Nightshade has no default features. You must explicitly enable what you need:</p>
-<pre><code class="language-toml"># This won't compile - no features enabled
-nightshade = { git = "..." }
-
-# This works - engine feature enabled
-nightshade = { git = "...", features = ["engine"] }
-</code></pre>
-<h2 id="all-features"><a class="header" href="#all-features">All Features</a></h2>
-<p>Enable everything:</p>
-<pre><code class="language-toml">nightshade = { git = "...", features = [
-    "engine",
-    "physics",
-    "audio",
-    "gamepad",
-    "terrain",
-    "grass",
-    "navmesh",
-    "screenshot",
-    "psx",
-    "ssao",
-    "fft",
-] }
-</code></pre>
-<p>This is only recommended for development/experimentation. For release builds, enable only what you need.</p>
 
                     </main>
 

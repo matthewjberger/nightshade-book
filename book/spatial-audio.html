@@ -178,14 +178,13 @@
                         <h1 id="spatial-audio"><a class="header" href="#spatial-audio">Spatial Audio</a></h1>
 <p>3D positional audio creates immersive soundscapes where sounds have position and direction.</p>
 <h2 id="audio-listener"><a class="header" href="#audio-listener">Audio Listener</a></h2>
-<p>The listener is the "ear" in the scene - usually attached to the camera:</p>
+<p>The listener is the "ear" in the scene, represented as an entity with the <code>AUDIO_LISTENER</code> component. Usually attached to the camera:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
     let camera = spawn_camera(world, Vec3::new(0.0, 2.0, 10.0), "Camera".to_string());
     world.resources.active_camera = Some(camera);
 
-    // Make camera the audio listener
     world.set_audio_listener(camera, AudioListener);
 }
 <span class="boring">}</span></code></pre></pre>
@@ -193,7 +192,9 @@
 <p>Attach sounds to entities for positional audio:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn spawn_ambient_sound(world: &amp;mut World, position: Vec3, sound: &amp;str) -&gt; Entity {
+</span>const AMBIENT_LOOP: &amp;[u8] = include_bytes!("../assets/sounds/ambient.wav");
+
+fn spawn_ambient_sound(world: &amp;mut World, position: Vec3, data: &amp;[u8]) -&gt; Entity {
     let entity = world.spawn_entities(
         AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM,
         1
@@ -204,13 +205,11 @@
         ..Default::default()
     });
 
-    world.set_audio_source(entity, AudioSource {
-        sound_name: sound.to_string(),
-        spatial: true,
-        volume: 1.0,
-        loop_sound: true,
-        playing: true,
-    });
+    world.set_audio_source(entity, AudioSource::new(data)
+        .with_spatial(true)
+        .with_looping(true)
+        .playing(),
+    );
 
     entity
 }
@@ -219,16 +218,13 @@
 <p>Sounds get quieter with distance:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_audio_source(entity, AudioSource {
-    sound_name: "waterfall".to_string(),
-    spatial: true,
-    volume: 1.0,
-    loop_sound: true,
-    playing: true,
-    min_distance: 1.0,   // Full volume within this range
-    max_distance: 50.0,  // Silent beyond this range
-    rolloff: AudioRolloff::Linear,
-});
+</span>const WATERFALL: &amp;[u8] = include_bytes!("../assets/sounds/waterfall.wav");
+
+world.set_audio_source(entity, AudioSource::new(WATERFALL)
+    .with_spatial(true)
+    .with_looping(true)
+    .playing(),
+);
 <span class="boring">}</span></code></pre></pre>
 <h3 id="rolloff-modes"><a class="header" href="#rolloff-modes">Rolloff Modes</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Mode</th><th>Description</th></tr></thead><tbody>
@@ -243,76 +239,31 @@
 </span><span class="boring">fn main() {
 </span>fn update_helicopter(world: &amp;mut World, helicopter: Entity, dt: f32) {
     if let Some(transform) = world.get_local_transform_mut(helicopter) {
-        // Move the helicopter
         transform.translation.x += 10.0 * dt;
     }
     world.mark_local_transform_dirty(helicopter);
-    // Audio position updates automatically
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="doppler-effect"><a class="header" href="#doppler-effect">Doppler Effect</a></h2>
-<p>Moving sounds experience pitch shift:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.audio_engine.set_doppler_factor(1.0);  // 0 = off, 1 = realistic
-<span class="boring">}</span></code></pre></pre>
-<h2 id="reverb-zones"><a class="header" href="#reverb-zones">Reverb Zones</a></h2>
-<p>Create ambient reverb for different environments:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn set_cave_reverb(world: &amp;mut World) {
-    world.resources.audio_engine.set_reverb(ReverbSettings {
-        room_size: 0.9,
-        damping: 0.3,
-        wet_mix: 0.6,
-        dry_mix: 0.8,
-    });
-}
-
-fn set_outdoor_reverb(world: &amp;mut World) {
-    world.resources.audio_engine.set_reverb(ReverbSettings {
-        room_size: 0.2,
-        damping: 0.8,
-        wet_mix: 0.1,
-        dry_mix: 1.0,
-    });
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="non-spatial-2d-audio"><a class="header" href="#non-spatial-2d-audio">Non-Spatial (2D) Audio</a></h2>
 <p>UI sounds and music should not be spatial:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_audio_source(entity, AudioSource {
-    sound_name: "ui_click".to_string(),
-    spatial: false,  // Always same volume regardless of position
-    volume: 1.0,
-    loop_sound: false,
-    playing: true,
-});
+</span>const UI_CLICK: &amp;[u8] = include_bytes!("../assets/sounds/ui_click.wav");
+
+world.set_audio_source(entity, AudioSource::new(UI_CLICK)
+    .playing(),
+);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="directional-audio-sources"><a class="header" href="#directional-audio-sources">Directional Audio Sources</a></h2>
 <p>Some sounds are directional (like a speaker):</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_audio_source(entity, AudioSource {
-    sound_name: "announcement".to_string(),
-    spatial: true,
-    volume: 1.0,
-    directional: true,
-    cone_inner_angle: 0.5,  // Full volume in front
-    cone_outer_angle: 1.5,  // Fades to sides
-    cone_outer_gain: 0.2,   // Volume outside cone
-    ..Default::default()
-});
-<span class="boring">}</span></code></pre></pre>
-<h2 id="multiple-listeners-split-screen"><a class="header" href="#multiple-listeners-split-screen">Multiple Listeners (Split-Screen)</a></h2>
-<p>For split-screen games:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Not typically supported - most games use single listener
-// For split-screen, consider:
-// 1. Use the average position of both players
-// 2. Disable spatial audio and use manual panning
+</span>const ANNOUNCEMENT: &amp;[u8] = include_bytes!("../assets/sounds/announcement.wav");
+
+world.set_audio_source(entity, AudioSource::new(ANNOUNCEMENT)
+    .with_spatial(true)
+    .playing(),
+);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio-occlusion"><a class="header" href="#audio-occlusion">Audio Occlusion</a></h2>
 <p>Simple occlusion with raycast:</p>
@@ -326,14 +277,11 @@ fn set_outdoor_reverb(world: &amp;mut World) {
         let direction = (lst - src).normalize();
         let distance = (lst - src).magnitude();
 
-        // Check if something blocks the sound
         if let Some(_hit) = raycast(world, src, direction, distance) {
-            // Something in the way - muffle the sound
             if let Some(audio) = world.get_audio_source_mut(source) {
                 audio.volume = 0.3;
             }
         } else {
-            // Clear path
             if let Some(audio) = world.get_audio_source_mut(source) {
                 audio.volume = 1.0;
             }
@@ -345,22 +293,26 @@ fn set_outdoor_reverb(world: &amp;mut World) {
 <h3 id="ambient-soundscape"><a class="header" href="#ambient-soundscape">Ambient Soundscape</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn setup_forest_ambience(world: &amp;mut World) {
-    // Background ambient loop (non-spatial)
-    spawn_ambient_sound(world, Vec3::zeros(), "forest_ambient");
+</span>const FOREST_AMBIENT: &amp;[u8] = include_bytes!("../assets/sounds/forest_ambient.wav");
+const BIRD_CHIRP: &amp;[u8] = include_bytes!("../assets/sounds/bird_chirp.wav");
+const BIRD_SONG: &amp;[u8] = include_bytes!("../assets/sounds/bird_song.wav");
+const STREAM: &amp;[u8] = include_bytes!("../assets/sounds/stream.wav");
 
-    // Positioned bird sounds
-    spawn_ambient_sound(world, Vec3::new(10.0, 5.0, 0.0), "bird_chirp");
-    spawn_ambient_sound(world, Vec3::new(-8.0, 4.0, 5.0), "bird_song");
+fn setup_forest_ambience(world: &amp;mut World) {
+    spawn_ambient_sound(world, Vec3::zeros(), FOREST_AMBIENT);
 
-    // Stream
-    spawn_ambient_sound(world, Vec3::new(0.0, 0.0, 20.0), "stream");
+    spawn_ambient_sound(world, Vec3::new(10.0, 5.0, 0.0), BIRD_CHIRP);
+    spawn_ambient_sound(world, Vec3::new(-8.0, 4.0, 5.0), BIRD_SONG);
+
+    spawn_ambient_sound(world, Vec3::new(0.0, 0.0, 20.0), STREAM);
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="footstep-system"><a class="header" href="#footstep-system">Footstep System</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn play_footstep_at_position(world: &amp;mut World, position: Vec3) {
+</span>const FOOTSTEP: &amp;[u8] = include_bytes!("../assets/sounds/footstep.wav");
+
+fn play_footstep_at_position(world: &amp;mut World, position: Vec3) {
     let entity = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
 
     world.set_local_transform(entity, LocalTransform {
@@ -368,14 +320,10 @@ fn set_outdoor_reverb(world: &amp;mut World) {
         ..Default::default()
     });
 
-    world.set_audio_source(entity, AudioSource {
-        sound_name: "footstep".to_string(),
-        spatial: true,
-        volume: 0.5,
-        loop_sound: false,
-        playing: true,
-        auto_despawn: true,  // Remove entity when sound finishes
-    });
+    world.set_audio_source(entity, AudioSource::new(FOOTSTEP)
+        .with_spatial(true)
+        .playing(),
+    );
 }
 <span class="boring">}</span></code></pre></pre>
 

@@ -185,7 +185,7 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let camera = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA | PERSPECTIVE_CAMERA,
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA,
     1
 )[0];
 <span class="boring">}</span></code></pre></pre>
@@ -256,11 +256,14 @@ fn run_systems(&amp;mut self, world: &amp;mut World) {
 <p>Standard 3D perspective with depth:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.set_perspective_camera(camera, PerspectiveCamera {
-    fov: 1.0,        // ~57 degrees
-    aspect: 16.0 / 9.0,
-    near: 0.1,
-    far: 1000.0,
+</span>world.set_camera(camera, Camera {
+    projection: Projection::Perspective(PerspectiveCamera {
+        y_fov_rad: 1.0,
+        aspect_ratio: Some(16.0 / 9.0),
+        z_near: 0.1,
+        z_far: Some(1000.0),
+    }),
+    smoothing: None,
 });
 <span class="boring">}</span></code></pre></pre>
 <h3 id="orthographic-camera"><a class="header" href="#orthographic-camera">Orthographic Camera</a></h3>
@@ -268,14 +271,13 @@ fn run_systems(&amp;mut self, world: &amp;mut World) {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.set_camera(camera, Camera {
-    projection: ProjectionMode::Orthographic,
+    projection: Projection::Orthographic(OrthographicCamera {
+        x_mag: 10.0,
+        y_mag: 10.0,
+        z_near: 0.1,
+        z_far: 100.0,
+    }),
     smoothing: None,
-});
-
-world.set_orthographic_camera(camera, OrthographicCamera {
-    size: 10.0,
-    near: 0.1,
-    far: 100.0,
 });
 <span class="boring">}</span></code></pre></pre>
 <h2 id="controlling-pan-orbit-camera"><a class="header" href="#controlling-pan-orbit-camera">Controlling Pan-Orbit Camera</a></h2>
@@ -283,15 +285,12 @@ world.set_orthographic_camera(camera, OrthographicCamera {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>if let Some(pan_orbit) = world.get_pan_orbit_camera_mut(camera) {
-    // Change focus point
-    pan_orbit.target_focus = Vec3::new(0.0, 2.0, 0.0);
+    pan_orbit.focus = Vec3::new(0.0, 2.0, 0.0);
 
-    // Zoom in/out
-    pan_orbit.target_radius = 5.0;
+    pan_orbit.radius = 5.0;
 
-    // Rotate
-    pan_orbit.target_yaw += 0.1;
-    pan_orbit.target_pitch += 0.05;
+    pan_orbit.yaw += 0.1;
+    pan_orbit.pitch += 0.05;
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="camera-smoothing"><a class="header" href="#camera-smoothing">Camera Smoothing</a></h2>
@@ -299,10 +298,17 @@ world.set_orthographic_camera(camera, OrthographicCamera {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.set_camera(camera, Camera {
-    projection: ProjectionMode::Perspective,
-    smoothing: Some(CameraSmoothing {
-        position_smoothing: 5.0,
-        rotation_smoothing: 10.0,
+    projection: Projection::Perspective(PerspectiveCamera {
+        y_fov_rad: 1.0,
+        aspect_ratio: None,
+        z_near: 0.1,
+        z_far: Some(1000.0),
+    }),
+    smoothing: Some(Smoothing {
+        mouse_sensitivity: 0.5,
+        mouse_smoothness: 0.05,
+        keyboard_smoothness: 0.08,
+        ..Smoothing::default()
     }),
 });
 <span class="boring">}</span></code></pre></pre>
@@ -328,8 +334,8 @@ if let Some(ray) = PickingRay::from_screen_position(world, screen_pos) {
     debug_camera: Entity,
 }
 
-fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed &amp;&amp; key == KeyCode::Tab {
+fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed &amp;&amp; key == KeyCode::Tab {
         let current = world.resources.active_camera;
         world.resources.active_camera = if current == Some(self.main_camera) {
             Some(self.debug_camera)

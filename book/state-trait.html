@@ -180,30 +180,38 @@
 <h2 id="trait-definition"><a class="header" href="#trait-definition">Trait Definition</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub trait State: 'static {
-    fn title(&amp;self) -&gt; &amp;str;
-    fn initialize(&amp;mut self, world: &amp;mut World);
-    fn run_systems(&amp;mut self, world: &amp;mut World);
-
-    // Optional methods with default implementations
-    fn ui(&amp;mut self, ctx: &amp;egui::Context, world: &amp;mut World) {}
-    fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {}
-    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {}
-    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {}
-    fn on_gamepad_event(&amp;mut self, world: &amp;mut World, event: gilrs::Event) {}
-    fn on_dropped_file(&amp;mut self, world: &amp;mut World, path: PathBuf) {}
+</span>pub trait State {
+    fn title(&amp;self) -&gt; &amp;str { "Nightshade" }
+    fn icon_bytes(&amp;self) -&gt; Option&lt;&amp;'static [u8]&gt; { /* default: built-in icon */ }
+    fn initialize(&amp;mut self, _world: &amp;mut World) {}
+    fn next_state(&amp;mut self, _world: &amp;mut World) -&gt; Option&lt;Box&lt;dyn State&gt;&gt; { None }
     fn configure_render_graph(
         &amp;mut self,
         graph: &amp;mut RenderGraph&lt;World&gt;,
         device: &amp;wgpu::Device,
         surface_format: wgpu::TextureFormat,
         resources: RenderResources,
-    ) {}
+    ) { /* default: bloom + post-processing + swapchain blit */ }
+    fn ui(&amp;mut self, _world: &amp;mut World, _ui_context: &amp;egui::Context) {}
+    fn secondary_ui(&amp;mut self, _world: &amp;mut World, _window_index: usize, _ui_context: &amp;egui::Context) {}
+    fn immediate_ui(&amp;mut self, _world: &amp;mut World, _ui: &amp;mut ImmediateUi) {}
+    fn run_systems(&amp;mut self, _world: &amp;mut World) {}
+    fn pre_render(&amp;mut self, _renderer: &amp;mut dyn Render, _world: &amp;mut World) {}
+    fn update_render_graph(&amp;mut self, _graph: &amp;mut RenderGraph&lt;World&gt;, _world: &amp;World) {}
+    fn handle_event(&amp;mut self, _world: &amp;mut World, _message: &amp;Message) {}
+    fn on_keyboard_input(&amp;mut self, _world: &amp;mut World, _key_code: KeyCode, _key_state: ElementState) {}
+    fn on_dropped_file(&amp;mut self, _world: &amp;mut World, _path: &amp;std::path::Path) {}
+    fn on_dropped_file_data(&amp;mut self, _world: &amp;mut World, _name: &amp;str, _data: &amp;[u8]) {}
+    fn on_hovered_file(&amp;mut self, _world: &amp;mut World, _path: &amp;std::path::Path) {}
+    fn on_hovered_file_cancelled(&amp;mut self, _world: &amp;mut World) {}
+    fn on_gamepad_event(&amp;mut self, _world: &amp;mut World, _event: gilrs::Event) {}
+    fn on_mouse_input(&amp;mut self, _world: &amp;mut World, _state: ElementState, _button: MouseButton) {}
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="required-methods"><a class="header" href="#required-methods">Required Methods</a></h2>
+<p>All methods have default implementations, so you only need to implement the ones relevant to your game.</p>
+<h2 id="commonly-used-methods"><a class="header" href="#commonly-used-methods">Commonly Used Methods</a></h2>
 <h3 id="title"><a class="header" href="#title">title()</a></h3>
-<p>Returns the window title:</p>
+<p>Returns the window title. Defaults to <code>"Nightshade"</code> if not overridden:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn title(&amp;self) -&gt; &amp;str {
@@ -235,13 +243,13 @@
 <span class="boring">}</span></code></pre></pre>
 <h2 id="optional-methods"><a class="header" href="#optional-methods">Optional Methods</a></h2>
 <h3 id="ui"><a class="header" href="#ui">ui()</a></h3>
-<p>For egui-based user interfaces:</p>
+<p>For egui-based user interfaces. Requires the <code>egui</code> feature. Note that <code>world</code> comes before <code>ui_context</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn ui(&amp;mut self, ctx: &amp;egui::Context, world: &amp;mut World) {
-    egui::Window::new("Debug").show(ctx, |ui| {
+</span>fn ui(&amp;mut self, world: &amp;mut World, ui_context: &amp;egui::Context) {
+    egui::Window::new("Debug").show(ui_context, |ui| {
         ui.label(format!("FPS: {:.0}", world.resources.window.timing.frames_per_second));
-        ui.label(format!("Entities: {}", world.entity_count()));
+        ui.label(format!("Entities: {}", world.query_entities(RENDER_MESH).count()));
     });
 }
 <span class="boring">}</span></code></pre></pre>
@@ -266,11 +274,25 @@
 <p>Handle keyboard events directly:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed {
-        match key {
+</span>fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key_code: KeyCode, key_state: ElementState) {
+    if key_state == ElementState::Pressed {
+        match key_code {
             KeyCode::Escape =&gt; self.paused = !self.paused,
             KeyCode::F11 =&gt; toggle_fullscreen(world),
+            _ =&gt; {}
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="on_mouse_input"><a class="header" href="#on_mouse_input">on_mouse_input()</a></h3>
+<p>Handle mouse button events:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {
+    if state == ElementState::Pressed {
+        match button {
+            MouseButton::Left =&gt; self.shoot(world),
+            MouseButton::Right =&gt; self.aim(world),
             _ =&gt; {}
         }
     }
@@ -290,8 +312,28 @@
     }
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="secondary_ui"><a class="header" href="#secondary_ui">secondary_ui()</a></h3>
+<p>For multi-window applications using egui. Called with a <code>window_index</code> parameter that identifies which secondary window is being drawn, allowing you to render different UI per window. Requires the <code>egui</code> feature:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn secondary_ui(&amp;mut self, world: &amp;mut World, window_index: usize, ui_context: &amp;egui::Context) {
+    match window_index {
+        0 =&gt; {
+            egui::Window::new("Inspector").show(ui_context, |ui| {
+                ui.label("Secondary window 0");
+            });
+        }
+        1 =&gt; {
+            egui::Window::new("Scene View").show(ui_context, |ui| {
+                ui.label("Secondary window 1");
+            });
+        }
+        _ =&gt; {}
+    }
+}
+<span class="boring">}</span></code></pre></pre>
 <h3 id="configure_render_graph"><a class="header" href="#configure_render_graph">configure_render_graph()</a></h3>
-<p>Customize the rendering pipeline:</p>
+<p>Customize the rendering pipeline. Called once during initialization. The default implementation sets up bloom, post-processing, and swapchain blit passes. Override this to replace or extend the default pipeline:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn configure_render_graph(
@@ -302,16 +344,84 @@
     resources: RenderResources,
 ) {
     let bloom_pass = passes::BloomPass::new(device, 1920, 1080);
-    graph
-        .pass(Box::new(bloom_pass))
-        .read("hdr", resources.scene_color)
-        .write("bloom", resources.bloom);
+    graph.add_pass(
+        Box::new(bloom_pass),
+        &amp;[("input", resources.scene_color), ("output", resources.bloom)],
+    );
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="update_render_graph"><a class="header" href="#update_render_graph">update_render_graph()</a></h3>
+<p>Called each frame to update render graph state dynamically:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, world: &amp;World) {
+    if self.bloom_changed {
+        graph.set_enabled("bloom_pass", self.bloom_enabled);
+        self.bloom_changed = false;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="pre_render"><a class="header" href="#pre_render">pre_render()</a></h3>
+<p>Called before rendering begins each frame. Useful for custom GPU uploads or renderer state changes:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn pre_render(&amp;mut self, renderer: &amp;mut dyn Render, world: &amp;mut World) {
+    renderer.update_custom_buffer(world, &amp;self.custom_data);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="next_state"><a class="header" href="#next_state">next_state()</a></h3>
+<p>Allows transitioning to a different State. Return <code>Some(new_state)</code> to switch:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn next_state(&amp;mut self, world: &amp;mut World) -&gt; Option&lt;Box&lt;dyn State&gt;&gt; {
+    if self.transition_to_gameplay {
+        Some(Box::new(GameplayState::new()))
+    } else {
+        None
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="on_dropped_file--on_dropped_file_data"><a class="header" href="#on_dropped_file--on_dropped_file_data">on_dropped_file() / on_dropped_file_data()</a></h3>
+<p>Handle files dropped onto the window:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn on_dropped_file(&amp;mut self, world: &amp;mut World, path: &amp;Path) {
+    if path.extension() == Some("glb".as_ref()) {
+        self.load_model(world, path);
+    }
+}
+
+fn on_dropped_file_data(&amp;mut self, world: &amp;mut World, name: &amp;str, data: &amp;[u8]) {
+    self.process_dropped_data(world, name, data);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="on_hovered_file--on_hovered_file_cancelled"><a class="header" href="#on_hovered_file--on_hovered_file_cancelled">on_hovered_file() / on_hovered_file_cancelled()</a></h3>
+<p>Handle file drag hover events:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn on_hovered_file(&amp;mut self, world: &amp;mut World, path: &amp;Path) {
+    self.show_drop_indicator = true;
+}
+
+fn on_hovered_file_cancelled(&amp;mut self, world: &amp;mut World) {
+    self.show_drop_indicator = false;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="handle_event"><a class="header" href="#handle_event">handle_event()</a></h3>
+<p>Handle custom EventBus messages:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn handle_event(&amp;mut self, world: &amp;mut World, message: &amp;Message) {
+    match message {
+        Message::Custom(data) =&gt; self.process_event(world, data),
+        _ =&gt; {}
+    }
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="launching-your-game"><a class="header" href="#launching-your-game">Launching Your Game</a></h2>
-<p>Use the <code>nightshade::run</code> function to run your game:</p>
+<p>Use the <code>nightshade::launch</code> function to run your game:</p>
 <pre><pre class="playground"><code class="language-rust edition2024">fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    nightshade::run(MyGame::default())
+    nightshade::launch(MyGame::default())
 }</code></pre></pre>
 <p>Or with an HDR skybox:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]

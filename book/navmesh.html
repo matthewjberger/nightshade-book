@@ -186,32 +186,14 @@
 nightshade = { git = "...", features = ["engine", "navmesh"] }
 </code></pre>
 <h2 id="generating-a-navmesh"><a class="header" href="#generating-a-navmesh">Generating a NavMesh</a></h2>
-<p>Generate a navigation mesh from geometry:</p>
+<p>Generate a navigation mesh from world geometry:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::navmesh::*;
 
 fn setup_navmesh(world: &amp;mut World) {
-    // Get terrain or level geometry
-    let vertices: Vec&lt;Vec3&gt; = get_level_vertices();
-    let indices: Vec&lt;[u32; 3]&gt; = get_level_indices();
-
-    let config = RecastNavMeshConfig {
-        cell_size: 0.15,
-        cell_height: 0.1,
-        agent_height: 1.0,
-        agent_radius: 0.4,
-        agent_max_climb: 0.3,
-        agent_max_slope: 45.0,
-        region_min_size: 8,
-        region_merge_size: 20,
-        edge_max_len: 12.0,
-        edge_max_error: 1.3,
-        detail_sample_dist: 6.0,
-        detail_sample_max_error: 1.0,
-    };
-
-    generate_navmesh_recast(world, &amp;vertices, &amp;indices, &amp;config);
+    let config = RecastNavMeshConfig::default();
+    generate_navmesh_recast(world, &amp;config);
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="navmesh-configuration"><a class="header" href="#navmesh-configuration">NavMesh Configuration</a></h2>
@@ -228,27 +210,8 @@ fn setup_navmesh(world: &amp;mut World) {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn spawn_npc(world: &amp;mut World, position: Vec3) -&gt; Entity {
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | NAV_MESH_AGENT,
-        1
-    )[0];
-
-    world.set_local_transform(entity, LocalTransform {
-        translation: position,
-        ..Default::default()
-    });
-
-    world.set_nav_mesh_agent(entity, NavMeshAgent {
-        speed: 3.0,
-        acceleration: 10.0,
-        turning_speed: 8.0,
-        stopping_distance: 0.5,
-        target: None,
-        path: Vec::new(),
-        path_index: 0,
-    });
-
-    entity
+    let agent = spawn_navmesh_agent(world, position, 0.4, 1.0);
+    agent
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="setting-agent-destination"><a class="header" href="#setting-agent-destination">Setting Agent Destination</a></h2>
@@ -263,41 +226,30 @@ fn setup_navmesh(world: &amp;mut World) {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    update_navmesh_agents(world);
+    let dt = world.resources.window.timing.delta_time;
+    run_navmesh_systems(world, dt);
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="checking-path-status"><a class="header" href="#checking-path-status">Checking Path Status</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn has_reached_destination(world: &amp;World, agent: Entity) -&gt; bool {
-    if let Some(nav_agent) = world.get_nav_mesh_agent(agent) {
-        nav_agent.target.is_none() || nav_agent.path.is_empty()
+    if let Some(nav_agent) = world.get_navmesh_agent(agent) {
+        nav_agent.target_position.is_none() || nav_agent.current_path.is_empty()
     } else {
         true
     }
 }
 
 fn get_remaining_distance(world: &amp;World, agent: Entity) -&gt; f32 {
-    if let Some(nav_agent) = world.get_nav_mesh_agent(agent) {
+    if let Some(nav_agent) = world.get_navmesh_agent(agent) {
         if let Some(agent_pos) = world.get_local_transform(agent).map(|t| t.translation) {
-            if let Some(target) = nav_agent.target {
+            if let Some(target) = nav_agent.target_position {
                 return (target - agent_pos).magnitude();
             }
         }
     }
     0.0
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="pathfinding-queries"><a class="header" href="#pathfinding-queries">Pathfinding Queries</a></h2>
-<p>Find paths without agents:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn find_path(world: &amp;World, start: Vec3, end: Vec3) -&gt; Option&lt;Vec&lt;Vec3&gt;&gt; {
-    query_path(world, start, end)
-}
-
-fn is_point_walkable(world: &amp;World, point: Vec3) -&gt; bool {
-    is_on_navmesh(world, point)
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="patrol-behavior"><a class="header" href="#patrol-behavior">Patrol Behavior</a></h2>
@@ -341,24 +293,12 @@ fn update_patrol(world: &amp;mut World, agent: Entity, patrol: &amp;mut PatrolBe
 // Area 1: Road (cost 0.5 - preferred)
 // Area 2: Mud (cost 3.0 - avoided)
 <span class="boring">}</span></code></pre></pre>
-<h2 id="off-mesh-connections"><a class="header" href="#off-mesh-connections">Off-Mesh Connections</a></h2>
-<p>Link disconnected navmesh regions (ladders, teleports):</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn add_ladder_connection(world: &amp;mut World, start: Vec3, end: Vec3) {
-    add_offmesh_connection(world, start, end, true);  // bidirectional = true
-}
-
-fn add_one_way_jump(world: &amp;mut World, start: Vec3, end: Vec3) {
-    add_offmesh_connection(world, start, end, false);  // one-way
-}
-<span class="boring">}</span></code></pre></pre>
 <h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
 <p>Draw the navmesh for debugging:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn draw_navmesh_debug(world: &amp;mut World) {
-    if let Some(navmesh) = &amp;world.resources.navmesh_world.navmesh {
+    if let Some(navmesh) = &amp;world.resources.navmesh.navmesh {
         for triangle in navmesh.triangles() {
             // Draw triangle edges as lines
             draw_debug_line(world, triangle.v0, triangle.v1, Vec4::new(0.0, 1.0, 0.0, 1.0));

@@ -189,14 +189,12 @@
         move_forward();
     }
 
-    // Key just pressed this frame
-    if keyboard.is_key_just_pressed(KeyCode::Space) {
+    if keyboard.is_key_pressed(KeyCode::Space) {
         jump();
     }
 
-    // Key just released this frame
-    if keyboard.is_key_just_released(KeyCode::ShiftLeft) {
-        stop_sprinting();
+    if keyboard.is_key_pressed(KeyCode::ShiftLeft) {
+        sprint();
     }
 }
 <span class="boring">}</span></code></pre></pre>
@@ -219,8 +217,8 @@
 <p>Handle key events in the State trait:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
-    if state == KeyState::Pressed {
+</span>fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
+    if state == ElementState::Pressed {
         match key {
             KeyCode::Escape =&gt; self.paused = !self.paused,
             KeyCode::F11 =&gt; toggle_fullscreen(world),
@@ -241,7 +239,7 @@ let position = mouse.position;  // Screen coordinates (x, y)
 <h3 id="mouse-movement-delta"><a class="header" href="#mouse-movement-delta">Mouse Movement (Delta)</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let delta = world.resources.input.mouse.delta;
+</span>let delta = world.resources.input.mouse.position_delta;
 camera_yaw += delta.x * sensitivity;
 camera_pitch += delta.y * sensitivity;
 <span class="boring">}</span></code></pre></pre>
@@ -278,7 +276,7 @@ if mouse.state.contains(MouseState::MIDDLE_CLICKED) {
 <h3 id="mouse-scroll"><a class="header" href="#mouse-scroll">Mouse Scroll</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let scroll = world.resources.input.mouse.scroll_delta;
+</span>let scroll = world.resources.input.mouse.wheel_delta;
 if scroll.y != 0.0 {
     zoom_camera(scroll.y);
 }
@@ -286,7 +284,7 @@ if scroll.y != 0.0 {
 <h3 id="direct-event-handling-1"><a class="header" href="#direct-event-handling-1">Direct Event Handling</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+</span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {
     match (button, state) {
         (MouseButton::Left, ElementState::Pressed) =&gt; self.shoot(),
         (MouseButton::Right, ElementState::Pressed) =&gt; self.aim(),
@@ -328,7 +326,7 @@ if scroll.y != 0.0 {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn mouse_look_system(world: &amp;mut World, sensitivity: f32) {
-    let delta = world.resources.input.mouse.delta;
+    let delta = world.resources.input.mouse.position_delta;
 
     if let Some(camera) = world.resources.active_camera {
         if let Some(transform) = world.get_local_transform_mut(camera) {
@@ -349,18 +347,16 @@ if scroll.y != 0.0 {
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="cursor-locking"><a class="header" href="#cursor-locking">Cursor Locking</a></h2>
+<h2 id="cursor-visibility"><a class="header" href="#cursor-visibility">Cursor Visibility</a></h2>
 <p>For first-person games:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
-    world.resources.input.cursor_locked = true;
-    world.resources.input.cursor_visible = false;
+    world.resources.graphics.show_cursor = false;
 }
 
 fn toggle_cursor(world: &amp;mut World) {
-    world.resources.input.cursor_locked = !world.resources.input.cursor_locked;
-    world.resources.input.cursor_visible = !world.resources.input.cursor_visible;
+    world.resources.graphics.show_cursor = !world.resources.graphics.show_cursor;
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="key-bindings"><a class="header" href="#key-bindings">Key Bindings</a></h2>
@@ -400,8 +396,8 @@ impl Default for KeyBindings {
 fn update_input_buffer(buffer: &amp;mut InputBuffer, world: &amp;World, dt: f32) {
     buffer.jump_buffer = (buffer.jump_buffer - dt).max(0.0);
 
-    if world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) {
-        buffer.jump_buffer = 0.15;  // 150ms buffer
+    if world.resources.input.keyboard.is_key_pressed(KeyCode::Space) {
+        buffer.jump_buffer = 0.15;
     }
 }
 

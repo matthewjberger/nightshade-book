@@ -215,7 +215,7 @@ pub struct ItemPickedUp {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn combat_system(world: &amp;mut World, game: &amp;mut GameState) {
-    for enemy in world.query(ENEMY | HEALTH) {
+    for enemy in world.query_entities(ENEMY | HEALTH) {
         let health = world.get_health(enemy).unwrap();
         if health.current &lt;= 0 {
             let position = world.get_global_transform(enemy)
@@ -228,7 +228,7 @@ pub struct ItemPickedUp {
                 killer: game.last_attacker,
             });
 
-            world.despawn(enemy);
+            world.despawn_entities(&amp;[enemy]);
         }
     }
 }

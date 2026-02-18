@@ -283,7 +283,7 @@ impl AnimationController {
 
     if let Some(index) = target_anim {
         if let Some(player) = world.get_animation_player_mut(entity) {
-            if player.current_clip != index {
+            if player.current_clip != Some(index) {
                 player.blend_to(index, 0.2);
             }
 
@@ -315,8 +315,10 @@ impl AnimationController {
 fn check_attack_finished(world: &amp;World, entity: Entity) -&gt; bool {
     if let Some(player) = world.get_animation_player(entity) {
         if !player.looping {
-            let clip = &amp;player.clips[player.current_clip];
-            return player.time &gt;= clip.duration * 0.9;  // 90% complete
+            if let Some(index) = player.current_clip {
+                let clip = &amp;player.clips[index];
+                return player.time &gt;= clip.duration * 0.9;
+            }
         }
     }
     false
@@ -339,7 +341,8 @@ struct LayeredAnimation {
 </span>fn apply_root_motion(world: &amp;mut World, entity: Entity) {
     let Some(player) = world.get_animation_player(entity) else { return };
 
-    let clip = &amp;player.clips[player.current_clip];
+    let Some(current_index) = player.current_clip else { return };
+    let clip = &amp;player.clips[current_index];
     // Extract root bone translation from animation
     // Apply to character controller
 

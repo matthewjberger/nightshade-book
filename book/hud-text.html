@@ -362,7 +362,7 @@ spawn_hud_text(world, multiline, HudAnchor::TopLeft, Vec2::new(20.0, 20.0));
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let entity = world.spawn_entities(
-    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | TEXT_COMPONENT,
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | TEXT,
     1
 )[0];
 
@@ -487,7 +487,7 @@ impl FpsCounter {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn remove_text(world: &amp;mut World, entity: Entity) {
-    world.despawn(entity);
+    world.despawn_entities(&amp;[entity]);
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="visibility-control"><a class="header" href="#visibility-control">Visibility Control</a></h2>

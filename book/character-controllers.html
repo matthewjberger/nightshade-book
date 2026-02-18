@@ -186,16 +186,14 @@
 fn initialize(&amp;mut self, world: &amp;mut World) {
     let (player_entity, camera_entity) = spawn_first_person_player(
         world,
-        Vec3::new(0.0, 2.0, 0.0),  // Spawn position
+        Vec3::new(0.0, 2.0, 0.0),
     );
 
     self.player = Some(player_entity);
-    world.resources.active_camera = Some(camera_entity);
 
-    // Customize controller
     if let Some(controller) = world.get_character_controller_mut(player_entity) {
         controller.max_speed = 5.0;
-        controller.sprint_speed_multiplier = 2.0;
+        controller.is_sprinting = false;
         controller.jump_impulse = 6.0;
     }
 }
@@ -220,10 +218,9 @@ fn initialize(&amp;mut self, world: &amp;mut World) {
         *controller = CharacterControllerComponent::new_capsule(0.5, 0.3);
         controller.max_speed = 3.0;
         controller.acceleration = 15.0;
-        controller.deceleration = 20.0;
         controller.jump_impulse = 4.0;
-        controller.sprint_speed_multiplier = 2.0;
-        controller.crouch_enabled = false;
+        controller.is_sprinting = false;
+        controller.is_crouching = false;
     }
 
     entity
@@ -232,13 +229,11 @@ fn initialize(&amp;mut self, world: &amp;mut World) {
 <h2 id="controller-properties"><a class="header" href="#controller-properties">Controller Properties</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Property</th><th>Description</th><th>Default</th></tr></thead><tbody>
 <tr><td><code>max_speed</code></td><td>Walking speed</td><td>5.0</td></tr>
-<tr><td><code>sprint_speed_multiplier</code></td><td>Sprint multiplier</td><td>1.5</td></tr>
+<tr><td><code>is_sprinting</code></td><td>Sprint active</td><td>false</td></tr>
 <tr><td><code>acceleration</code></td><td>Speed up rate</td><td>20.0</td></tr>
-<tr><td><code>deceleration</code></td><td>Slow down rate</td><td>25.0</td></tr>
 <tr><td><code>jump_impulse</code></td><td>Jump strength</td><td>5.0</td></tr>
-<tr><td><code>gravity_multiplier</code></td><td>Fall speed modifier</td><td>1.0</td></tr>
-<tr><td><code>crouch_enabled</code></td><td>Allow crouching</td><td>true</td></tr>
-<tr><td><code>crouch_height</code></td><td>Height when crouched</td><td>0.6</td></tr>
+<tr><td><code>can_jump</code></td><td>Allow jumping</td><td>true</td></tr>
+<tr><td><code>is_crouching</code></td><td>Crouch active</td><td>false</td></tr>
 </tbody></table>
 </div>
 <h2 id="movement-input"><a class="header" href="#movement-input">Movement Input</a></h2>
@@ -275,7 +270,7 @@ fn initialize(&amp;mut self, world: &amp;mut World) {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>if let Some(controller) = world.get_character_controller(player) {
-    if controller.is_grounded {
+    if controller.grounded {
         // On ground - can jump
     } else {
         // In air

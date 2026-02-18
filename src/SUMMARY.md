@@ -76,6 +76,7 @@
 
 - [egui Integration](egui.md)
 - [Mosaic Framework](mosaic.md)
+- [Editor Infrastructure](editor.md)
 - [File System](filesystem.md)
 - [Immediate Mode UI](immediate-ui.md)
 - [HUD Text](hud-text.md)

@@ -190,7 +190,7 @@
 </span><span class="boring">fn main() {
 </span>pub struct LocalTransform {
     pub translation: Vec3,
-    pub rotation: UnitQuaternion&lt;f32&gt;,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
@@ -204,10 +204,10 @@ pub struct Health {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn damage_system(world: &amp;mut World) {
-    for entity in world.query(HEALTH | DAMAGE_OVER_TIME) {
+    for entity in world.query_entities(HEALTH | DAMAGE_OVER_TIME) {
         let dot = world.get_damage_over_time(entity).unwrap();
         if let Some(health) = world.get_health_mut(entity) {
-            health.current -= dot.damage_per_second * world.resources.time.delta_seconds;
+            health.current -= dot.damage_per_second * world.resources.window.timing.delta_time;
         }
     }
 }
@@ -222,7 +222,6 @@ pub const RENDER_MESH: ComponentFlags = 1 &lt;&lt; 2;
 pub const MATERIAL_REF: ComponentFlags = 1 &lt;&lt; 3;
 pub const CAMERA: ComponentFlags = 1 &lt;&lt; 4;
 pub const LIGHT: ComponentFlags = 1 &lt;&lt; 5;
-// ... and so on
 <span class="boring">}</span></code></pre></pre>
 <p>Combine flags with bitwise OR:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -237,20 +236,20 @@ let entity = world.spawn_entities(RENDERABLE, 1)[0];
 </span><span class="boring">fn main() {
 </span>world.set_local_transform(entity, LocalTransform {
     translation: Vec3::new(0.0, 5.0, 0.0),
-    rotation: UnitQuaternion::identity(),
+    rotation: Quat::identity(),
     scale: Vec3::new(1.0, 1.0, 1.0),
 });
 
 world.set_render_mesh(entity, RenderMesh {
-    mesh_name: "cube".to_string(),
-    gpu_mesh_id: None,
+    name: "cube".to_string(),
+    id: None,
 });
 <span class="boring">}</span></code></pre></pre>
 <h3 id="getting-components-immutable"><a class="header" href="#getting-components-immutable">Getting Components (Immutable)</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>if let Some(transform) = world.get_local_transform(entity) {
-    println!("Position: {:?}", transform.translation);
+    let position = transform.translation;
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="getting-components-mutable"><a class="header" href="#getting-components-mutable">Getting Components (Mutable)</a></h3>
@@ -263,8 +262,7 @@ world.set_render_mesh(entity, RenderMesh {
 <h3 id="checking-component-presence"><a class="header" href="#checking-component-presence">Checking Component Presence</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>if world.has_component(entity, RENDER_MESH) {
-    // Entity has a render mesh
+</span>if world.entity_has_components(entity, RENDER_MESH) {
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="entity-hierarchy"><a class="header" href="#entity-hierarchy">Entity Hierarchy</a></h2>
@@ -273,16 +271,12 @@ world.set_render_mesh(entity, RenderMesh {
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::transform::components::Parent;
 
-// Set parent
 world.update_parent(child_entity, Some(Parent(Some(parent_entity))));
 
-// Clear parent
 world.update_parent(child_entity, Some(Parent(None)));
 
-// Get children
-if let Some(children) = world.children_cache.get(&amp;parent_entity) {
+if let Some(children) = world.resources.children_cache.get(&amp;parent_entity) {
     for child in children {
-        // Process child
     }
 }
 <span class="boring">}</span></code></pre></pre>
@@ -296,10 +290,10 @@ if let Some(children) = world.children_cache.get(&amp;parent_entity) {
 ecs! {
     GameWorld {
         components {
-            player_state: PlayerState,
-            inventory: Inventory,
-            health: Health,
-            enemy_ai: EnemyAI,
+            player_state: PlayerState =&gt; PLAYER_STATE,
+            inventory: Inventory =&gt; INVENTORY,
+            health: Health =&gt; HEALTH,
+            enemy_ai: EnemyAI =&gt; ENEMY_AI,
         },
         resources {
             game_time: GameTime,
@@ -318,10 +312,8 @@ ecs! {
 
 impl State for MyGame {
     fn run_systems(&amp;mut self, world: &amp;mut World) {
-        // Update game ECS
         update_player(&amp;mut self.game);
 
-        // Sync with engine world
         sync_positions(&amp;self.game, world);
     }
 }

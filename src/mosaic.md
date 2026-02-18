@@ -81,7 +81,7 @@ trait Widget<C = (), M = ()>: Clone + Serialize + DeserializeOwned + 'static {
     fn on_add(&mut self, _context: &mut WidgetContext<C, M>) {}
     fn on_remove(&mut self, _context: &mut WidgetContext<C, M>) {}
     fn closable(&self) -> bool { true }
-    fn required_camera(&self, _world: &World) -> Option<Entity> { None }
+    fn required_camera(&self, _cached_cameras: &[Entity]) -> Option<Entity> { None }
 
     fn catalog() -> Vec<WidgetEntry<Self>>;
 }
@@ -160,6 +160,7 @@ Every widget receives a `WidgetContext` in its `ui()` method:
 context.world()                            // &World
 context.world_mut()                        // &mut World
 context.world_and_app()                    // (&mut World, &mut C)
+context.world_app_modals()                 // (&mut World, &mut C, &mut Modals)
 context.send(message)                      // Send an M message to the app
 context.receive()                          // Receive messages sent to this widget
 context.has_incoming()                     // Check if there are pending messages
@@ -170,6 +171,7 @@ context.modals                             // &mut Modals for showing dialogs
 context.app                                // &mut C application context
 context.window_index                       // Optional window index
 context.is_active_window                   // Whether this is the active window
+context.cached_cameras                     // &[Entity] of all camera entities
 ```
 
 ## Application Context and Messages
@@ -243,12 +245,12 @@ use nightshade::mosaic::ViewportWidget;
 let viewport = ViewportWidget { camera_index: 0 };
 ```
 
-Implement `required_camera` on your widget enum to tell the mosaic which cameras need rendering:
+Implement `required_camera` on your widget enum to tell the mosaic which cameras need rendering. The `cached_cameras` slice contains all camera entities, pre-sorted by entity ID:
 
 ```rust
-fn required_camera(&self, world: &World) -> Option<Entity> {
+fn required_camera(&self, cached_cameras: &[Entity]) -> Option<Entity> {
     match self {
-        AppWidget::Viewport(v) => v.required_camera(world),
+        AppWidget::Viewport(v) => v.required_camera(cached_cameras),
         _ => None,
     }
 }
@@ -537,50 +539,36 @@ for file in get_dropped_files(ctx) {
 }
 ```
 
-## Undo/Redo History
-
-```rust
-use nightshade::mosaic::History;
-
-let mut history: History<MyState> = History::new(100);
-
-// Before a change:
-history.push(current_state.clone());
-
-// Undo:
-if let Some(previous) = history.undo(&current_state) {
-    current_state = previous;
-}
-
-// Redo:
-if let Some(next) = history.redo(&current_state) {
-    current_state = next;
-}
-
-history.can_undo();    // bool
-history.can_redo();    // bool
-history.undo_count();  // usize
-history.redo_count();  // usize
-history.clear();
-```
-
 ## Project Save/Load
 
-Save and load entire mosaic layouts:
+Save and load entire mosaic layouts. `ProjectSaveFile<W, D>` supports an optional generic `data` field for storing application-specific state alongside the layout:
 
 ```rust
 use nightshade::mosaic::{save_project, load_project};
 
-// Save
-let project = save_project("My Project", "1.0", &[&mosaic]);
+// Save (with no extra data)
+let project = save_project("My Project", "1.0", &[&mosaic], None::<()>);
 let json = serde_json::to_string_pretty(&project).unwrap();
+
+// Save (with application data)
+let project = save_project("My Project", "1.0", &[&mosaic], Some(app_data));
 
 // Load
 let project = serde_json::from_str(&json).unwrap();
-let windows = load_project(project);
+let (windows, data) = load_project(project);
 for window in windows {
     let mosaic = Mosaic::from_window_layout(window);
 }
+```
+
+`ProjectSaveFile` also supports direct file I/O (native only) with JSON and binary (bincode) formats:
+
+```rust
+use nightshade::mosaic::ProjectSaveFile;
+
+project.save_to_path(Path::new("project.json"))?;
+project.save_to_path(Path::new("project.bin"))?;
+let project = ProjectSaveFile::load_from_path(Path::new("project.json"))?;
 ```
 
 Or save/load just the tile tree:
@@ -647,15 +635,47 @@ mosaic.for_each_widget_with_id_mut(|tile_id, widget| { ... });
 ```rust
 mosaic.layout_modified()                   // Check if layout changed (drag, close, add)
 mosaic.take_layout_modified()              // Check and reset layout flag
-mosaic.layout_name()                       // Current layout name
-mosaic.set_layout_name(name)               // Set layout name
-mosaic.title()                             // Window title
-mosaic.set_title(title)                    // Set window title
+mosaic.layout_name                         // Current layout name (pub field)
+mosaic.title                               // Window title (pub field)
 mosaic.viewport_rects()                    // Rendered pane rectangles by TileId
 mosaic.selected_viewport_tile()            // Currently selected viewport
-mosaic.required_cameras(world)             // Cameras needed by visible viewports
 Mosaic::clear_required_cameras(world)      // Clear the required cameras list
 mosaic.modals()                            // Get &mut Modals
+```
+
+## Layout Management
+
+Mosaic supports multiple named layouts that can be switched, created, saved, and deleted:
+
+```rust
+mosaic.switch_layout(index)                // Switch to layout by index
+mosaic.create_layout("name", default_tree) // Create a new layout
+mosaic.save_current_layout()               // Save current tree to active layout
+mosaic.delete_current_layout()             // Delete active layout (if more than one)
+mosaic.rename_layout(index, name)          // Rename a layout
+mosaic.reset_layout(default_tree)          // Reset active layout to default
+mosaic.active_layout_name()                // Name of the active layout
+mosaic.active_layout_index()               // Index of the active layout
+mosaic.layout_count()                      // Number of layouts
+mosaic.layouts()                           // &[WindowLayout<W>]
+mosaic.load_layouts(layouts, active_index) // Load layouts from saved data
+mosaic.save_layouts()                      // (Vec<WindowLayout<W>>, usize) for persistence
+```
+
+A built-in layout menu UI is available:
+
+```rust
+let events = mosaic.render_layout_section(ui, || create_default_tree());
+for event in events {
+    match event {
+        LayoutEvent::Switched(name) => { /* layout switched */ }
+        LayoutEvent::Created(name) => { /* new layout created */ }
+        LayoutEvent::Saved(name) => { /* layout saved */ }
+        LayoutEvent::Deleted(name) => { /* layout deleted */ }
+        LayoutEvent::Reset => { /* layout reset to default */ }
+        LayoutEvent::Renamed(name) => { /* layout renamed */ }
+    }
+}
 ```
 
 ## Multi-Window Support
@@ -663,9 +683,9 @@ mosaic.modals()                            // Get &mut Modals
 Create one `Mosaic` per window. Each has its own layout, modals, and config:
 
 ```rust
-mosaic.set_active_window(is_active)        // Set whether this window is active
-mosaic.set_window_index(index)             // Set the window index
-mosaic.set_viewport_textures(textures)     // Set viewport textures for secondary windows
+mosaic.is_active_window = true;            // Set whether this window is active (pub field)
+mosaic.window_index = Some(index);         // Set the window index (pub field)
+mosaic.set_viewport_textures(textures);    // Set viewport textures for secondary windows
 ```
 
 Use nightshade's secondary window system to spawn additional windows:
@@ -679,7 +699,7 @@ impl State for MyApp {
     fn secondary_ui(&mut self, world: &mut World, window_index: usize, ctx: &egui::Context) {
         let mosaic = self.secondary.entry(window_index).or_insert_with(|| {
             let mut m = Mosaic::with_panes(vec![AppWidget::Viewport(ViewportWidget::default())]);
-            m.set_window_index(Some(window_index));
+            m.window_index = Some(window_index);
             m
         });
         mosaic.show(world, ctx, &mut self.context);

@@ -181,7 +181,7 @@
 </blockquote>
 <p>Picking allows you to select entities in the 3D world using mouse clicks or screen positions. Nightshade supports both CPU ray-based picking and GPU pixel-perfect picking.</p>
 <h2 id="ray-picking"><a class="header" href="#ray-picking">Ray Picking</a></h2>
-<p>Convert a screen position to a ray and test against entity bounds.</p>
+<p>Convert a screen position to a picking ray.</p>
 <h3 id="screen-to-ray"><a class="header" href="#screen-to-ray">Screen to Ray</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -190,40 +190,43 @@
     pub direction: Vec3,
 }
 
-let ray = screen_to_ray(world, screen_x, screen_y);
+let screen_pos = Vec2::new(screen_x, screen_y);
+let ray = PickingRay::from_screen_position(world, screen_pos);
 <span class="boring">}</span></code></pre></pre>
-<h3 id="pick-closest-entity-aabb"><a class="header" href="#pick-closest-entity-aabb">Pick Closest Entity (AABB)</a></h3>
+<h3 id="pick-closest-entity"><a class="header" href="#pick-closest-entity">Pick Closest Entity</a></h3>
 <p>Fast picking using axis-aligned bounding boxes:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>if let Some(hit) = pick_closest_entity(world, ray) {
+</span>let screen_pos = Vec2::new(screen_x, screen_y);
+
+if let Some(hit) = pick_closest_entity(world, screen_pos) {
     let entity = hit.entity;
     let distance = hit.distance;
-    let point = hit.point;
+    let position = hit.world_position;
 
     select_entity(world, entity);
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="pick-closest-entity-trimesh"><a class="header" href="#pick-closest-entity-trimesh">Pick Closest Entity (Trimesh)</a></h3>
-<p>Precise picking using actual mesh geometry:</p>
+<h3 id="pick-all-entities"><a class="header" href="#pick-all-entities">Pick All Entities</a></h3>
+<p>Pick all entities at a screen position:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>if let Some(hit) = pick_closest_entity_trimesh(world, ray) {
-    let entity = hit.entity;
-    let point = hit.point;
-    let normal = hit.normal;
+</span>let screen_pos = Vec2::new(screen_x, screen_y);
+let hits = pick_entities(world, screen_pos);
 
-    spawn_decal(world, point, normal);
+for hit in &amp;hits {
+    let entity = hit.entity;
+    let distance = hit.distance;
+    let position = hit.world_position;
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="pick-result"><a class="header" href="#pick-result">Pick Result</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct PickResult {
+</span>pub struct PickingResult {
     pub entity: Entity,
     pub distance: f32,
-    pub point: Vec3,
-    pub normal: Option&lt;Vec3&gt;,
+    pub world_position: Vec3,
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="gpu-picking"><a class="header" href="#gpu-picking">GPU Picking</a></h2>
@@ -257,12 +260,11 @@ let ray = screen_to_ray(world, screen_x, screen_y);
 <h2 id="mouse-click-selection"><a class="header" href="#mouse-click-selection">Mouse Click Selection</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {
+</span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {
     if button == MouseButton::Left &amp;&amp; state == ElementState::Pressed {
-        let mouse_pos = world.resources.input.mouse_position;
-        let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
+        let screen_pos = world.resources.input.mouse_position;
 
-        if let Some(hit) = pick_closest_entity(world, ray) {
+        if let Some(hit) = pick_closest_entity(world, screen_pos) {
             self.selected_entity = Some(hit.entity);
             mark_as_selected(world, hit.entity);
         } else {
@@ -276,14 +278,13 @@ let ray = screen_to_ray(world, screen_x, screen_y);
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let mouse_pos = world.resources.input.mouse_position;
-    let ray = screen_to_ray(world, mouse_pos.x, mouse_pos.y);
+    let screen_pos = world.resources.input.mouse_position;
 
-    for entity in world.query(HOVERED) {
+    for entity in world.query_entities(HOVERED) {
         world.remove_hovered(entity);
     }
 
-    if let Some(hit) = pick_closest_entity(world, ray) {
+    if let Some(hit) = pick_closest_entity(world, screen_pos) {
         world.set_hovered(hit.entity, Hovered);
     }
 }
@@ -292,19 +293,19 @@ let ray = screen_to_ray(world, screen_x, screen_y);
 <p>Pick only specific entity types:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn pick_enemies_only(world: &amp;World, ray: PickingRay) -&gt; Option&lt;PickResult&gt; {
-    let mut closest: Option&lt;PickResult&gt; = None;
+</span>fn pick_enemies_only(world: &amp;World, screen_pos: Vec2) -&gt; Option&lt;PickingResult&gt; {
+    let ray = PickingRay::from_screen_position(world, screen_pos)?;
+    let mut closest: Option&lt;PickingResult&gt; = None;
 
-    for entity in world.query(ENEMY | BOUNDING_VOLUME) {
+    for entity in world.query_entities(ENEMY | BOUNDING_VOLUME) {
         let bounds = world.get_bounding_volume(entity).unwrap();
         if let Some(distance) = ray_aabb_intersection(&amp;ray, &amp;bounds.aabb) {
-            let point = ray.origin + ray.direction * distance;
+            let world_position = ray.origin + ray.direction * distance;
             if closest.is_none() || distance &lt; closest.as_ref().unwrap().distance {
-                closest = Some(PickResult {
+                closest = Some(PickingResult {
                     entity,
                     distance,
-                    point,
-                    normal: None,
+                    world_position,
                 });
             }
         }
@@ -350,7 +351,7 @@ fn entities_in_screen_rect(world: &amp;World, start: Vec2, end: Vec2) -&gt; Vec&
 
     let mut result = Vec::new();
 
-    for entity in world.query(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
+    for entity in world.query_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
         let screen_pos = world_to_screen(world, entity);
         if let Some(pos) = screen_pos {
             if pos.x &gt;= min_x &amp;&amp; pos.x &lt;= max_x &amp;&amp; pos.y &gt;= min_y &amp;&amp; pos.y &lt;= max_y {

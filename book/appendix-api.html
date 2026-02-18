@@ -181,84 +181,100 @@
 <h3 id="entity-management"><a class="header" href="#entity-management">Entity Management</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Spawn entities with components
-let entities = world.spawn_entities(flags, count);
-let entity = world.spawn_entities(LOCAL_TRANSFORM | MESH_COMPONENT, 1)[0];
+</span>let entities = world.spawn_entities(flags, count);
+let entity = world.spawn_entities(LOCAL_TRANSFORM | RENDER_MESH, 1)[0];
 
-// Despawn entity
-world.despawn(entity);
+world.despawn_entities(&amp;[entity]);
 
-// Query entities by components
-for entity in world.query(LOCAL_TRANSFORM | MESH_COMPONENT) {
-    // Process entity
+for entity in world.query_entities(LOCAL_TRANSFORM | RENDER_MESH) {
+    let transform = world.get_local_transform(entity);
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="component-access"><a class="header" href="#component-access">Component Access</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Get component (immutable)
-world.get_local_transform(entity) -&gt; Option&lt;&amp;LocalTransform&gt;
+</span>world.get_local_transform(entity) -&gt; Option&lt;&amp;LocalTransform&gt;
 world.get_global_transform(entity) -&gt; Option&lt;&amp;GlobalTransform&gt;
-world.get_mesh(entity) -&gt; Option&lt;&amp;MeshComponent&gt;
-world.get_material(entity) -&gt; Option&lt;&amp;Material&gt;
+world.get_render_mesh(entity) -&gt; Option&lt;&amp;RenderMesh&gt;
+world.get_material_ref(entity) -&gt; Option&lt;&amp;MaterialRef&gt;
 world.get_camera(entity) -&gt; Option&lt;&amp;Camera&gt;
 world.get_rigid_body(entity) -&gt; Option&lt;&amp;RigidBodyComponent&gt;
 world.get_collider(entity) -&gt; Option&lt;&amp;ColliderComponent&gt;
 world.get_animation_player(entity) -&gt; Option&lt;&amp;AnimationPlayer&gt;
 world.get_parent(entity) -&gt; Option&lt;&amp;Parent&gt;
-world.get_children(entity) -&gt; &amp;[Entity]
-world.get_visible(entity) -&gt; Option&lt;&amp;Visible&gt;
+world.get_visibility(entity) -&gt; Option&lt;&amp;Visibility&gt;
 
-// Get component (mutable)
 world.get_local_transform_mut(entity) -&gt; Option&lt;&amp;mut LocalTransform&gt;
 world.get_rigid_body_mut(entity) -&gt; Option&lt;&amp;mut RigidBodyComponent&gt;
-// ... same pattern for all components
 
-// Set component
 world.set_local_transform(entity, LocalTransform { ... })
-world.set_material(entity, Material { ... })
-// ... same pattern for all components
+world.set_light(entity, Light { ... })
+
+set_material_with_textures(world, entity, Material { ... })
 <span class="boring">}</span></code></pre></pre>
 <h3 id="resources"><a class="header" href="#resources">Resources</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.timing.delta_time        // Frame time in seconds
-world.resources.timing.total_time        // Total elapsed time
-world.resources.input.keyboard           // Keyboard state
-world.resources.input.mouse              // Mouse state
-world.resources.input.cursor_locked      // Lock cursor to window
-world.resources.input.cursor_visible     // Show/hide cursor
-world.resources.active_camera            // Current active camera entity
-world.resources.graphics.ambient_intensity
+</span>world.resources.window.timing.delta_time
+world.resources.window.timing.frames_per_second
+world.resources.window.timing.uptime_milliseconds
+world.resources.input.keyboard
+world.resources.input.mouse
+world.resources.graphics.show_cursor
+world.resources.active_camera
+world.resources.graphics.ambient_light
 world.resources.physics.gravity
 <span class="boring">}</span></code></pre></pre>
 <h2 id="component-flags"><a class="header" href="#component-flags">Component Flags</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>LOCAL_TRANSFORM         // Position, rotation, scale
-GLOBAL_TRANSFORM        // World-space transform
-MESH_COMPONENT          // Renderable mesh
-MATERIAL_COMPONENT      // PBR material
-CAMERA                  // Camera component
-RIGID_BODY_COMPONENT    // Physics rigid body
-COLLIDER_COMPONENT      // Physics collider
-CHARACTER_CONTROLLER    // Character movement
-ANIMATION_PLAYER        // Skeletal animation
-PARENT                  // Parent entity reference
-CHILDREN                // Child entities
-VISIBLE                 // Visibility flag
-DIRECTIONAL_LIGHT       // Directional light
-POINT_LIGHT             // Point light
-SPOT_LIGHT              // Spot light
-AUDIO_SOURCE            // Sound emitter
-AUDIO_LISTENER          // Sound receiver
-PARTICLE_EMITTER        // Particle system
-NAV_MESH_AGENT          // Navigation agent
-HUD_TEXT                // Screen-space text
-TEXT_COMPONENT          // 3D world text
-LINES_COMPONENT         // Debug lines
-GRASS_REGION            // Grass rendering
-GRASS_INTERACTOR        // Grass bending
+</span>ANIMATION_PLAYER
+NAME
+LOCAL_TRANSFORM
+GLOBAL_TRANSFORM
+LOCAL_TRANSFORM_DIRTY
+PARENT
+IGNORE_PARENT_SCALE
+AUDIO_SOURCE
+AUDIO_LISTENER
+CAMERA
+PAN_ORBIT_CAMERA
+LIGHT
+LINES
+VISIBILITY
+DECAL
+RENDER_MESH
+MATERIAL_REF
+RENDER_LAYER
+SPRITE
+SPRITE_ANIMATOR
+TEXT
+HUD_TEXT
+TEXT_CHARACTER_COLORS
+TEXT_CHARACTER_BACKGROUND_COLORS
+BOUNDING_VOLUME
+HOVERED
+ROTATION
+CASTS_SHADOW
+RIGID_BODY
+COLLIDER
+PHYSICS_MATERIAL
+CHARACTER_CONTROLLER
+PHYSICS_INTERPOLATION
+INSTANCED_MESH
+PARTICLE_EMITTER
+PREFAB_SOURCE
+PREFAB_INSTANCE
+SCRIPT
+SKIN
+JOINT
+MORPH_WEIGHTS
+NAVMESH_AGENT
+LATTICE
+LATTICE_INFLUENCED
+WATER
+GRASS_REGION
+GRASS_INTERACTOR
 <span class="boring">}</span></code></pre></pre>
 <h2 id="transform"><a class="header" href="#transform">Transform</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -269,10 +285,8 @@ GRASS_INTERACTOR        // Grass bending
     scale: Vec3,
 }
 
-// Create identity transform
 LocalTransform::default()
 
-// Create with values
 LocalTransform {
     translation: Vec3::new(x, y, z),
     rotation: nalgebra_glm::quat_angle_axis(angle, &amp;axis),
@@ -283,38 +297,46 @@ LocalTransform {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>Camera {
-    fov: f32,              // Field of view in radians
-    near: f32,             // Near clip plane
-    far: f32,              // Far clip plane
-    active: bool,          // Is this the active camera
-    clear_color: [f32; 4], // Background color
-    exposure: f32,         // Exposure adjustment
+    projection: Projection,
+    smoothing: Option&lt;Smoothing&gt;,
 }
 
-// Spawn cameras
-spawn_fly_camera(world) -&gt; Entity
-spawn_pan_orbit_camera(world, target, distance) -&gt; Entity
-spawn_follow_camera(world, target_entity, offset) -&gt; Entity
+PerspectiveCamera {
+    aspect_ratio: Option&lt;f32&gt;,
+    y_fov_rad: f32,
+    z_far: Option&lt;f32&gt;,
+    z_near: f32,
+}
+
+OrthographicCamera {
+    x_mag: f32,
+    y_mag: f32,
+    z_far: f32,
+    z_near: f32,
+}
+
+spawn_camera(world, position: Vec3, name: String) -&gt; Entity
+spawn_pan_orbit_camera(world, focus: Vec3, radius: f32, yaw: f32, pitch: f32, name: String) -&gt; Entity
+spawn_ortho_camera(world, position: Vec2) -&gt; Entity
 <span class="boring">}</span></code></pre></pre>
 <h2 id="primitives"><a class="header" href="#primitives">Primitives</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>spawn_primitive(world, Primitive::Cube) -&gt; Entity
-spawn_primitive(world, Primitive::Sphere) -&gt; Entity
-spawn_primitive(world, Primitive::Plane) -&gt; Entity
-spawn_primitive(world, Primitive::Cylinder) -&gt; Entity
-spawn_primitive(world, Primitive::Capsule) -&gt; Entity
-spawn_primitive(world, Primitive::Cone) -&gt; Entity
-spawn_primitive(world, Primitive::Torus) -&gt; Entity
+</span>spawn_cube_at(world, position: Vec3) -&gt; Entity
+spawn_sphere_at(world, position: Vec3) -&gt; Entity
+spawn_plane_at(world, position: Vec3) -&gt; Entity
+spawn_cylinder_at(world, position: Vec3) -&gt; Entity
+spawn_cone_at(world, position: Vec3) -&gt; Entity
+spawn_torus_at(world, position: Vec3) -&gt; Entity
+spawn_mesh_at(world, mesh_name: &amp;str, position: Vec3, scale: Vec3) -&gt; Entity
+spawn_water_plane_at(world, position: Vec3) -&gt; Entity
 <span class="boring">}</span></code></pre></pre>
 <h2 id="model-loading"><a class="header" href="#model-loading">Model Loading</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>load_gltf(world, "path/to/model.glb") -&gt; Vec&lt;Entity&gt;
-load_gltf(world, "path/to/model.gltf") -&gt; Vec&lt;Entity&gt;
+</span>let prefab = import_gltf_from_bytes(world, model_data, "character").unwrap();
+let entity = spawn_prefab_with_animations(world, &amp;prefab, Vec3::zeros());
 
-// With custom transform
-let entities = load_gltf(world, "model.glb");
 for entity in entities {
     if let Some(transform) = world.get_local_transform_mut(entity) {
         transform.scale = Vec3::new(0.01, 0.01, 0.01);
@@ -325,143 +347,160 @@ for entity in entities {
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>Material {
-    base_color: [f32; 4],        // RGBA
-    roughness: f32,              // 0.0 (smooth) to 1.0 (rough)
-    metallic: f32,               // 0.0 (dielectric) to 1.0 (metal)
-    emissive: [f32; 3],          // RGB emission
-    emissive_strength: f32,      // Emission intensity
-    alpha_mode: AlphaMode,       // Opaque, Mask, Blend
-    alpha_cutoff: f32,           // For Mask mode
-    double_sided: bool,          // Render both faces
-    base_color_texture: Option&lt;Handle&gt;,
-    normal_texture: Option&lt;Handle&gt;,
-    metallic_roughness_texture: Option&lt;Handle&gt;,
-    emissive_texture: Option&lt;Handle&gt;,
-    occlusion_texture: Option&lt;Handle&gt;,
+    base_color: [f32; 4],
+    emissive_factor: [f32; 3],
+    alpha_mode: AlphaMode,
+    alpha_cutoff: f32,
+    base_texture: Option&lt;String&gt;,
+    base_texture_uv_set: u32,
+    emissive_texture: Option&lt;String&gt;,
+    emissive_texture_uv_set: u32,
+    normal_texture: Option&lt;String&gt;,
+    normal_texture_uv_set: u32,
+    normal_scale: f32,
+    normal_map_flip_y: bool,
+    normal_map_two_component: bool,
+    metallic_roughness_texture: Option&lt;String&gt;,
+    metallic_roughness_texture_uv_set: u32,
+    occlusion_texture: Option&lt;String&gt;,
+    occlusion_texture_uv_set: u32,
+    occlusion_strength: f32,
+    roughness: f32,
+    metallic: f32,
+    unlit: bool,
+    double_sided: bool,
+    uv_scale: [f32; 2],
+    transmission_factor: f32,
+    transmission_texture: Option&lt;String&gt;,
+    transmission_texture_uv_set: u32,
+    thickness: f32,
+    thickness_texture: Option&lt;String&gt;,
+    thickness_texture_uv_set: u32,
+    attenuation_color: [f32; 3],
+    attenuation_distance: f32,
+    ior: f32,
+    specular_factor: f32,
+    specular_color_factor: [f32; 3],
+    specular_texture: Option&lt;String&gt;,
+    specular_texture_uv_set: u32,
+    specular_color_texture: Option&lt;String&gt;,
+    specular_color_texture_uv_set: u32,
+    emissive_strength: f32,
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="lighting"><a class="header" href="#lighting">Lighting</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Directional light (sun)
-spawn_directional_light(world, direction: Vec3) -&gt; Entity
+</span>spawn_sun(world) -&gt; Entity
+spawn_sun_without_shadows(world) -&gt; Entity
 
-// Point light
-spawn_point_light(world, position: Vec3, color: Vec3, intensity: f32, range: f32) -&gt; Entity
-
-// Spot light
-spawn_spot_light(world, position: Vec3, direction: Vec3, color: Vec3, intensity: f32, range: f32, inner_angle: f32, outer_angle: f32) -&gt; Entity
+Light {
+    light_type: LightType,
+    color: Vec3,
+    intensity: f32,
+    range: f32,
+    inner_cone_angle: f32,
+    outer_cone_angle: f32,
+    cast_shadows: bool,
+    shadow_bias: f32,
+}
 <span class="boring">}</span></code></pre></pre>
 <h2 id="physics"><a class="header" href="#physics">Physics</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Rigid bodies
-add_rigid_body(world, entity, RigidBodyType::Dynamic, mass: f32)
-add_rigid_body(world, entity, RigidBodyType::Static, 0.0)
-add_rigid_body(world, entity, RigidBodyType::Kinematic, 0.0)
+</span>world.resources.physics.add_rigid_body(rigid_body: RigidBody) -&gt; RigidBodyHandle
+world.resources.physics.add_collider(collider, parent) -&gt; ColliderHandle
 
-// Colliders
-add_collider(world, entity, ColliderShape::Box { half_extents: Vec3 })
-add_collider(world, entity, ColliderShape::Sphere { radius: f32 })
-add_collider(world, entity, ColliderShape::Capsule { half_height: f32, radius: f32 })
-add_collider(world, entity, ColliderShape::Cylinder { half_height: f32, radius: f32 })
-add_collider(world, entity, ColliderShape::Cone { half_height: f32, radius: f32 })
-add_collider(world, entity, ColliderShape::ConvexHull { points: Vec&lt;Vec3&gt; })
-add_collider(world, entity, ColliderShape::TriMesh { vertices: Vec&lt;Vec3&gt;, indices: Vec&lt;[u32; 3]&gt; })
-add_collider(world, entity, ColliderShape::Heightfield { heights: Vec&lt;Vec&lt;f32&gt;&gt;, scale: Vec3 })
+RigidBodyComponent::new_dynamic()
+RigidBodyComponent::new_static()
 
-// Joints
-create_fixed_joint(world, body1, anchor1, body2, anchor2)
+ColliderComponent::cuboid(hx: f32, hy: f32, hz: f32)
+
+run_physics_systems(world)
+sync_transforms_from_physics_system(world)
+sync_transforms_to_physics_system(world)
+initialize_physics_bodies_system(world)
+physics_interpolation_system(world)
+character_controller_system(world)
+character_controller_input_system(world)
+<span class="boring">}</span></code></pre></pre>
+<h3 id="joints"><a class="header" href="#joints">Joints</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>create_fixed_joint(world, body1, anchor1, body2, anchor2)
 create_revolute_joint(world, body1, anchor1, body2, anchor2, axis)
 create_prismatic_joint(world, body1, anchor1, body2, anchor2, axis)
 create_spherical_joint(world, body1, anchor1, body2, anchor2)
 create_rope_joint(world, body1, anchor1, body2, anchor2, max_distance)
 create_spring_joint(world, body1, anchor1, body2, anchor2, rest_length, stiffness, damping)
-
-// Raycasting
-raycast(world, origin: Vec3, direction: Vec3, max_distance: f32) -&gt; Option&lt;RaycastHit&gt;
-raycast_all(world, origin, direction, max_distance) -&gt; Vec&lt;RaycastHit&gt;
-
-// Update
-update_physics(world, dt: f32)
-update_character_controller(world)
 <span class="boring">}</span></code></pre></pre>
 <h2 id="animation"><a class="header" href="#animation">Animation</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Get animation player
-if let Some(player) = world.get_animation_player_mut(entity) {
-    player.play("animation_name");
-    player.blend_to("other_animation", blend_time: f32);
+</span>if let Some(player) = world.get_animation_player_mut(entity) {
+    player.play(clip_index);
+    player.blend_to(clip_index, duration);
     player.stop();
     player.pause();
     player.resume();
-    player.set_looping(true);
-    player.set_speed(1.0);
-    player.seek(time: f32);
-    player.current_animation() -&gt; Option&lt;&amp;str&gt;
-    player.is_playing() -&gt; bool
+    player.looping = true;
+    player.speed = 1.0;
+    player.time = 0.0;
+    player.playing
+    player.current_clip
 }
 
-// Update all animation players
 update_animation_players(world, dt: f32)
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio"><a class="header" href="#audio">Audio</a></h2>
+<p>Requires the <code>audio</code> feature.</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Load sounds
-load_sound(world, "name", "path/to/sound.wav")
-load_sound(world, "music", "path/to/music.ogg")
+</span>let sound_data = load_sound_from_bytes(include_bytes!("sound.ogg")).unwrap();
+let sound_data = load_sound_from_file("path/to/sound.wav").unwrap();
+let sound_data = load_sound_from_cursor(data).unwrap();
 
-// Play sounds
-play_sound(world, "name")
-play_sound_with_volume(world, "name", volume: f32)
-play_sound_looped(world, "name")
-stop_sound(world, "name")
+world.resources.audio.load_sound("name", sound_data);
 
-// Spatial audio
-spawn_audio_source(world, position: Vec3, sound_name: &amp;str) -&gt; Entity
+world.resources.audio.stop_sound(entity);
+
+let source = world.spawn_entities(AUDIO_SOURCE | LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+world.set_audio_source(source, AudioSource::new(sound_data).with_spatial(true));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="input"><a class="header" href="#input">Input</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Keyboard
-world.resources.input.keyboard.is_key_pressed(KeyCode::KeyW) -&gt; bool
-world.resources.input.keyboard.is_key_just_pressed(KeyCode::Space) -&gt; bool
-world.resources.input.keyboard.is_key_just_released(KeyCode::ShiftLeft) -&gt; bool
+</span>world.resources.input.keyboard.is_key_pressed(KeyCode::KeyW) -&gt; bool
 
-// Mouse
 world.resources.input.mouse.position -&gt; Vec2
-world.resources.input.mouse.delta -&gt; Vec2
-world.resources.input.mouse.scroll_delta -&gt; Vec2
+world.resources.input.mouse.position_delta -&gt; Vec2
+world.resources.input.mouse.wheel_delta -&gt; Vec2
 world.resources.input.mouse.state.contains(MouseState::LEFT_CLICKED) -&gt; bool
 world.resources.input.mouse.state.contains(MouseState::RIGHT_CLICKED) -&gt; bool
 world.resources.input.mouse.state.contains(MouseState::LEFT_JUST_PRESSED) -&gt; bool
 
-// Cursor
-world.resources.input.cursor_locked = true;
-world.resources.input.cursor_visible = false;
+world.resources.graphics.show_cursor = false;
 
-// Gamepad (with feature)
-query_active_gamepad(world) -&gt; Option&lt;&amp;Gamepad&gt;
-gamepad.is_pressed(gilrs::Button::South) -&gt; bool
-gamepad.axis_value(gilrs::Axis::LeftStickX) -&gt; f32
+query_active_gamepad(world) -&gt; Option&lt;gilrs::Gamepad&lt;'_&gt;&gt;
 <span class="boring">}</span></code></pre></pre>
 <h2 id="hud-text"><a class="header" href="#hud-text">HUD Text</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>spawn_hud_text(world, text: &amp;str, anchor: HudAnchor, offset: Vec2) -&gt; Entity
-spawn_hud_text_with_properties(world, text, anchor, offset, properties: TextProperties) -&gt; Entity
+</span>spawn_hud_text(world, text: impl Into&lt;String&gt;, anchor: HudAnchor, position: Vec2) -&gt; Entity
+spawn_hud_text_with_properties(world, text: impl Into&lt;String&gt;, anchor: HudAnchor, position: Vec2, properties: TextProperties) -&gt; Entity
 
 TextProperties {
     font_size: f32,
-    color: [f32; 4],
-    text_alignment: TextAlignment,      // Left, Center, Right
+    color: Vec4,
+    alignment: TextAlignment,
     vertical_alignment: VerticalAlignment,
     line_height: f32,
     letter_spacing: f32,
     outline_width: f32,
-    outline_color: [f32; 4],
+    outline_color: Vec4,
+    smoothing: f32,
+    monospace_width: Option&lt;f32&gt;,
+    anchor_character: Option&lt;usize&gt;,
 }
 
 HudAnchor::TopLeft | TopCenter | TopRight
@@ -472,8 +511,8 @@ HudAnchor::BottomLeft | BottomCenter | BottomRight
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>ParticleEmitter {
-    emitter_type: EmitterType,     // Fire, Smoke, Sparks, Snow, Dust
-    shape: EmitterShape,           // Point, Sphere, Box, Cone
+    emitter_type: EmitterType,
+    shape: EmitterShape,
     position: Vec3,
     direction: Vec3,
     spawn_rate: f32,
@@ -495,112 +534,117 @@ HudAnchor::BottomLeft | BottomCenter | BottomRight
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<p>Requires the <code>navmesh</code> feature.</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>generate_navmesh_recast(world, vertices: &amp;[Vec3], indices: &amp;[[u32; 3]], config: &amp;RecastNavMeshConfig)
-set_agent_destination(world, agent: Entity, target: Vec3)
-query_path(world, start: Vec3, end: Vec3) -&gt; Option&lt;Vec&lt;Vec3&gt;&gt;
-is_on_navmesh(world, point: Vec3) -&gt; bool
-add_offmesh_connection(world, start: Vec3, end: Vec3, bidirectional: bool)
-update_navmesh_agents(world)
+</span>generate_navmesh_recast(vertices: &amp;[[f32; 3]], indices: &amp;[[u32; 3]], config: &amp;RecastNavMeshConfig) -&gt; Option&lt;NavMeshWorld&gt;
+
+spawn_navmesh_agent(world, position: Vec3, radius: f32, height: f32) -&gt; Entity
+set_agent_destination(world, entity: Entity, destination: Vec3)
+set_agent_speed(world, entity: Entity, speed: f32)
+stop_agent(world, entity: Entity)
+get_agent_state(world, entity: Entity) -&gt; Option&lt;NavMeshAgentState&gt;
+get_agent_path_length(world, entity: Entity) -&gt; Option&lt;f32&gt;
+
+find_closest_point_on_navmesh(navmesh: &amp;NavMeshWorld, point: Vec3) -&gt; Option&lt;Vec3&gt;
+sample_navmesh_height(navmesh: &amp;NavMeshWorld, x: f32, z: f32) -&gt; Option&lt;f32&gt;
+set_navmesh_debug_draw(world, enabled: bool)
+clear_navmesh(world)
+
+run_navmesh_systems(world, delta_time: f32)
 <span class="boring">}</span></code></pre></pre>
 <h2 id="math-nalgebra_glm"><a class="header" href="#math-nalgebra_glm">Math (nalgebra_glm)</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Vectors
-Vec2::new(x, y)
+</span>Vec2::new(x, y)
 Vec3::new(x, y, z)
 Vec4::new(x, y, z, w)
 Vec3::zeros()
-Vec3::x()  // Unit X
-Vec3::y()  // Unit Y
-Vec3::z()  // Unit Z
+Vec3::x()
+Vec3::y()
+Vec3::z()
 
-// Vector operations
 vec.normalize()
 vec.magnitude()
 vec.dot(&amp;other)
 vec.cross(&amp;other)
 
-// Quaternions
 nalgebra_glm::quat_identity()
 nalgebra_glm::quat_angle_axis(angle: f32, axis: &amp;Vec3) -&gt; Quat
 nalgebra_glm::quat_slerp(from: &amp;Quat, to: &amp;Quat, t: f32) -&gt; Quat
 
-// Interpolation
 nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
 <span class="boring">}</span></code></pre></pre>
 <h2 id="state-trait"><a class="header" href="#state-trait">State Trait</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>trait State {
+    fn title(&amp;self) -&gt; &amp;str { "Nightshade" }
+    fn icon_bytes(&amp;self) -&gt; Option&lt;&amp;'static [u8]&gt; { ... }
     fn initialize(&amp;mut self, world: &amp;mut World) {}
     fn run_systems(&amp;mut self, world: &amp;mut World) {}
-    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {}
-    fn on_mouse_input(&amp;mut self, world: &amp;mut World, button: MouseButton, state: ElementState) {}
-    fn on_mouse_motion(&amp;mut self, world: &amp;mut World, delta: Vec2) {}
-    fn on_mouse_scroll(&amp;mut self, world: &amp;mut World, delta: Vec2) {}
-    fn on_window_resize(&amp;mut self, world: &amp;mut World, width: u32, height: u32) {}
+    fn ui(&amp;mut self, world: &amp;mut World, ctx: &amp;egui::Context) {}
+    fn secondary_ui(&amp;mut self, world: &amp;mut World, window_index: usize, ctx: &amp;egui::Context) {}
+    fn immediate_ui(&amp;mut self, world: &amp;mut World, ui: &amp;mut ImmediateUi) {}
+    fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key_code: KeyCode, key_state: ElementState) {}
+    fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {}
     fn on_gamepad_event(&amp;mut self, world: &amp;mut World, event: gilrs::Event) {}
+    fn handle_event(&amp;mut self, world: &amp;mut World, message: &amp;Message) {}
+    fn on_dropped_file(&amp;mut self, world: &amp;mut World, path: &amp;Path) {}
+    fn on_dropped_file_data(&amp;mut self, world: &amp;mut World, name: &amp;str, data: &amp;[u8]) {}
+    fn on_hovered_file(&amp;mut self, world: &amp;mut World, path: &amp;Path) {}
+    fn on_hovered_file_cancelled(&amp;mut self, world: &amp;mut World) {}
     fn configure_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, device: &amp;wgpu::Device, surface_format: wgpu::TextureFormat, resources: RenderResources) {}
+    fn update_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, world: &amp;World) {}
+    fn pre_render(&amp;mut self, renderer: &amp;mut dyn Render, world: &amp;mut World) {}
+    fn next_state(&amp;mut self, world: &amp;mut World) -&gt; Option&lt;Box&lt;dyn State&gt;&gt; { None }
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio-analyzer-fft-feature"><a class="header" href="#audio-analyzer-fft-feature">Audio Analyzer (fft feature)</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Create analyzer
-let mut analyzer = AudioAnalyzer::new();
+</span>let mut analyzer = AudioAnalyzer::new();
 analyzer.load_samples(samples, sample_rate);
 
-// Analyze at playback position
 analyzer.analyze_at_time(time_seconds);
 
-// Frequency bands (0.0-1.0)
-analyzer.sub_bass           // 20-60 Hz
-analyzer.bass               // 60-250 Hz
-analyzer.low_mids           // 250-500 Hz
-analyzer.mids               // 500-2000 Hz
-analyzer.high_mids          // 2000-4000 Hz
-analyzer.highs              // 4000-12000 Hz
+analyzer.sub_bass
+analyzer.bass
+analyzer.low_mids
+analyzer.mids
+analyzer.high_mids
+analyzer.highs
 
-// Smoothed versions
 analyzer.smoothed_bass
 analyzer.smoothed_mids
-// ... etc
 
-// Beat detection (decay from 1.0)
-analyzer.onset_detected     // bool
+analyzer.onset_detected
 analyzer.kick_decay
 analyzer.snare_decay
 analyzer.hat_decay
 
-// Tempo
-analyzer.estimated_bpm      // 60-200
-analyzer.beat_phase         // 0.0-1.0
+analyzer.estimated_bpm
+analyzer.beat_phase
 analyzer.beat_confidence
 
-// Structure detection
 analyzer.is_building
 analyzer.is_dropping
 analyzer.is_breakdown
 analyzer.build_intensity
 analyzer.drop_intensity
 
-// Spectral features
-analyzer.spectral_centroid  // Brightness
-analyzer.spectral_flatness  // Noise vs tonal
-analyzer.spectral_flux      // Rate of change
-analyzer.intensity          // Energy relative to average
+analyzer.spectral_centroid
+analyzer.spectral_flatness
+analyzer.spectral_flux
+analyzer.intensity
 <span class="boring">}</span></code></pre></pre>
 <h2 id="effects-pass"><a class="header" href="#effects-pass">Effects Pass</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::render::wgpu::passes::postprocess::effects::*;
 
-// Create state
 let effects_state = create_effects_state();
 
-// Modify effects
 if let Ok(mut state) = effects_state.write() {
     state.uniforms.chromatic_aberration = 0.02;
     state.uniforms.vignette = 0.3;
@@ -615,33 +659,40 @@ if let Ok(mut state) = effects_state.write() {
     state.uniforms.raymarch_blend = 0.5;
     state.enabled = true;
 }
-
-// Color grade modes: None, Cyberpunk, Sunset, Grayscale, Sepia, Matrix, HotMetal
-// Raymarch modes: Off, Tunnel, Fractal, Mandelbulb, PlasmaVortex, Geometric
 <span class="boring">}</span></code></pre></pre>
 <h2 id="debug-lines"><a class="header" href="#debug-lines">Debug Lines</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Spawn lines entity
-let lines = world.spawn_entities(LOCAL_TRANSFORM | LINES_COMPONENT, 1)[0];
+</span>let lines_entity = world.spawn_entities(LOCAL_TRANSFORM | LINES, 1)[0];
 
-// Set line data
-world.set_lines(lines, LinesComponent {
+world.set_lines(lines_entity, Lines {
     lines: vec![
-        Line { start: Vec3::zeros(), end: Vec3::new(1.0, 0.0, 0.0), color: [1.0, 0.0, 0.0, 1.0] },
-        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 1.0, 0.0), color: [0.0, 1.0, 0.0, 1.0] },
-        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 0.0, 1.0), color: [0.0, 0.0, 1.0, 1.0] },
+        Line { start: Vec3::zeros(), end: Vec3::new(1.0, 0.0, 0.0), color: Vec4::new(1.0, 0.0, 0.0, 1.0) },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 1.0, 0.0), color: Vec4::new(0.0, 1.0, 0.0, 1.0) },
+        Line { start: Vec3::zeros(), end: Vec3::new(0.0, 0.0, 1.0), color: Vec4::new(0.0, 0.0, 1.0, 1.0) },
     ],
+    version: 0,
+});
+<span class="boring">}</span></code></pre></pre>
+<h2 id="world-commands"><a class="header" href="#world-commands">World Commands</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.queue_command(WorldCommand::LoadTexture {
+    name: "my_texture".to_string(),
+    rgba_data: texture_bytes,
+    width: 256,
+    height: 256,
 });
 
-// Gizmos
-draw_gizmo_box(world, center, half_extents, color);
-draw_gizmo_sphere(world, center, radius, color);
-draw_gizmo_ray(world, origin, direction, length, color);
+world.queue_command(WorldCommand::DespawnRecursive { entity });
+world.queue_command(WorldCommand::LoadHdrSkybox { hdr_data });
+world.queue_command(WorldCommand::CaptureScreenshot { path: None });
+
+despawn_recursive_immediate(world, entity);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="running"><a class="header" href="#running">Running</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024">fn main() {
-    nightshade::run(MyGame::default());
+<pre><pre class="playground"><code class="language-rust edition2024">fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    nightshade::launch(MyGame::default())
 }</code></pre></pre>
 
                     </main>

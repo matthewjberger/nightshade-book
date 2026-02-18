@@ -185,19 +185,25 @@
 </span><span class="boring">fn main() {
 </span>pub struct Material {
     pub base_color: [f32; 4],
-    pub base_color_texture: Option&lt;String&gt;,
-    pub metallic: f32,
-    pub roughness: f32,
-    pub metallic_roughness_texture: Option&lt;String&gt;,
-    pub normal_texture: Option&lt;String&gt;,
-    pub normal_scale: f32,
-    pub occlusion_texture: Option&lt;String&gt;,
-    pub occlusion_strength: f32,
     pub emissive_factor: [f32; 3],
-    pub emissive_texture: Option&lt;String&gt;,
     pub alpha_mode: AlphaMode,
     pub alpha_cutoff: f32,
+    pub base_texture: Option&lt;String&gt;,
+    pub base_texture_uv_set: u32,
+    pub emissive_texture: Option&lt;String&gt;,
+    pub emissive_texture_uv_set: u32,
+    pub normal_texture: Option&lt;String&gt;,
+    pub normal_texture_uv_set: u32,
+    pub normal_scale: f32,
+    pub metallic_roughness_texture: Option&lt;String&gt;,
+    pub metallic_roughness_texture_uv_set: u32,
+    pub occlusion_texture: Option&lt;String&gt;,
+    pub occlusion_texture_uv_set: u32,
+    pub roughness: f32,
+    pub metallic: f32,
+    pub unlit: bool,
     pub double_sided: bool,
+    pub emissive_strength: f32,
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="creating-materials"><a class="header" href="#creating-materials">Creating Materials</a></h2>
@@ -291,7 +297,7 @@ world.queue_command(WorldCommand::LoadTexture {
 </span><span class="boring">fn main() {
 </span>let wood_material = Material {
     base_color: [1.0, 1.0, 1.0, 1.0],
-    base_color_texture: Some("wood".to_string()),
+    base_texture: Some("wood".to_string()),
     roughness: 0.8,
     metallic: 0.0,
     ..Default::default()
@@ -302,7 +308,7 @@ world.queue_command(WorldCommand::LoadTexture {
 </span><span class="boring">fn main() {
 </span>let brick_material = Material {
     base_color: [1.0, 1.0, 1.0, 1.0],
-    base_color_texture: Some("brick_color".to_string()),
+    base_texture: Some("brick_color".to_string()),
     normal_texture: Some("brick_normal".to_string()),
     normal_scale: 1.0,
     roughness: 0.9,
@@ -326,7 +332,7 @@ if let Some(&amp;index) = world.resources.material_registry.registry.name_to_ind
 }
 
 // Assign to entity
-world.set_material_ref(entity, MaterialRef::new("my_material".to_string()));
+world.set_material_ref(entity, MaterialRef::new("my_material"));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="procedural-textures"><a class="header" href="#procedural-textures">Procedural Textures</a></h2>
 <p>Generate textures at runtime:</p>

@@ -206,7 +206,7 @@
     world.resources.graphics.ssao_intensity = 1.0;
 
     // Tonemapping
-    world.resources.graphics.tonemap_method = TonemapMethod::Aces;
+    world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="bloom"><a class="header" href="#bloom">Bloom</a></h2>
@@ -241,18 +241,18 @@ world.resources.graphics.ssao_bias = 0.025;     // Depth comparison bias
 <p>Convert HDR colors to displayable range:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum TonemapMethod {
+</span>pub enum TonemapAlgorithm {
     Reinhard,         // Simple, good for general use
-    ReinhardExtended, // Reinhard with white point
     Aces,             // Film-like, high contrast
-    AcesApprox,       // Faster ACES approximation
-    Filmic,           // Cinematic look
+    Reinhard,         // Simple, preserves detail
+    ReinhardExtended, // Reinhard with white point
     Uncharted2,       // Video game standard
+    AgX,              // Neutral, balanced
+    Neutral,          // Minimal color shift
     None,             // No tonemapping (LDR only)
 }
 
-world.resources.graphics.tonemap_method = TonemapMethod::Aces;
-world.resources.graphics.exposure = 1.0;  // Brightness adjustment
+world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 <span class="boring">}</span></code></pre></pre>
 <h2 id="depth-of-field"><a class="header" href="#depth-of-field">Depth of Field</a></h2>
 <p>Blur based on distance from focus:</p>
@@ -290,12 +290,11 @@ world.resources.graphics.vignette_radius = 0.75;
     surface_format: wgpu::TextureFormat,
     resources: RenderResources,
 ) {
-    // Custom shader pass
     let custom_pass = MyCustomPass::new(device);
-    graph
-        .pass(Box::new(custom_pass))
-        .read("input", resources.scene_color)
-        .write("output", resources.post_processed);
+    graph.add_pass(
+        Box::new(custom_pass),
+        &amp;[("input", resources.scene_color), ("output", resources.post_processed)],
+    );
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>

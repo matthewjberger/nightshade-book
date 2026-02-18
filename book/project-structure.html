@@ -200,7 +200,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
+nightshade = { git = "https://github.com/matthewjberger/nightshade.git", features = ["engine", "wgpu"] }
 </code></pre>
 <h2 id="entry-point-mainrs"><a class="header" href="#entry-point-mainrs">Entry Point (main.rs)</a></h2>
 <p>Keep <code>main.rs</code> minimal:</p>
@@ -209,7 +209,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 use nightshade::prelude::*;
 
 fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    nightshade::run(game::MyGame::default())
+    nightshade::launch(game::MyGame::default())
 }</code></pre></pre>
 <h2 id="game-state-gamers"><a class="header" href="#game-state-gamers">Game State (game.rs)</a></h2>
 <p>Implement your game logic:</p>

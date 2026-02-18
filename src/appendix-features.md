@@ -62,7 +62,7 @@ Everything in `engine` plus all major optional features.
 nightshade = { git = "...", features = ["full"] }
 ```
 
-**Includes:** `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `mosaic`, `plugins`.
+**Includes:** `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `mosaic`, `editor`, `plugins`.
 
 ## Granular Features
 
@@ -292,7 +292,35 @@ Requires `egui`.
 nightshade = { git = "...", features = ["mosaic"] }
 ```
 
-**Key types:** `Mosaic`, `Widget`, `Pane`, `WidgetContext`, `ViewportWidget`, `ThemeState`, `Modals`, `Toasts`, `StatusBar`, `CommandPalette`, `ShortcutManager`, `History`, `Settings`, `EventLog`, `FpsCounter`, `MosaicConfig`
+**Key types:** `Mosaic`, `Widget`, `Pane`, `WidgetContext`, `ViewportWidget`, `ThemeState`, `Modals`, `Toasts`, `StatusBar`, `CommandPalette`, `ShortcutManager`, `Settings`, `EventLog`, `FpsCounter`, `MosaicConfig`, `ProjectSaveFile`, `LayoutEvent`
+
+### `editor`
+
+Scene editor infrastructure for building custom editors. Provides gizmo manipulation, undo/redo, component inspectors, entity picking, selection management, clipboard operations, keyboard shortcuts, scene tree UI, context menus, camera controls, and asset loading utilities.
+
+Requires `mosaic` and `picking`.
+
+```toml
+nightshade = { git = "...", features = ["editor"] }
+```
+
+**Provides:**
+- Transform gizmos (translate, rotate, scale) with local/global coordinate spaces
+- Modal transform operations (Blender-style G/R/S keys with axis constraints)
+- Undo/redo history with entity snapshots
+- Component inspector UI for all built-in components
+- GPU-based entity picking and marquee selection
+- Entity selection with multi-select, copy/paste, duplicate
+- Scene tree with drag-and-drop reparenting
+- Context menus and add-node modal
+- Camera view presets and ortho toggle
+- Keyboard shortcut handler (Blender-style)
+- Code editor with syntax highlighting (syntect, native only)
+- Clipboard integration (arboard, native only)
+
+**Additional Dependencies:** syntect (native only), arboard (native only)
+
+**Key types:** `EditorContext`, `UndoHistory`, `ComponentInspectorUi`, `InspectorContext`, `WorldTreeUi`, `EntitySelection`, `TreeCache`, `GizmoInteraction`, `InputSignal`
 
 ### `windows-app-icon`
 
@@ -412,6 +440,14 @@ nightshade = { git = "...", features = ["mosaic", "egui"] }
 
 Multi-pane desktop application with dockable widgets.
 
+### Custom Scene Editor
+
+```toml
+nightshade = { git = "...", features = ["editor", "fbx", "physics", "navmesh"] }
+```
+
+Full scene editor with gizmos, inspectors, undo/redo, FBX import, physics colliders, and navmesh editing.
+
 ## Feature Dependencies
 
 Some features have implicit dependencies:
@@ -420,8 +456,9 @@ Some features have implicit dependencies:
 |---------|------------|
 | `engine` | `runtime`, `assets`, `scene_graph`, `picking`, `terrain`, `file_dialog`, `async_runtime`, `screenshot` |
 | `runtime` | `core`, `text`, `behaviors` |
-| `full` | `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `mosaic`, `plugins` |
+| `full` | `engine`, `wgpu`, `egui`, `shell`, `audio`, `physics`, `gamepad`, `navmesh`, `scripting`, `fbx`, `lattice`, `sdf_sculpt`, `mosaic`, `editor`, `plugins` |
 | `mosaic` | `egui` |
+| `editor` | `mosaic`, `picking` |
 | `shell` | `egui` |
 | `fbx` | `assets` |
 | `scene_graph` | `assets` |
