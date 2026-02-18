@@ -12,16 +12,20 @@ Each frame executes in this order:
 3.  Calculate delta time
 4.  Begin egui frame (if enabled)
 5.  Call State::run_systems() - Your game logic
-6.  Dispatch EventBus messages
-7.  Update animation players
-8.  Apply animations to transforms
-9.  Propagate transform hierarchy
-10. Step physics simulation (fixed timestep)
-11. Sync physics transforms to ECS
-12. Update audio listener positions
-13. Execute render graph passes
-14. End egui frame
-15. Present to swapchain
+6.  Process MCP commands (if mcp feature enabled)
+    - Calls State::handle_mcp_command() (pre-hook)
+    - Executes command
+    - Calls State::after_mcp_command() (post-hook)
+7.  Dispatch EventBus messages
+8.  Update animation players
+9.  Apply animations to transforms
+10. Propagate transform hierarchy
+11. Step physics simulation (fixed timestep)
+12. Sync physics transforms to ECS
+13. Update audio listener positions
+14. Execute render graph passes
+15. End egui frame
+16. Present to swapchain
 ```
 
 ## Timing

@@ -206,6 +206,7 @@
     fn on_hovered_file_cancelled(&amp;mut self, _world: &amp;mut World) {}
     fn on_gamepad_event(&amp;mut self, _world: &amp;mut World, _event: gilrs::Event) {}
     fn on_mouse_input(&amp;mut self, _world: &amp;mut World, _state: ElementState, _button: MouseButton) {}
+    fn handle_mcp_command(&amp;mut self, _world: &amp;mut World, _command: &amp;McpCommand) -&gt; Option&lt;McpResponse&gt; { None }
 }
 <span class="boring">}</span></code></pre></pre>
 <p>All methods have default implementations, so you only need to implement the ones relevant to your game.</p>
@@ -407,6 +408,26 @@ fn on_hovered_file_cancelled(&amp;mut self, world: &amp;mut World) {
     self.show_drop_indicator = false;
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="handle_mcp_command"><a class="header" href="#handle_mcp_command">handle_mcp_command()</a></h3>
+<p>Intercept MCP commands before the engine processes them. Requires the <code>mcp</code> feature. Return <code>Some(response)</code> to handle a command yourself, or <code>None</code> to let the engine handle it with default behavior:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn handle_mcp_command(
+    &amp;mut self,
+    world: &amp;mut World,
+    command: &amp;McpCommand,
+) -&gt; Option&lt;McpResponse&gt; {
+    match command {
+        McpCommand::SpawnEntity { name, .. } =&gt; {
+            self.pending_scene_refresh = true;
+            None
+        }
+        _ =&gt; None,
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>See <a href="ai-integration.html">AI Integration</a> for full details on the MCP system.</p>
 <h3 id="handle_event"><a class="header" href="#handle_event">handle_event()</a></h3>
 <p>Handle custom EventBus messages:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -460,22 +481,6 @@ fn on_hovered_file_cancelled(&amp;mut self, world: &amp;mut World) {
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 

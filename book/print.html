@@ -2228,6 +2228,7 @@ let wave = (time * 2.0).sin();
     fn on_hovered_file_cancelled(&amp;mut self, _world: &amp;mut World) {}
     fn on_gamepad_event(&amp;mut self, _world: &amp;mut World, _event: gilrs::Event) {}
     fn on_mouse_input(&amp;mut self, _world: &amp;mut World, _state: ElementState, _button: MouseButton) {}
+    fn handle_mcp_command(&amp;mut self, _world: &amp;mut World, _command: &amp;McpCommand) -&gt; Option&lt;McpResponse&gt; { None }
 }
 <span class="boring">}</span></code></pre></pre>
 <p>All methods have default implementations, so you only need to implement the ones relevant to your game.</p>
@@ -2429,6 +2430,26 @@ fn on_hovered_file_cancelled(&amp;mut self, world: &amp;mut World) {
     self.show_drop_indicator = false;
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="handle_mcp_command"><a class="header" href="#handle_mcp_command">handle_mcp_command()</a></h3>
+<p>Intercept MCP commands before the engine processes them. Requires the <code>mcp</code> feature. Return <code>Some(response)</code> to handle a command yourself, or <code>None</code> to let the engine handle it with default behavior:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn handle_mcp_command(
+    &amp;mut self,
+    world: &amp;mut World,
+    command: &amp;McpCommand,
+) -&gt; Option&lt;McpResponse&gt; {
+    match command {
+        McpCommand::SpawnEntity { name, .. } =&gt; {
+            self.pending_scene_refresh = true;
+            None
+        }
+        _ =&gt; None,
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>See <a href="ai-integration.html">AI Integration</a> for full details on the MCP system.</p>
 <h3 id="handle_event"><a class="header" href="#handle_event">handle_event()</a></h3>
 <p>Handle custom EventBus messages:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -12073,7 +12094,247 @@ steam.open_overlay_to_user(friend_steam_id);
 <li>Desktop only (not available on WASM)</li>
 <li>Graceful handling if Steam is unavailable — check <code>is_initialized()</code> before using</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="webview"><a class="header" href="#webview">Webview</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="ai-integration"><a class="header" href="#ai-integration">AI Integration</a></h1>
+<p>Nightshade provides two features for AI integration: <code>mcp</code> for exposing the engine as a Model Context Protocol server, and <code>claude</code> for embedding Claude Code CLI as a subprocess. Both are native-only (not available on WASM).</p>
+<h2 id="mcp-server"><a class="header" href="#mcp-server">MCP Server</a></h2>
+<p>The <code>mcp</code> feature starts an HTTP-based MCP server on <code>http://127.0.0.1:3333/mcp</code> when the application launches. Any MCP-compatible client can connect and manipulate the running scene through structured tool calls.</p>
+<h3 id="setup-2"><a class="header" href="#setup-2">Setup</a></h3>
+<p>Enable the feature in <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["mcp"] }
+</code></pre>
+<p>The server starts automatically during engine initialization. No code changes are needed beyond enabling the feature.</p>
+<h3 id="connecting-claude-code"><a class="header" href="#connecting-claude-code">Connecting Claude Code</a></h3>
+<p>Register the running engine as an MCP server:</p>
+<pre><code class="language-bash">claude mcp add --transport http nightshade http://127.0.0.1:3333/mcp
+</code></pre>
+<p>Claude Code can then call any of the engine's MCP tools directly during a conversation.</p>
+<h3 id="available-tools"><a class="header" href="#available-tools">Available Tools</a></h3>
+<p>The MCP server exposes 50+ tools organized by category:</p>
+<p><strong>Entity Management</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>list_entities</code></td><td>List all named entities in the scene</td></tr>
+<tr><td><code>query_entity</code></td><td>Query detailed info about a specific entity (transform, material, components)</td></tr>
+<tr><td><code>spawn_entity</code></td><td>Spawn a new entity with mesh, position, scale, color, emissive, parent, and alpha mode</td></tr>
+<tr><td><code>despawn_entity</code></td><td>Remove an entity by name</td></tr>
+<tr><td><code>clear_scene</code></td><td>Remove all named entities</td></tr>
+</tbody></table>
+</div>
+<p><strong>Transforms</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>set_position</code></td><td>Set entity position as [x, y, z]</td></tr>
+<tr><td><code>set_rotation</code></td><td>Set entity rotation using euler angles in radians</td></tr>
+<tr><td><code>set_scale</code></td><td>Set entity scale as [x, y, z]</td></tr>
+<tr><td><code>set_parent</code></td><td>Set or clear the parent of an entity</td></tr>
+<tr><td><code>set_visibility</code></td><td>Show or hide an entity</td></tr>
+</tbody></table>
+</div>
+<p><strong>Materials</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>set_material_color</code></td><td>Set the base color of an entity</td></tr>
+<tr><td><code>set_emissive</code></td><td>Set emissive color (values &gt; 1.0 create HDR bloom)</td></tr>
+<tr><td><code>set_material</code></td><td>Set full material properties (roughness, metallic, colors, alpha mode)</td></tr>
+<tr><td><code>set_casts_shadow</code></td><td>Toggle shadow casting</td></tr>
+</tbody></table>
+</div>
+<p><strong>Lighting</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>spawn_light</code></td><td>Spawn a point, spot, or directional light</td></tr>
+<tr><td><code>set_light</code></td><td>Modify existing light properties (color, intensity, range, cone angles, shadows)</td></tr>
+</tbody></table>
+</div>
+<p><strong>Camera</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>set_camera</code></td><td>Set main camera position, target, and field of view</td></tr>
+</tbody></table>
+</div>
+<p><strong>Assets</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>load_asset</code></td><td>Load a 3D asset from file (.glb, .gltf, or .fbx)</td></tr>
+<tr><td><code>spawn_prefab</code></td><td>Spawn a loaded asset as a named entity</td></tr>
+<tr><td><code>list_loaded_assets</code></td><td>List all assets available for spawning</td></tr>
+</tbody></table>
+</div>
+<p><strong>Environment</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>set_atmosphere</code></td><td>Set skybox type (none, sky, cloudy_sky, space, nebula, sunset, hdr)</td></tr>
+<tr><td><code>load_hdr</code></td><td>Load an HDR skybox from file</td></tr>
+<tr><td><code>set_graphics</code></td><td>Configure bloom, SSAO, fog, tonemapping, DOF, gamma, saturation, grid, and more</td></tr>
+</tbody></table>
+</div>
+<p><strong>Effects</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>spawn_water</code></td><td>Spawn a water plane with wave parameters</td></tr>
+<tr><td><code>spawn_particles</code></td><td>Spawn a particle emitter with preset (fire, smoke, sparks, firework variants)</td></tr>
+<tr><td><code>set_particles</code></td><td>Modify emitter settings (enabled, spawn rate, emissive strength)</td></tr>
+<tr><td><code>spawn_decal</code></td><td>Spawn a projected texture decal</td></tr>
+</tbody></table>
+</div>
+<p><strong>Text</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>spawn_hud_text</code></td><td>Spawn a 2D HUD text element with anchor, font size, color, alignment</td></tr>
+<tr><td><code>set_hud_text</code></td><td>Modify an existing HUD text element</td></tr>
+<tr><td><code>spawn_3d_text</code></td><td>Spawn text in world space (optionally billboard)</td></tr>
+</tbody></table>
+</div>
+<p><strong>Physics</strong> (requires <code>physics</code> feature)</p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>add_rigid_body</code></td><td>Add a rigid body (dynamic, kinematic, or static)</td></tr>
+<tr><td><code>add_collider</code></td><td>Add a collider shape (ball, cuboid, capsule, cylinder)</td></tr>
+<tr><td><code>apply_impulse</code></td><td>Apply an instant impulse or torque impulse</td></tr>
+<tr><td><code>apply_force</code></td><td>Apply a continuous force or torque</td></tr>
+<tr><td><code>set_velocity</code></td><td>Set linear and/or angular velocity</td></tr>
+</tbody></table>
+</div>
+<p><strong>Animation</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>play_animation</code></td><td>Play an animation clip (by name or index) with looping, speed, and blend duration</td></tr>
+<tr><td><code>stop_animation</code></td><td>Stop animation playback</td></tr>
+<tr><td><code>list_animations</code></td><td>List available animation clips on an entity</td></tr>
+</tbody></table>
+</div>
+<p><strong>Scripting</strong> (requires <code>scripting</code> feature)</p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>set_script</code></td><td>Add or update a Rhai script on an entity</td></tr>
+<tr><td><code>remove_script</code></td><td>Remove a script from an entity</td></tr>
+<tr><td><code>set_game_state</code></td><td>Set values in the shared game state</td></tr>
+<tr><td><code>get_game_state</code></td><td>Read values from the shared game state</td></tr>
+</tbody></table>
+</div>
+<p><strong>Debug</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>add_line</code></td><td>Draw a debug line</td></tr>
+<tr><td><code>add_lines</code></td><td>Draw multiple debug lines</td></tr>
+<tr><td><code>clear_lines</code></td><td>Clear all debug lines</td></tr>
+<tr><td><code>get_input</code></td><td>Get current input state (pressed keys, mouse position)</td></tr>
+<tr><td><code>get_time</code></td><td>Get delta time and elapsed time</td></tr>
+</tbody></table>
+</div>
+<p><strong>Batch Operations</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>batch</code></td><td>Execute multiple operations atomically in a single frame</td></tr>
+<tr><td><code>run</code></td><td>Execute concise text commands (e.g. <code>spawn sun Sphere 0,0,0 scale:2 emissive:5,4,0</code>)</td></tr>
+</tbody></table>
+</div>
+<h3 id="intercepting-mcp-commands"><a class="header" href="#intercepting-mcp-commands">Intercepting MCP Commands</a></h3>
+<p>Applications can intercept MCP commands before the engine processes them by implementing <code>handle_mcp_command</code> on the <code>State</code> trait:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn handle_mcp_command(
+    &amp;mut self,
+    world: &amp;mut World,
+    command: &amp;McpCommand,
+) -&gt; Option&lt;McpResponse&gt; {
+    match command {
+        McpCommand::SpawnEntity { name, .. } =&gt; {
+            // Update editor scene tree after engine handles the spawn
+            self.pending_scene_refresh = true;
+            None // let engine handle it
+        }
+        McpCommand::DespawnEntity { name } =&gt; {
+            self.scene_tree.remove(name);
+            None // let engine handle it
+        }
+        McpCommand::ClearScene =&gt; {
+            self.scene_tree.clear();
+            None
+        }
+        _ =&gt; None,
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Return <code>Some(McpResponse)</code> to fully handle a command yourself (the engine skips its default handler), or <code>None</code> to let the engine process it normally. This is useful for:</p>
+<ul>
+<li>Reacting to MCP-driven changes with application-specific side effects (e.g. updating a scene tree)</li>
+<li>Blocking certain commands in specific contexts</li>
+<li>Implementing custom commands in the future</li>
+</ul>
+<h3 id="architecture-1"><a class="header" href="#architecture-1">Architecture</a></h3>
+<p>The MCP server runs on a background thread using tokio and axum. Communication with the main engine thread happens through lock-free queues:</p>
+<ol>
+<li>MCP client sends a tool call via HTTP</li>
+<li>The server deserializes the request into an <code>McpCommand</code> and pushes it to the command queue</li>
+<li>On the next frame, the engine drains the queue and processes each command</li>
+<li>Responses are written to the response queue</li>
+<li>The server reads the response and returns it to the MCP client</li>
+</ol>
+<p>Commands are processed once per frame, after <code>run_systems()</code> and before <code>run_frame_systems()</code>. This means MCP-driven changes are visible to the same frame's transform, physics, and rendering systems.</p>
+<h2 id="claude-code-cli"><a class="header" href="#claude-code-cli">Claude Code CLI</a></h2>
+<p>The <code>claude</code> feature provides a background worker for spawning Claude Code as a subprocess and streaming its JSON output. This lets applications embed an AI chat interface.</p>
+<h3 id="setup-3"><a class="header" href="#setup-3">Setup</a></h3>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["claude"] }
+</code></pre>
+<p>Requires the <code>claude</code> CLI to be installed and available on <code>PATH</code>.</p>
+<h3 id="usage"><a class="header" href="#usage">Usage</a></h3>
+<p>Create channels and spawn the worker:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let (command_sender, command_receiver, event_sender, event_receiver) =
+    nightshade::claude::create_cli_channels();
+
+nightshade::claude::spawn_cli_worker(
+    command_receiver,
+    event_sender,
+    ClaudeConfig {
+        system_prompt: Some("You are a scene designer.".to_string()),
+        mcp_config: McpConfig::Auto,
+        ..Default::default()
+    },
+);
+<span class="boring">}</span></code></pre></pre>
+<p>Send a query:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>command_sender.send(CliCommand::StartQuery {
+    prompt: "Create a forest scene with 10 trees".to_string(),
+    session_id: None,
+    model: None,
+}).ok();
+<span class="boring">}</span></code></pre></pre>
+<p>Poll for events each frame:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>while let Ok(event) = event_receiver.try_recv() {
+    match event {
+        CliEvent::TextDelta { text } =&gt; self.chat_buffer.push_str(&amp;text),
+        CliEvent::ThinkingDelta { text } =&gt; self.thinking_buffer.push_str(&amp;text),
+        CliEvent::ToolUseStarted { tool_name, .. } =&gt; {
+            self.status = format!("Using tool: {}", tool_name);
+        }
+        CliEvent::Complete { total_cost_usd, num_turns, .. } =&gt; {
+            self.status = format!("Done ({} turns)", num_turns);
+        }
+        CliEvent::Error { message } =&gt; {
+            self.status = format!("Error: {}", message);
+        }
+        _ =&gt; {}
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="claudeconfig"><a class="header" href="#claudeconfig">ClaudeConfig</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>system_prompt</code></td><td><code>Option&lt;String&gt;</code></td><td>Appended to Claude's system prompt via <code>--append-system-prompt</code></td></tr>
+<tr><td><code>allowed_tools</code></td><td><code>Option&lt;Vec&lt;String&gt;&gt;</code></td><td>Restrict which tools Claude can use (<code>--allowedTools</code>)</td></tr>
+<tr><td><code>disallowed_tools</code></td><td><code>Option&lt;Vec&lt;String&gt;&gt;</code></td><td>Block specific tools (<code>--disallowedTools</code>)</td></tr>
+<tr><td><code>mcp_config</code></td><td><code>McpConfig</code></td><td><code>Auto</code> (auto-connect to engine MCP), <code>Custom(json)</code>, or <code>None</code></td></tr>
+<tr><td><code>custom_args</code></td><td><code>Vec&lt;String&gt;</code></td><td>Additional CLI arguments passed directly to <code>claude</code></td></tr>
+</tbody></table>
+</div>
+<h3 id="auto-mcp-configuration"><a class="header" href="#auto-mcp-configuration">Auto MCP Configuration</a></h3>
+<p>When both <code>claude</code> and <code>mcp</code> features are enabled and <code>mcp_config</code> is set to <code>McpConfig::Auto</code> (the default), the worker automatically passes <code>--mcp-config</code> with a JSON payload pointing at <code>http://127.0.0.1:3333/mcp</code>. This means Claude Code can call engine tools without any manual <code>mcp add</code> step.</p>
+<h3 id="clievent-types"><a class="header" href="#clievent-types">CliEvent Types</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Event</th><th>Fields</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>SessionStarted</code></td><td><code>session_id</code></td><td>A new Claude session was created</td></tr>
+<tr><td><code>TextDelta</code></td><td><code>text</code></td><td>Incremental text output from Claude</td></tr>
+<tr><td><code>ThinkingDelta</code></td><td><code>text</code></td><td>Incremental thinking/reasoning output</td></tr>
+<tr><td><code>ToolUseStarted</code></td><td><code>tool_name</code>, <code>tool_id</code></td><td>Claude began calling a tool</td></tr>
+<tr><td><code>ToolUseInputDelta</code></td><td><code>tool_id</code>, <code>partial_json</code></td><td>Streaming tool input JSON</td></tr>
+<tr><td><code>ToolUseFinished</code></td><td><code>tool_id</code></td><td>Tool call completed</td></tr>
+<tr><td><code>TurnComplete</code></td><td><code>session_id</code></td><td>Claude finished a turn (may continue)</td></tr>
+<tr><td><code>Complete</code></td><td><code>session_id</code>, <code>total_cost_usd</code>, <code>num_turns</code></td><td>Full query completed</td></tr>
+<tr><td><code>Error</code></td><td><code>message</code></td><td>An error occurred</td></tr>
+</tbody></table>
+</div><div style="break-before: page; page-break-before: always;"></div><h1 id="webview"><a class="header" href="#webview">Webview</a></h1>
 <blockquote>
 <p>Requires feature: <code>webview</code></p>
 </blockquote>
@@ -12083,7 +12344,7 @@ steam.open_overlay_to_user(friend_steam_id);
 nightshade = { version = "...", features = ["webview"] }
 </code></pre>
 <p>This pulls in <code>wry</code> (Tauri's webview library) and <code>tiny_http</code> on desktop, and <code>wasm-bindgen</code>/<code>web-sys</code> on WASM.</p>
-<h2 id="architecture-1"><a class="header" href="#architecture-1">Architecture</a></h2>
+<h2 id="architecture-2"><a class="header" href="#architecture-2">Architecture</a></h2>
 <p>The webview system uses a generic <code>WebviewContext&lt;Cmd, Evt&gt;</code> where:</p>
 <ul>
 <li><code>Cmd</code> — command type sent from the web client to the engine</li>
@@ -15100,10 +15361,28 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <p><strong>Additional Dependencies:</strong> crossterm, rand, freecs</p>
 <h2 id="other-features"><a class="header" href="#other-features">Other Features</a></h2>
 <h3 id="mcp"><a class="header" href="#mcp"><code>mcp</code></a></h3>
-<p>Model Context Protocol server for AI-driven scene manipulation. Requires <code>async_runtime</code> and <code>behaviors</code>.</p>
+<p>Starts an HTTP-based <a href="https://modelcontextprotocol.io">Model Context Protocol</a> server on <code>http://127.0.0.1:3333/mcp</code> when the application launches. Any MCP client (Claude Code, Claude Desktop, or custom tooling) can connect and manipulate the running scene in real time through 50+ tools covering entities, transforms, materials, lighting, physics, animation, scripting, and more.</p>
+<p>Requires <code>async_runtime</code> and <code>behaviors</code>. Native only (not available on WASM).</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["mcp"] }
 </code></pre>
+<p>Connect Claude Code to the running engine:</p>
+<pre><code class="language-bash">claude mcp add --transport http nightshade http://127.0.0.1:3333/mcp
+</code></pre>
+<p>Applications can intercept MCP commands before the engine processes them by implementing <code>handle_mcp_command</code> on the <code>State</code> trait. See the <a href="ai-integration.html">AI Integration</a> chapter for details.</p>
 <p><strong>Additional Dependencies:</strong> axum, rmcp, schemars</p>
+<h3 id="claude"><a class="header" href="#claude"><code>claude</code></a></h3>
+<p>Provides types and a background worker thread for spawning Claude Code CLI as a subprocess and streaming its JSON output. This lets applications embed an AI assistant that can send queries, receive streamed responses (text, thinking, tool use events), and manage sessions.</p>
+<p>Native only (not available on WASM).</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["claude"] }
+</code></pre>
+<p>Key types:</p>
+<ul>
+<li><code>ClaudeConfig</code> — system prompt, allowed/disallowed tools, MCP config, custom CLI args</li>
+<li><code>CliCommand</code> — <code>StartQuery</code> (with prompt, optional session ID and model) and <code>Cancel</code></li>
+<li><code>CliEvent</code> — <code>SessionStarted</code>, <code>TextDelta</code>, <code>ThinkingDelta</code>, <code>ToolUseStarted</code>, <code>ToolUseInputDelta</code>, <code>ToolUseFinished</code>, <code>TurnComplete</code>, <code>Complete</code>, <code>Error</code></li>
+</ul>
+<p>When both <code>claude</code> and <code>mcp</code> are enabled, <code>McpConfig::Auto</code> automatically generates the MCP config JSON pointing at <code>http://127.0.0.1:3333/mcp</code>, so Claude Code connects to the engine without manual setup.</p>
+<p><strong>Additional Dependencies:</strong> serde_json</p>
 <h2 id="feature-combinations"><a class="header" href="#feature-combinations">Feature Combinations</a></h2>
 <h3 id="minimal-rendering-app"><a class="header" href="#minimal-rendering-app">Minimal Rendering App</a></h3>
 <pre><code class="language-toml">nightshade = { default-features = false, features = ["runtime", "wgpu", "egui"] }
@@ -15156,6 +15435,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <tr><td><code>tui</code></td><td><code>runtime</code>, <code>text</code></td></tr>
 <tr><td><code>plugin_runtime</code></td><td><code>assets</code></td></tr>
 <tr><td><code>mcp</code></td><td><code>async_runtime</code>, <code>behaviors</code></td></tr>
+<tr><td><code>claude</code></td><td>(none)</td></tr>
 <tr><td><code>tracy</code></td><td><code>tracing</code></td></tr>
 <tr><td><code>chrome</code></td><td><code>tracing</code></td></tr>
 <tr><td><code>openxr</code></td><td><code>wgpu</code> (Vulkan backend)</td></tr>
@@ -17346,22 +17626,6 @@ fetch('assets/model.glb')
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 

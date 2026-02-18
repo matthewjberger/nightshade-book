@@ -445,6 +445,8 @@ trait State {
     fn update_render_graph(&mut self, graph: &mut RenderGraph<World>, world: &World) {}
     fn pre_render(&mut self, renderer: &mut dyn Render, world: &mut World) {}
     fn next_state(&mut self, world: &mut World) -> Option<Box<dyn State>> { None }
+    fn handle_mcp_command(&mut self, world: &mut World, command: &McpCommand) -> Option<McpResponse> { None }
+    fn after_mcp_command(&mut self, world: &mut World, command: &McpCommand, response: &McpResponse) {}
 }
 ```
 

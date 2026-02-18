@@ -31,6 +31,8 @@ pub trait State {
     fn on_hovered_file_cancelled(&mut self, _world: &mut World) {}
     fn on_gamepad_event(&mut self, _world: &mut World, _event: gilrs::Event) {}
     fn on_mouse_input(&mut self, _world: &mut World, _state: ElementState, _button: MouseButton) {}
+    fn handle_mcp_command(&mut self, _world: &mut World, _command: &McpCommand) -> Option<McpResponse> { None }
+    fn after_mcp_command(&mut self, _world: &mut World, _command: &McpCommand, _response: &McpResponse) {}
 }
 ```
 
@@ -263,6 +265,55 @@ fn on_hovered_file(&mut self, world: &mut World, path: &Path) {
 
 fn on_hovered_file_cancelled(&mut self, world: &mut World) {
     self.show_drop_indicator = false;
+}
+```
+
+### handle_mcp_command()
+
+Intercept MCP commands before the engine processes them. Requires the `mcp` feature. Return `Some(response)` to handle a command yourself, or `None` to let the engine handle it with default behavior:
+
+```rust
+#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn handle_mcp_command(
+    &mut self,
+    world: &mut World,
+    command: &McpCommand,
+) -> Option<McpResponse> {
+    match command {
+        McpCommand::SpawnEntity { name, .. } => {
+            self.pending_scene_refresh = true;
+            None
+        }
+        _ => None,
+    }
+}
+```
+
+See [AI Integration](ai-integration.md) for full details on the MCP system.
+
+### after_mcp_command()
+
+Called after an MCP command has been processed (either by the engine or by your `handle_mcp_command` override). Receives both the command and the response. Useful for recording undo entries, refreshing UI state, or reacting to the outcome of MCP operations:
+
+```rust
+#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn after_mcp_command(
+    &mut self,
+    world: &mut World,
+    command: &McpCommand,
+    response: &McpResponse,
+) {
+    if let McpResponse::Success(_) = response {
+        match command {
+            McpCommand::SpawnEntity { name, .. } => {
+                self.scene_tree_dirty = true;
+            }
+            McpCommand::DespawnEntity { .. } => {
+                self.scene_tree_dirty = true;
+            }
+            _ => {}
+        }
+    }
 }
 ```
 

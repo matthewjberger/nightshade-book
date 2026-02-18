@@ -24,8 +24,10 @@
 - [Entity Component System](ecs.md)
   - [The freecs Macro](ecs-macro.md)
   - [Entities](entities.md)
+  - [Spawning Entities](spawning-entities.md)
   - [Components](components.md)
   - [Queries & Iteration](queries.md)
+  - [Querying Entities](querying-entities.md)
   - [Resources](ecs-resources.md)
   - [Tags, Events & Commands](tags-events-commands.md)
 - [Math & Coordinates](math.md)
@@ -92,6 +94,7 @@
 
 - [Audio System](audio-system.md)
 - [Spatial Audio](spatial-audio.md)
+- [Audio Analyzer](audio-analyzer.md)
 
 ---
 
@@ -99,6 +102,7 @@
 
 - [egui Integration](egui.md)
 - [Mosaic Framework](mosaic.md)
+- [Editor Infrastructure](editor.md)
 - [Immediate Mode UI](immediate-ui.md)
 - [HUD Text](hud-text.md)
 
@@ -123,7 +127,9 @@
 
 - [OpenXR VR](openxr.md)
 - [Steam Integration](steam.md)
+- [AI Integration](ai-integration.md)
 - [Webview](webview.md)
+- [File System](filesystem.md)
 - [WASM Plugins](plugins.md)
 
 ---

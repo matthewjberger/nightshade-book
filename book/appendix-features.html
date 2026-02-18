@@ -407,10 +407,28 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <p><strong>Additional Dependencies:</strong> crossterm, rand, freecs</p>
 <h2 id="other-features"><a class="header" href="#other-features">Other Features</a></h2>
 <h3 id="mcp"><a class="header" href="#mcp"><code>mcp</code></a></h3>
-<p>Model Context Protocol server for AI-driven scene manipulation. Requires <code>async_runtime</code> and <code>behaviors</code>.</p>
+<p>Starts an HTTP-based <a href="https://modelcontextprotocol.io">Model Context Protocol</a> server on <code>http://127.0.0.1:3333/mcp</code> when the application launches. Any MCP client (Claude Code, Claude Desktop, or custom tooling) can connect and manipulate the running scene in real time through 50+ tools covering entities, transforms, materials, lighting, physics, animation, scripting, and more.</p>
+<p>Requires <code>async_runtime</code> and <code>behaviors</code>. Native only (not available on WASM).</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["mcp"] }
 </code></pre>
+<p>Connect Claude Code to the running engine:</p>
+<pre><code class="language-bash">claude mcp add --transport http nightshade http://127.0.0.1:3333/mcp
+</code></pre>
+<p>Applications can intercept MCP commands before the engine processes them by implementing <code>handle_mcp_command</code> on the <code>State</code> trait. See the <a href="ai-integration.html">AI Integration</a> chapter for details.</p>
 <p><strong>Additional Dependencies:</strong> axum, rmcp, schemars</p>
+<h3 id="claude"><a class="header" href="#claude"><code>claude</code></a></h3>
+<p>Provides types and a background worker thread for spawning Claude Code CLI as a subprocess and streaming its JSON output. This lets applications embed an AI assistant that can send queries, receive streamed responses (text, thinking, tool use events), and manage sessions.</p>
+<p>Native only (not available on WASM).</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["claude"] }
+</code></pre>
+<p>Key types:</p>
+<ul>
+<li><code>ClaudeConfig</code> — system prompt, allowed/disallowed tools, MCP config, custom CLI args</li>
+<li><code>CliCommand</code> — <code>StartQuery</code> (with prompt, optional session ID and model) and <code>Cancel</code></li>
+<li><code>CliEvent</code> — <code>SessionStarted</code>, <code>TextDelta</code>, <code>ThinkingDelta</code>, <code>ToolUseStarted</code>, <code>ToolUseInputDelta</code>, <code>ToolUseFinished</code>, <code>TurnComplete</code>, <code>Complete</code>, <code>Error</code></li>
+</ul>
+<p>When both <code>claude</code> and <code>mcp</code> are enabled, <code>McpConfig::Auto</code> automatically generates the MCP config JSON pointing at <code>http://127.0.0.1:3333/mcp</code>, so Claude Code connects to the engine without manual setup.</p>
+<p><strong>Additional Dependencies:</strong> serde_json</p>
 <h2 id="feature-combinations"><a class="header" href="#feature-combinations">Feature Combinations</a></h2>
 <h3 id="minimal-rendering-app"><a class="header" href="#minimal-rendering-app">Minimal Rendering App</a></h3>
 <pre><code class="language-toml">nightshade = { default-features = false, features = ["runtime", "wgpu", "egui"] }
@@ -463,6 +481,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <tr><td><code>tui</code></td><td><code>runtime</code>, <code>text</code></td></tr>
 <tr><td><code>plugin_runtime</code></td><td><code>assets</code></td></tr>
 <tr><td><code>mcp</code></td><td><code>async_runtime</code>, <code>behaviors</code></td></tr>
+<tr><td><code>claude</code></td><td>(none)</td></tr>
 <tr><td><code>tracy</code></td><td><code>tracing</code></td></tr>
 <tr><td><code>chrome</code></td><td><code>tracing</code></td></tr>
 <tr><td><code>openxr</code></td><td><code>wgpu</code> (Vulkan backend)</td></tr>
@@ -524,22 +543,6 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 
         </div>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
 

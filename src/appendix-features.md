@@ -376,13 +376,42 @@ Crossterm-based terminal applications without the full rendering pipeline.
 
 ### `mcp`
 
-Model Context Protocol server for AI-driven scene manipulation. Requires `async_runtime` and `behaviors`.
+Starts an HTTP-based [Model Context Protocol](https://modelcontextprotocol.io) server on `http://127.0.0.1:3333/mcp` when the application launches. Any MCP client (Claude Code, Claude Desktop, or custom tooling) can connect and manipulate the running scene in real time through 50+ tools covering entities, transforms, materials, lighting, physics, animation, scripting, and more.
+
+Requires `async_runtime` and `behaviors`. Native only (not available on WASM).
 
 ```toml
 nightshade = { git = "...", features = ["mcp"] }
 ```
 
+Connect Claude Code to the running engine:
+
+```bash
+claude mcp add --transport http nightshade http://127.0.0.1:3333/mcp
+```
+
+Applications can intercept MCP commands before the engine processes them with `handle_mcp_command` and react to results with `after_mcp_command` on the `State` trait. See the [AI Integration](ai-integration.md) chapter for details.
+
 **Additional Dependencies:** axum, rmcp, schemars
+
+### `claude`
+
+Provides types and a background worker thread for spawning Claude Code CLI as a subprocess and streaming its JSON output. This lets applications embed an AI assistant that can send queries, receive streamed responses (text, thinking, tool use events), and manage sessions.
+
+Native only (not available on WASM).
+
+```toml
+nightshade = { git = "...", features = ["claude"] }
+```
+
+Key types:
+- `ClaudeConfig` — system prompt, allowed/disallowed tools, MCP config, custom CLI args
+- `CliCommand` — `StartQuery` (with prompt, optional session ID and model) and `Cancel`
+- `CliEvent` — `SessionStarted`, `TextDelta`, `ThinkingDelta`, `ToolUseStarted`, `ToolUseInputDelta`, `ToolUseFinished`, `TurnComplete`, `Complete`, `Error`
+
+When both `claude` and `mcp` are enabled, `McpConfig::Auto` automatically generates the MCP config JSON pointing at `http://127.0.0.1:3333/mcp`, so Claude Code connects to the engine without manual setup.
+
+**Additional Dependencies:** serde_json
 
 ## Feature Combinations
 
@@ -468,6 +497,7 @@ Some features have implicit dependencies:
 | `tui` | `runtime`, `text` |
 | `plugin_runtime` | `assets` |
 | `mcp` | `async_runtime`, `behaviors` |
+| `claude` | (none) |
 | `tracy` | `tracing` |
 | `chrome` | `tracing` |
 | `openxr` | `wgpu` (Vulkan backend) |
