@@ -179,15 +179,22 @@
 <blockquote>
 <p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/bloom">Bloom</a> | <a href="https://matthewberger.dev/nightshade/ssao">SSAO</a> | <a href="https://matthewberger.dev/nightshade/depth_of_field">Depth of Field</a></p>
 </blockquote>
-<p>Nightshade includes several post-processing effects that enhance visual quality.</p>
-<h2 id="available-effects"><a class="header" href="#available-effects">Available Effects</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Effect</th><th>Description</th></tr></thead><tbody>
-<tr><td>Bloom</td><td>Glow around bright areas</td></tr>
-<tr><td>SSAO</td><td>Screen-space ambient occlusion</td></tr>
-<tr><td>Depth of Field</td><td>Focus blur effect</td></tr>
-<tr><td>Tonemapping</td><td>HDR to LDR conversion</td></tr>
-<tr><td>Color Grading</td><td>Color adjustments</td></tr>
-<tr><td>Anti-Aliasing</td><td>Edge smoothing</td></tr>
+<p>Post-processing passes read the HDR scene color, depth, and normals to produce the final image. These passes are added in <code>configure_render_graph()</code>.</p>
+<h2 id="available-passes"><a class="header" href="#available-passes">Available Passes</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Pass</th><th>Description</th><th>Reads</th><th>Writes</th></tr></thead><tbody>
+<tr><td><code>SsaoPass</code></td><td>Screen-space ambient occlusion</td><td>depth, normals</td><td>ssao_raw</td></tr>
+<tr><td><code>SsaoBlurPass</code></td><td>Bilateral blur for SSAO</td><td>ssao_raw</td><td>ssao</td></tr>
+<tr><td><code>SsgiPass</code></td><td>Screen-space global illumination (half-res)</td><td>scene_color, depth, normals</td><td>ssgi_raw</td></tr>
+<tr><td><code>SsgiBlurPass</code></td><td>Bilateral blur for SSGI</td><td>ssgi_raw</td><td>ssgi</td></tr>
+<tr><td><code>SsrPass</code></td><td>Screen-space reflections</td><td>scene_color, depth, normals</td><td>ssr_raw</td></tr>
+<tr><td><code>SsrBlurPass</code></td><td>Blur for SSR</td><td>ssr_raw</td><td>ssr</td></tr>
+<tr><td><code>BloomPass</code></td><td>HDR bloom with mip chain</td><td>scene_color</td><td>bloom</td></tr>
+<tr><td><code>DepthOfFieldPass</code></td><td>Bokeh depth of field</td><td>scene_color, depth</td><td>scene_color</td></tr>
+<tr><td><code>PostProcessPass</code></td><td>Final tonemapping and compositing</td><td>scene_color, bloom, ssao</td><td>output</td></tr>
+<tr><td><code>EffectsPass</code></td><td>Custom shader effects</td><td>scene_color</td><td>scene_color</td></tr>
+<tr><td><code>OutlinePass</code></td><td>Selection outline</td><td>selection_mask</td><td>scene_color</td></tr>
+<tr><td><code>BlitPass</code></td><td>Simple texture copy</td><td>input</td><td>output</td></tr>
+<tr><td><code>ComputeGrayscalePass</code></td><td>Grayscale conversion</td><td>input</td><td>output</td></tr>
 </tbody></table>
 </div>
 <h2 id="enabling-effects"><a class="header" href="#enabling-effects">Enabling Effects</a></h2>
@@ -195,113 +202,138 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn initialize(&amp;mut self, world: &amp;mut World) {
-    // Bloom
     world.resources.graphics.bloom_enabled = true;
     world.resources.graphics.bloom_intensity = 0.3;
-    world.resources.graphics.bloom_threshold = 1.0;
 
-    // SSAO
     world.resources.graphics.ssao_enabled = true;
     world.resources.graphics.ssao_radius = 0.5;
     world.resources.graphics.ssao_intensity = 1.0;
 
-    // Tonemapping
     world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="bloom"><a class="header" href="#bloom">Bloom</a></h2>
-<p>Bloom creates a glow effect around bright pixels:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.graphics.bloom_enabled = true;
-world.resources.graphics.bloom_intensity = 0.5;  // Glow strength
-world.resources.graphics.bloom_threshold = 1.0;  // Brightness cutoff
-world.resources.graphics.bloom_radius = 0.005;   // Blur spread
-<span class="boring">}</span></code></pre></pre>
-<h3 id="emissive-materials-for-bloom"><a class="header" href="#emissive-materials-for-bloom">Emissive Materials for Bloom</a></h3>
-<p>Materials with emissive values will glow:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let glowing_material = Material {
-    base_color: [0.2, 0.8, 1.0, 1.0],
-    emissive_factor: [2.0, 8.0, 10.0],  // High values create bloom
-    ..Default::default()
-};
-<span class="boring">}</span></code></pre></pre>
 <h2 id="ssao-screen-space-ambient-occlusion"><a class="header" href="#ssao-screen-space-ambient-occlusion">SSAO (Screen-Space Ambient Occlusion)</a></h2>
-<p>SSAO adds subtle shadows in corners and crevices:</p>
+<p>In the real world, corners, crevices, and enclosed spaces receive less ambient light because surrounding geometry occludes incoming light from many directions. SSAO approximates this effect in screen space by analyzing the depth buffer.</p>
+<h3 id="how-ssao-works"><a class="header" href="#how-ssao-works">How SSAO Works</a></h3>
+<p>For each pixel, the shader reconstructs the 3D position from the depth buffer, then samples several random points in a hemisphere oriented along the surface normal. Each sample point is projected back into screen space to check the depth buffer: if the stored depth is closer than the sample point, that direction is occluded. The ratio of occluded samples to total samples gives the occlusion factor.</p>
+<p>The key inputs are:</p>
+<ul>
+<li><strong>Depth buffer</strong> - Provides the 3D position of each pixel</li>
+<li><strong>View-space normals</strong> - Orients the sampling hemisphere along the surface</li>
+<li><strong>Random noise</strong> - Rotates the sample kernel per-pixel to avoid banding patterns</li>
+</ul>
+<p>The raw SSAO output is noisy because of the limited sample count (typically 16-64 samples per pixel). A bilateral blur pass smooths the result while preserving edges (it avoids blurring across depth discontinuities, which would cause halos around objects).</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.resources.graphics.ssao_enabled = true;
-world.resources.graphics.ssao_radius = 0.5;     // Sample radius
-world.resources.graphics.ssao_intensity = 1.0;  // Shadow darkness
-world.resources.graphics.ssao_bias = 0.025;     // Depth comparison bias
+world.resources.graphics.ssao_radius = 0.5;
+world.resources.graphics.ssao_intensity = 1.0;
+world.resources.graphics.ssao_bias = 0.025;
+<span class="boring">}</span></code></pre></pre>
+<ul>
+<li><code>ssao_radius</code> - The hemisphere radius in world units. Larger values detect occlusion from farther geometry but can cause over-darkening.</li>
+<li><code>ssao_bias</code> - A small depth offset to prevent self-occlusion artifacts on flat surfaces.</li>
+<li><code>ssao_intensity</code> - Multiplier for the final occlusion factor.</li>
+</ul>
+<h2 id="ssgi-screen-space-global-illumination"><a class="header" href="#ssgi-screen-space-global-illumination">SSGI (Screen-Space Global Illumination)</a></h2>
+<p>In real-world lighting, light bounces between surfaces. A red wall next to a white floor tints the floor red. Traditional rasterization only computes direct lighting (light source to surface to camera). Global illumination (GI) adds these indirect bounces.</p>
+<p>SSGI approximates one bounce of indirect light using only screen-space information. For each pixel, the shader traces short rays through the depth buffer to find nearby surfaces, then samples the color at those hit points as incoming indirect light. This is conceptually similar to SSAO but samples color instead of just occlusion.</p>
+<p>SSGI is computed at half resolution for performance (the indirect illumination is low-frequency and doesn't need full resolution), then bilaterally blurred and upsampled.</p>
+<h2 id="ssr-screen-space-reflections"><a class="header" href="#ssr-screen-space-reflections">SSR (Screen-Space Reflections)</a></h2>
+<p>SSR adds dynamic reflections by ray-marching through the depth buffer. For each reflective pixel, the shader computes the reflection vector from the camera direction and the surface normal, then steps along that vector in screen space, checking the depth buffer at each step. When the ray intersects a surface (the ray's depth exceeds the depth buffer value), the color at that screen position becomes the reflection.</p>
+<p>This technique works well for reflections of on-screen geometry but has inherent limitations: off-screen objects cannot be reflected, and reflections at grazing angles stretch across large screen areas. The blur pass hides artifacts from these limitations, and a fallback to environment maps or IBL fills in where SSR has no data.</p>
+<h2 id="bloom"><a class="header" href="#bloom">Bloom</a></h2>
+<p>Bloom simulates the light scattering that occurs in real cameras and the human eye when bright light sources bleed into surrounding areas. In HDR rendering, pixels can have values above 1.0 (the displayable range). Bloom extracts these bright pixels and spreads their light outward.</p>
+<h3 id="how-bloom-works"><a class="header" href="#how-bloom-works">How Bloom Works</a></h3>
+<p>The bloom pipeline uses a progressive downsample/upsample approach (similar to the technique described in the Call of Duty: Advanced Warfare presentation):</p>
+<ol>
+<li><strong>Threshold</strong> - Extract pixels brighter than a threshold from the HDR scene color</li>
+<li><strong>Downsample chain</strong> - Progressively halve the resolution through multiple mip levels (e.g., 1920x1080 -&gt; 960x540 -&gt; 480x270 -&gt; ...), applying a blur at each step. This is much cheaper than blurring at full resolution because each mip level has 1/4 the pixels.</li>
+<li><strong>Upsample chain</strong> - Walk back up the mip chain, additively blending each level with the one above it. This produces a smooth, wide blur that spans many pixels without requiring a massive blur kernel.</li>
+<li><strong>Composite</strong> - Add the bloom result to the scene color during the final post-process pass.</li>
+</ol>
+<p>The mip-chain approach produces natural-looking bloom because it captures both tight glow (from the high-resolution mips) and wide glow (from the low-resolution mips) simultaneously.</p>
+<p>Bloom creates a glow effect around bright pixels using this mip-chain downsample/upsample approach:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.bloom_enabled = true;
+world.resources.graphics.bloom_intensity = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<p>Materials with high emissive values produce the strongest bloom:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let glowing = Material {
+    base_color: [0.2, 0.8, 1.0, 1.0],
+    emissive_factor: [2.0, 8.0, 10.0],
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h2 id="depth-of-field"><a class="header" href="#depth-of-field">Depth of Field</a></h2>
+<p>Depth of field simulates the optical behavior of a physical camera lens. A real lens can only focus at one distance; objects nearer or farther than the focal plane appear blurred. The amount of blur (the circle of confusion, or CoC) increases with distance from the focal plane and is controlled by the aperture size.</p>
+<h3 id="how-dof-works"><a class="header" href="#how-dof-works">How DoF Works</a></h3>
+<ol>
+<li><strong>CoC computation</strong> - For each pixel, compute the circle of confusion from the depth buffer value, the focus distance, and the aperture. The CoC is the diameter (in pixels) of the blur disc for that pixel.</li>
+<li><strong>Blur</strong> - Apply a variable-radius blur where the kernel size is proportional to the CoC. Pixels with large CoC values (far from focus) get blurred heavily; pixels near the focal plane remain sharp.</li>
+<li><strong>Bokeh</strong> - Bright out-of-focus highlights form characteristic shapes (circles, hexagons) called bokeh. The shader can emphasize bright pixels during the blur to simulate this optical effect.</li>
+</ol>
+<p>Focus blur based on distance from a focus plane:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.graphics.depth_of_field.enabled = true;
+world.resources.graphics.depth_of_field.focus_distance = 10.0;
+world.resources.graphics.depth_of_field.focus_range = 5.0;
+world.resources.graphics.depth_of_field.max_blur_radius = 10.0;
+world.resources.graphics.depth_of_field.bokeh_threshold = 1.0;
+world.resources.graphics.depth_of_field.bokeh_intensity = 1.0;
 <span class="boring">}</span></code></pre></pre>
 <h2 id="tonemapping"><a class="header" href="#tonemapping">Tonemapping</a></h2>
-<p>Convert HDR colors to displayable range:</p>
+<p>HDR rendering computes lighting in a physically linear color space where values can range from 0 to thousands. But displays can only show values between 0 and 1. Tonemapping is the process of compressing the HDR range into the displayable LDR range while preserving the perception of brightness differences and color relationships.</p>
+<p>Different tonemapping curves make different trade-offs:</p>
+<ul>
+<li><strong>Reinhard</strong> - Simple <code>color / (color + 1)</code> mapping. Preserves highlights but can look washed out.</li>
+<li><strong>ACES</strong> (Academy Color Encoding System) - Film-industry standard curve with good contrast and a slight warm tint. Widely used in games.</li>
+<li><strong>AgX</strong> - A more recent curve designed to handle highly saturated colors better than ACES (which can produce hue shifts in bright saturated regions).</li>
+<li><strong>Neutral</strong> - Minimal color manipulation, useful when color grading is handled externally.</li>
+</ul>
+<p>The <code>PostProcessPass</code> performs HDR-to-LDR tonemapping:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum TonemapAlgorithm {
-    Reinhard,         // Simple, good for general use
-    Aces,             // Film-like, high contrast
-    Reinhard,         // Simple, preserves detail
-    ReinhardExtended, // Reinhard with white point
-    Uncharted2,       // Video game standard
-    AgX,              // Neutral, balanced
-    Neutral,          // Minimal color shift
-    None,             // No tonemapping (LDR only)
+    Reinhard,
+    Aces,
+    ReinhardExtended,
+    Uncharted2,
+    AgX,
+    Neutral,
+    None,
 }
 
 world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 <span class="boring">}</span></code></pre></pre>
-<h2 id="depth-of-field"><a class="header" href="#depth-of-field">Depth of Field</a></h2>
-<p>Blur based on distance from focus:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.graphics.dof_enabled = true;
-world.resources.graphics.dof_focus_distance = 10.0;  // In-focus distance
-world.resources.graphics.dof_aperture = 0.05;        // Blur amount
-world.resources.graphics.dof_focal_length = 50.0;    // Lens simulation
-<span class="boring">}</span></code></pre></pre>
 <h2 id="color-grading"><a class="header" href="#color-grading">Color Grading</a></h2>
-<p>Adjust colors for stylistic effect:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.graphics.saturation = 1.0;   // 0 = grayscale, 1 = normal
-world.resources.graphics.contrast = 1.0;     // Higher = more contrast
-world.resources.graphics.brightness = 0.0;   // Offset
+</span>world.resources.graphics.color_grading.saturation = 1.0;
+world.resources.graphics.color_grading.contrast = 1.0;
+world.resources.graphics.color_grading.brightness = 0.0;
 <span class="boring">}</span></code></pre></pre>
-<h2 id="vignette"><a class="header" href="#vignette">Vignette</a></h2>
-<p>Darken screen edges:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.graphics.vignette_enabled = true;
-world.resources.graphics.vignette_intensity = 0.3;
-world.resources.graphics.vignette_radius = 0.75;
-<span class="boring">}</span></code></pre></pre>
+<h2 id="effects-pass"><a class="header" href="#effects-pass">Effects Pass</a></h2>
+<p>The <code>EffectsPass</code> runs custom WGSL shader effects for specialized visual treatments:</p>
+<ul>
+<li>Color grading presets</li>
+<li>Chromatic aberration</li>
+<li>Film grain</li>
+<li>Custom shader effects</li>
+</ul>
+<p>See <a href="effects-pass.html">Effects Pass</a> for details.</p>
 <h2 id="custom-post-processing"><a class="header" href="#custom-post-processing">Custom Post-Processing</a></h2>
-<p>Add custom passes via the render graph:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn configure_render_graph(
-    &amp;mut self,
-    graph: &amp;mut RenderGraph&lt;World&gt;,
-    device: &amp;wgpu::Device,
-    surface_format: wgpu::TextureFormat,
-    resources: RenderResources,
-) {
-    let custom_pass = MyCustomPass::new(device);
-    graph.add_pass(
-        Box::new(custom_pass),
-        &amp;[("input", resources.scene_color), ("output", resources.post_processed)],
-    );
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
-<p>Post-processing effects have performance costs:</p>
+<p>Add custom post-processing passes via the render graph. See <a href="render-graph-custom.html">Custom Passes</a> for implementation examples.</p>
+<h2 id="performance"><a class="header" href="#performance">Performance</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Effect</th><th>Cost</th><th>Notes</th></tr></thead><tbody>
-<tr><td>Bloom</td><td>Medium</td><td>Multiple blur passes</td></tr>
-<tr><td>SSAO</td><td>High</td><td>Many depth samples</td></tr>
+<tr><td>Bloom</td><td>Medium</td><td>Multiple blur passes at half resolution</td></tr>
+<tr><td>SSAO</td><td>High</td><td>Many depth samples per pixel</td></tr>
+<tr><td>SSGI</td><td>High</td><td>Half resolution helps, but still expensive</td></tr>
+<tr><td>SSR</td><td>High</td><td>Ray tracing through depth buffer</td></tr>
 <tr><td>DoF</td><td>Medium</td><td>Gaussian blur</td></tr>
 <tr><td>Tonemapping</td><td>Low</td><td>Per-pixel math</td></tr>
 <tr><td>Color Grading</td><td>Low</td><td>Per-pixel math</td></tr>
@@ -325,11 +357,11 @@ fn set_quality_high(world: &amp;mut World) {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="lighting.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="geometry-passes.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="render-graph.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="cameras.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -339,17 +371,33 @@ fn set_quality_high(world: &amp;mut World) {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="lighting.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="geometry-passes.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="render-graph.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="cameras.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

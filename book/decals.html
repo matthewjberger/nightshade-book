@@ -179,77 +179,75 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/decals">Decals</a></p>
 </blockquote>
-<p>Decals are textures projected onto scene geometry, commonly used for bullet holes, blood splatters, footprints, and environmental details.</p>
+<p>Decals are textures projected onto scene geometry using deferred projection through the depth buffer. They are used for bullet holes, blood splatters, footprints, scorch marks, and environmental details without modifying the underlying mesh geometry.</p>
+<h2 id="how-decal-rendering-works"><a class="header" href="#how-decal-rendering-works">How Decal Rendering Works</a></h2>
+<p>Each decal is rendered as a unit cube positioned and oriented in world space. The fragment shader reconstructs the world position of the scene geometry behind the cube by sampling the depth buffer, then transforms that position into the decal's local space using the inverse model matrix. If the reconstructed point falls within the decal's projection volume (±1 in XY, 0 to depth in Z), the decal texture is sampled at those local XY coordinates and blended onto the scene.</p>
+<p>The normal threshold test compares the scene surface normal (from the depth buffer gradients) against the decal's forward direction. Surfaces angled beyond the threshold are rejected, preventing decals from wrapping around sharp edges.</p>
+<p>Distance fade uses a smoothstep between <code>fade_start</code> and <code>fade_end</code> based on the camera-to-decal distance.</p>
 <h2 id="decal-component"><a class="header" href="#decal-component">Decal Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Decal {
-    pub texture: u32,
-    pub size: Vec3,
-    pub normal_threshold: f32,
-    pub fade_distance: f32,
-    pub emissive: bool,
+    pub texture: Option&lt;String&gt;,
+    pub emissive_texture: Option&lt;String&gt;,
     pub emissive_strength: f32,
+    pub color: [f32; 4],
+    pub size: Vec2,
+    pub depth: f32,
+    pub normal_threshold: f32,
+    pub fade_start: f32,
+    pub fade_end: f32,
 }
 <span class="boring">}</span></code></pre></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>texture</code></td><td><code>None</code></td><td>Texture name in the texture cache</td></tr>
+<tr><td><code>emissive_texture</code></td><td><code>None</code></td><td>Optional emissive texture for glowing decals</td></tr>
+<tr><td><code>emissive_strength</code></td><td><code>1.0</code></td><td>HDR multiplier for emissive texture</td></tr>
+<tr><td><code>color</code></td><td><code>[1, 1, 1, 1]</code></td><td>RGBA tint multiplied with the texture</td></tr>
+<tr><td><code>size</code></td><td><code>(1.0, 1.0)</code></td><td>Width and height of the projected decal</td></tr>
+<tr><td><code>depth</code></td><td><code>1.0</code></td><td>Projection depth (how far the decal penetrates into surfaces)</td></tr>
+<tr><td><code>normal_threshold</code></td><td><code>0.5</code></td><td>Surface angle cutoff (0 = accept all, 1 = perpendicular only)</td></tr>
+<tr><td><code>fade_start</code></td><td><code>50.0</code></td><td>Distance where fade begins</td></tr>
+<tr><td><code>fade_end</code></td><td><code>100.0</code></td><td>Distance where the decal is fully transparent</td></tr>
+</tbody></table>
+</div>
 <h2 id="spawning-decals"><a class="header" href="#spawning-decals">Spawning Decals</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn spawn_bullet_hole(world: &amp;mut World, position: Vec3, normal: Vec3) -&gt; Entity {
     let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | DECAL,
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | DECAL,
         1
     )[0];
 
-    let rotation = Quat::face_towards(&amp;normal, &amp;Vec3::y());
+    let rotation = nalgebra_glm::quat_look_at(&amp;normal, &amp;Vec3::y());
 
     world.set_local_transform(entity, LocalTransform {
         translation: position,
         rotation,
-        scale: Vec3::new(1.0, 1.0, 1.0),
+        ..Default::default()
     });
 
-    let texture_index = world.resources.texture_cache
-        .get_texture_index("bullet_hole")
-        .unwrap_or(0);
-
-    world.set_decal(entity, Decal {
-        texture: texture_index,
-        size: Vec3::new(0.2, 0.2, 0.1),
-        normal_threshold: 0.5,
-        fade_distance: 20.0,
-        emissive: false,
-        emissive_strength: 0.0,
-    });
+    world.set_decal(entity, Decal::new("bullet_hole")
+        .with_size(0.2, 0.2)
+        .with_depth(0.1)
+        .with_normal_threshold(0.5)
+        .with_fade(20.0, 30.0));
 
     entity
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="decal-properties"><a class="header" href="#decal-properties">Decal Properties</a></h2>
-<h3 id="size"><a class="header" href="#size">Size</a></h3>
-<p>The projected box size (width, height, depth):</p>
+<h2 id="builder-api"><a class="header" href="#builder-api">Builder API</a></h2>
+<p>The <code>Decal</code> struct supports a builder pattern:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>decal.size = Vec3::new(0.5, 0.5, 0.2);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="normal-threshold"><a class="header" href="#normal-threshold">Normal Threshold</a></h3>
-<p>Controls which surfaces receive the decal based on their angle to the decal's forward direction. Range 0-1 where 0 accepts all angles and 1 only perpendicular surfaces:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>decal.normal_threshold = 0.5;
-<span class="boring">}</span></code></pre></pre>
-<h3 id="fade-distance"><a class="header" href="#fade-distance">Fade Distance</a></h3>
-<p>Distance at which the decal fades out:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>decal.fade_distance = 50.0;
-<span class="boring">}</span></code></pre></pre>
-<h3 id="emissive-decals"><a class="header" href="#emissive-decals">Emissive Decals</a></h3>
-<p>For glowing decals like magic runes or neon signs:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>decal.emissive = true;
-decal.emissive_strength = 2.0;
+</span>let decal = Decal::new("texture_name")
+    .with_size(0.5, 0.5)
+    .with_depth(0.2)
+    .with_color([1.0, 0.0, 0.0, 1.0])
+    .with_normal_threshold(0.3)
+    .with_fade(30.0, 50.0)
+    .with_emissive("rune_glow", 3.0);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="common-use-cases"><a class="header" href="#common-use-cases">Common Use Cases</a></h2>
 <h3 id="blood-splatter"><a class="header" href="#blood-splatter">Blood Splatter</a></h3>
@@ -257,28 +255,53 @@ decal.emissive_strength = 2.0;
 </span><span class="boring">fn main() {
 </span>fn spawn_blood(world: &amp;mut World, position: Vec3, normal: Vec3) -&gt; Entity {
     let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | DECAL,
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | DECAL,
         1
     )[0];
 
-    let rotation = Quat::face_towards(&amp;normal, &amp;Vec3::y());
+    let rotation = nalgebra_glm::quat_look_at(&amp;normal, &amp;Vec3::y());
     let random_angle = rand::random::&lt;f32&gt;() * std::f32::consts::TAU;
-    let rotation = rotation * Quat::from_axis_angle(&amp;Vec3::z_axis(), random_angle);
+    let rotation = rotation * nalgebra_glm::quat_angle_axis(random_angle, &amp;Vec3::z());
 
     world.set_local_transform(entity, LocalTransform {
         translation: position,
         rotation,
-        scale: Vec3::new(1.0, 1.0, 1.0),
+        ..Default::default()
     });
 
-    world.set_decal(entity, Decal {
-        texture: world.resources.texture_cache.get_texture_index("blood").unwrap_or(0),
-        size: Vec3::new(0.8, 0.8, 0.1),
-        normal_threshold: 0.3,
-        fade_distance: 30.0,
-        emissive: false,
-        emissive_strength: 0.0,
+    world.set_decal(entity, Decal::new("blood")
+        .with_size(0.8, 0.8)
+        .with_depth(0.1)
+        .with_normal_threshold(0.3)
+        .with_fade(30.0, 50.0));
+
+    entity
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="emissive-rune"><a class="header" href="#emissive-rune">Emissive Rune</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_magic_rune(world: &amp;mut World, position: Vec3) -&gt; Entity {
+    let entity = world.spawn_entities(
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | DECAL,
+        1
+    )[0];
+
+    world.set_local_transform(entity, LocalTransform {
+        translation: position,
+        rotation: nalgebra_glm::quat_angle_axis(
+            -std::f32::consts::FRAC_PI_2,
+            &amp;Vec3::x(),
+        ),
+        ..Default::default()
     });
+
+    world.set_decal(entity, Decal::new("rune")
+        .with_size(2.0, 2.0)
+        .with_depth(0.5)
+        .with_normal_threshold(0.7)
+        .with_fade(50.0, 80.0)
+        .with_emissive("rune_glow", 3.0));
 
     entity
 }
@@ -288,11 +311,11 @@ decal.emissive_strength = 2.0;
 </span><span class="boring">fn main() {
 </span>fn spawn_footprint(world: &amp;mut World, position: Vec3, direction: Vec3, left: bool) -&gt; Entity {
     let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | DECAL,
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY | DECAL,
         1
     )[0];
 
-    let rotation = Quat::face_towards(&amp;Vec3::y(), &amp;direction);
+    let rotation = nalgebra_glm::quat_look_at(&amp;Vec3::y(), &amp;direction);
     let flip = if left { 1.0 } else { -1.0 };
 
     world.set_local_transform(entity, LocalTransform {
@@ -301,99 +324,15 @@ decal.emissive_strength = 2.0;
         scale: Vec3::new(flip, 1.0, 1.0),
     });
 
-    world.set_decal(entity, Decal {
-        texture: world.resources.texture_cache.get_texture_index("footprint").unwrap_or(0),
-        size: Vec3::new(0.15, 0.3, 0.05),
-        normal_threshold: 0.8,
-        fade_distance: 15.0,
-        emissive: false,
-        emissive_strength: 0.0,
-    });
+    world.set_decal(entity, Decal::new("footprint")
+        .with_size(0.15, 0.3)
+        .with_depth(0.05)
+        .with_normal_threshold(0.8)
+        .with_fade(15.0, 25.0));
 
     entity
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="magic-rune"><a class="header" href="#magic-rune">Magic Rune</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn spawn_magic_rune(world: &amp;mut World, position: Vec3) -&gt; Entity {
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | DECAL,
-        1
-    )[0];
-
-    world.set_local_transform(entity, LocalTransform {
-        translation: position,
-        rotation: Quat::from_axis_angle(&amp;Vec3::x_axis(), -std::f32::consts::FRAC_PI_2),
-        scale: Vec3::new(1.0, 1.0, 1.0),
-    });
-
-    world.set_decal(entity, Decal {
-        texture: world.resources.texture_cache.get_texture_index("rune").unwrap_or(0),
-        size: Vec3::new(2.0, 2.0, 0.5),
-        normal_threshold: 0.7,
-        fade_distance: 50.0,
-        emissive: true,
-        emissive_strength: 3.0,
-    });
-
-    entity
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="decal-pooling"><a class="header" href="#decal-pooling">Decal Pooling</a></h2>
-<p>For frequently spawned decals (bullets, footprints), use object pooling:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct DecalPool {
-    available: Vec&lt;Entity&gt;,
-    max_decals: usize,
-}
-
-impl DecalPool {
-    fn get_or_spawn(&amp;mut self, world: &amp;mut World) -&gt; Entity {
-        if let Some(entity) = self.available.pop() {
-            entity
-        } else {
-            world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | DECAL, 1)[0]
-        }
-    }
-
-    fn release(&amp;mut self, entity: Entity) {
-        if self.available.len() &lt; self.max_decals {
-            self.available.push(entity);
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="decal-lifetime"><a class="header" href="#decal-lifetime">Decal Lifetime</a></h2>
-<p>Decals can be set to fade out and despawn:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct DecalLifetime {
-    pub entity: Entity,
-    pub remaining: f32,
-    pub fade_start: f32,
-}
-
-fn update_decal_lifetimes(world: &amp;mut World, decals: &amp;mut Vec&lt;DecalLifetime&gt;, dt: f32) {
-    decals.retain_mut(|d| {
-        d.remaining -= dt;
-        if d.remaining &lt;= 0.0 {
-            world.despawn(d.entity);
-            false
-        } else {
-            true
-        }
-    });
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ul>
-<li>Use texture atlases to batch decals</li>
-<li>Limit total decal count (despawn oldest when limit reached)</li>
-<li>Reduce <code>size.z</code> (depth) to minimize overdraw</li>
-<li>Use object pooling for frequently spawned decals</li>
-</ul>
 
                     </main>
 
@@ -403,7 +342,7 @@ fn update_decal_lifetimes(world: &amp;mut World, decals: &amp;mut Vec&lt;DecalLi
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="physics-overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="sprites.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -417,13 +356,29 @@ fn update_decal_lifetimes(world: &amp;mut World, decals: &amp;mut Vec&lt;DecalLi
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="physics-overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="sprites.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

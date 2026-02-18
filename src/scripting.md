@@ -2,7 +2,7 @@
 
 > **Live Demo:** [Block Breaker with Scripts](https://matthewberger.dev/nightshade/block_breaker_scripts)
 
-Nightshade supports runtime scripting using [Rhai](https://rhai.rs/), an embedded scripting language for Rust.
+Nightshade supports runtime scripting using [Rhai](https://rhai.rs/), an embedded scripting language for Rust. Scripts run each frame and communicate with the engine through scope variables — reading entity transforms, input state, and time, then writing back updated positions, rotations, and commands.
 
 ## Enabling Scripting
 
@@ -16,300 +16,232 @@ nightshade = { git = "...", features = ["engine", "scripting"] }
 
 ```rust
 pub struct Script {
-    pub code: String,
-    pub compiled: Option<rhai::AST>,
+    pub source: ScriptSource,
+    pub enabled: bool,
 }
+
+pub enum ScriptSource {
+    File { path: String },
+    Embedded { source: String },
+}
+```
+
+Scripts can be loaded from a file path (with hot-reloading on native) or embedded as a string:
+
+```rust
+let script = Script::from_source(r#"
+    pos_x += dt * 5.0;
+"#);
+
+let script = Script::from_file("scripts/enemy.rhai");
 ```
 
 ## Attaching Scripts to Entities
 
 ```rust
-let entity = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | SCRIPT, 1)[0];
+let entity = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | SCRIPT,
+    1
+)[0];
 
-world.set_script(entity, Script {
-    code: r#"
-        fn update(dt) {
-            let pos = get_position(self);
-            set_position(self, pos.x + dt, pos.y, pos.z);
-        }
-    "#.to_string(),
-    compiled: None,
-});
+world.set_script(entity, Script::from_source(r#"
+    pos_y = (time * 2.0).sin() + 1.0;
+"#));
 ```
 
-## Script API
-
-Scripts have access to engine functions:
-
-### Transform Functions
+Scripts are disabled by default. Enable them to start execution:
 
 ```rust
-let pos = get_position(entity);
-set_position(entity, x, y, z);
-
-let rot = get_rotation(entity);
-set_rotation(entity, x, y, z, w);
-
-let scale = get_scale(entity);
-set_scale(entity, x, y, z);
+if let Some(script) = world.get_script_mut(entity) {
+    script.enabled = true;
+}
 ```
 
-### Entity Functions
+## Scope Variables
 
-```rust
-let new_entity = spawn_entity("cube", x, y, z);
+Scripts communicate with the engine entirely through variables injected into the Rhai scope. The system reads these variables after script execution to apply changes.
 
-despawn_entity(entity);
+### Transform Variables
 
-let parent = get_parent(entity);
-set_parent(child, parent);
+Read and write the entity's local transform:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `pos_x`, `pos_y`, `pos_z` | `f64` | Entity position |
+| `rot_x`, `rot_y`, `rot_z` | `f64` | Entity rotation (Euler angles in radians) |
+| `scale_x`, `scale_y`, `scale_z` | `f64` | Entity scale |
+
+Changes are only applied if the values actually differ from the current transform (compared with epsilon tolerance).
+
+### Time Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `dt` / `delta_time` | `f64` | Frame delta time in seconds |
+| `time` | `f64` | Accumulated total time since scripts started |
+
+### Input Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `mouse_x`, `mouse_y` | `f64` | Current mouse position |
+| `pressed_keys` | `Array` | Currently held key names (e.g., `["W", "SPACE"]`) |
+| `just_pressed_keys` | `Array` | Keys pressed this frame (not held from previous) |
+
+Key names are uppercase strings: `A`-`Z`, `0`-`9`, `SPACE`, `ENTER`, `ESCAPE`, `SHIFT`, `CTRL`, `ALT`, `TAB`, `BACKSPACE`, `UP`, `DOWN`, `LEFT`, `RIGHT`.
+
+### Entity Access
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `entity_id` | `i64` | This entity's ID (constant) |
+| `entities` | `Map` | Named entities with their positions and scales |
+| `entity_names` | `Array` | List of all named entity names |
+
+Access other entities by name:
+
+```rhai
+let player = entities["Player"];
+let player_x = player.x;
+let player_y = player.y;
+let player_z = player.z;
 ```
 
-### Component Access
+### Game State
 
-```rust
-let health = get_component(entity, "health");
-set_component(entity, "health", health - 10);
+A shared `state` map persists across frames and is accessible to all scripts:
 
-let has_enemy = has_component(entity, "enemy");
+```rhai
+state["score"] = state["score"] + 1.0;
+state["game_over"] = 1.0;
 ```
 
-### Audio
+State values are `f64`. The state map is shared across all script entities.
 
-```rust
-play_sound("explosion");
-play_sound_at(entity, "footstep");
-stop_sound(entity);
-```
+### Spawning and Despawning
 
-### Physics
+Set these variables to spawn or despawn entities:
 
-```rust
-apply_impulse(entity, x, y, z);
-apply_force(entity, x, y, z);
-set_velocity(entity, x, y, z);
-let vel = get_velocity(entity);
-```
-
-### Input
-
-```rust
-let pressed = is_key_pressed("W");
-let just_pressed = is_key_just_pressed("Space");
-let mouse_x = get_mouse_x();
-let mouse_y = get_mouse_y();
-let left_click = is_mouse_pressed("Left");
-```
-
-### Math
-
-```rust
-let dist = distance(x1, y1, z1, x2, y2, z2);
-let lerped = lerp(a, b, t);
-let clamped = clamp(value, min, max);
-let rand = random();
-let rand_range = random_range(min, max);
-```
-
-## Script Lifecycle
-
-### update(dt)
-
-Called every frame:
-
-```rust
-world.set_script(entity, Script {
-    code: r#"
-        fn update(dt) {
-            // Move forward
-            let pos = get_position(self);
-            let speed = 5.0;
-            set_position(self, pos.x + speed * dt, pos.y, pos.z);
-        }
-    "#.to_string(),
-    compiled: None,
-});
-```
-
-### on_collision(other)
-
-Called when colliding with another entity:
-
-```rust
-world.set_script(entity, Script {
-    code: r#"
-        fn on_collision(other) {
-            if has_component(other, "player") {
-                play_sound("pickup");
-                despawn_entity(self);
-            }
-        }
-    "#.to_string(),
-    compiled: None,
-});
-```
-
-### on_trigger_enter(other) / on_trigger_exit(other)
-
-Called when entering/exiting a trigger volume:
-
-```rust
-world.set_script(trigger, Script {
-    code: r#"
-        fn on_trigger_enter(other) {
-            if has_component(other, "player") {
-                open_door();
-            }
-        }
-
-        fn on_trigger_exit(other) {
-            if has_component(other, "player") {
-                close_door();
-            }
-        }
-    "#.to_string(),
-    compiled: None,
-});
-```
+| Variable | Type | Description |
+|----------|------|-------------|
+| `do_spawn_cube` | `bool` | Spawn a cube at `(spawn_cube_x/y/z)` |
+| `spawn_cube_x/y/z` | `f64` | Spawn position for cube |
+| `do_spawn_sphere` | `bool` | Spawn a sphere at `(spawn_sphere_x/y/z)` |
+| `spawn_sphere_x/y/z` | `f64` | Spawn position for sphere |
+| `do_despawn` | `bool` | Despawn this entity |
+| `despawn_names` | `Array` | Names of other entities to despawn |
 
 ## Example Scripts
 
-### Rotating Object
+### Moving Object
 
-```rust
-r#"
-    let rotation_speed = 1.0;
+```rhai
+let speed = 5.0;
+pos_x += speed * dt;
 
-    fn update(dt) {
-        let rot = get_rotation(self);
-        let angle = rotation_speed * dt;
-        rotate_y(self, angle);
-    }
-"#
+if pos_x > 10.0 {
+    pos_x = -10.0;
+}
+```
+
+### Keyboard Control
+
+```rhai
+let speed = 8.0;
+
+if pressed_keys.contains("W") { pos_z -= speed * dt; }
+if pressed_keys.contains("S") { pos_z += speed * dt; }
+if pressed_keys.contains("A") { pos_x -= speed * dt; }
+if pressed_keys.contains("D") { pos_x += speed * dt; }
+
+if just_pressed_keys.contains("SPACE") {
+    do_spawn_sphere = true;
+    spawn_sphere_x = pos_x;
+    spawn_sphere_y = pos_y + 1.0;
+    spawn_sphere_z = pos_z;
+}
 ```
 
 ### Follow Player
 
-```rust
-r#"
-    let speed = 3.0;
-    let player = null;
+```rhai
+let speed = 3.0;
 
-    fn init() {
-        player = find_entity("Player");
+if "Player" in entities {
+    let player = entities["Player"];
+    let dx = player.x - pos_x;
+    let dz = player.z - pos_z;
+    let dist = (dx * dx + dz * dz).sqrt();
+
+    if dist > 1.0 {
+        pos_x += (dx / dist) * speed * dt;
+        pos_z += (dz / dist) * speed * dt;
     }
-
-    fn update(dt) {
-        if player == null { return; }
-
-        let my_pos = get_position(self);
-        let player_pos = get_position(player);
-
-        let dx = player_pos.x - my_pos.x;
-        let dz = player_pos.z - my_pos.z;
-        let dist = sqrt(dx * dx + dz * dz);
-
-        if dist > 1.0 {
-            let nx = dx / dist;
-            let nz = dz / dist;
-            set_position(self,
-                my_pos.x + nx * speed * dt,
-                my_pos.y,
-                my_pos.z + nz * speed * dt
-            );
-        }
-    }
-"#
+}
 ```
 
-### Patrol Between Points
+### Rotating Object
 
-```rust
-r#"
-    let waypoints = [];
-    let current_waypoint = 0;
-    let speed = 2.0;
-    let threshold = 0.5;
-
-    fn init() {
-        waypoints = [
-            [0.0, 0.0, 0.0],
-            [10.0, 0.0, 0.0],
-            [10.0, 0.0, 10.0],
-            [0.0, 0.0, 10.0]
-        ];
-    }
-
-    fn update(dt) {
-        let pos = get_position(self);
-        let target = waypoints[current_waypoint];
-
-        let dx = target[0] - pos.x;
-        let dz = target[2] - pos.z;
-        let dist = sqrt(dx * dx + dz * dz);
-
-        if dist < threshold {
-            current_waypoint = (current_waypoint + 1) % waypoints.len();
-        } else {
-            let nx = dx / dist;
-            let nz = dz / dist;
-            set_position(self,
-                pos.x + nx * speed * dt,
-                pos.y,
-                pos.z + nz * speed * dt
-            );
-        }
-    }
-"#
+```rhai
+let rotation_speed = 1.0;
+rot_y += rotation_speed * dt;
 ```
 
-### Health Pickup
+### Bobbing Animation
 
-```rust
-r#"
-    let heal_amount = 25;
-    let respawn_time = 10.0;
-    let timer = 0.0;
-    let active = true;
+```rhai
+let amplitude = 0.5;
+let frequency = 2.0;
+pos_y = 1.0 + (time * frequency).sin() * amplitude;
+```
 
-    fn update(dt) {
-        if !active {
-            timer -= dt;
-            if timer <= 0.0 {
-                active = true;
-                set_visible(self, true);
-            }
-        }
-    }
+### Scorekeeping
 
-    fn on_trigger_enter(other) {
-        if !active { return; }
+```rhai
+if !("score" in state) {
+    state["score"] = 0.0;
+}
 
-        if has_component(other, "player") {
-            let health = get_component(other, "health");
-            set_component(other, "health", health + heal_amount);
-            play_sound("heal");
+if just_pressed_keys.contains("E") {
+    state["score"] = state["score"] + 10.0;
+}
+```
 
-            active = false;
-            timer = respawn_time;
-            set_visible(self, false);
-        }
-    }
-"#
+### Despawning Named Entities
+
+```rhai
+if just_pressed_keys.contains("X") {
+    despawn_names.push("Enemy_1");
+    despawn_names.push("Enemy_2");
+}
 ```
 
 ## Script Runtime
 
-The script runtime manages compilation and execution:
+The `ScriptRuntime` manages compilation, caching, and execution:
 
 ```rust
 pub struct ScriptRuntime {
-    engine: rhai::Engine,
-    scope: rhai::Scope<'static>,
+    pub engine: rhai::Engine,
+    pub game_state: HashMap<String, f64>,
 }
 ```
 
-### Registering Custom Functions
+Run the scripting system each frame:
+
+```rust
+fn run_systems(&mut self, world: &mut World) {
+    run_scripts_system(world, &mut self.script_runtime);
+}
+```
+
+### Script Compilation
+
+Scripts are compiled to AST on first execution and cached by a hash of the source code. Recompilation only occurs when the source changes. For file-based scripts, modification times are tracked and the script is automatically recompiled when the file changes (hot-reloading on native only).
+
+### Custom Functions
+
+Register additional Rhai functions:
 
 ```rust
 runtime.engine.register_fn("custom_function", |x: i64, y: i64| {
@@ -317,36 +249,16 @@ runtime.engine.register_fn("custom_function", |x: i64, y: i64| {
 });
 ```
 
-### Global Variables
+### Game State
+
+The runtime's `game_state` map is injected into every script's scope as the `state` variable. Values persist across frames:
 
 ```rust
-runtime.scope.push("game_difficulty", 1);
-runtime.scope.push("player_score", 0);
+runtime.set_state("difficulty".to_string(), 1.0);
+let score = runtime.get_state("score");
+runtime.reset_game_state();
 ```
 
-## Debugging Scripts
+## Hot Reloading
 
-### Print Statements
-
-```rust
-r#"
-    fn update(dt) {
-        print("Entity position: " + get_position(self).x);
-    }
-"#
-```
-
-### Error Handling
-
-Script errors are logged to the console:
-
-```
-[ERROR] Script error in entity 42: Variable 'undefined_var' not found
-```
-
-## Performance Tips
-
-- Scripts are compiled once and reused
-- Avoid heavy computation in update()
-- Use native Rust for performance-critical code
-- Minimize entity queries in scripts
+On native platforms, file-based scripts are automatically hot-reloaded when modified. The runtime tracks file modification times and invalidates the compiled cache when changes are detected. This allows editing scripts in an external editor while the game is running.

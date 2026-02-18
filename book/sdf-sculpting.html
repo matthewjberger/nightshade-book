@@ -179,86 +179,70 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/voxels">Voxels</a></p>
 </blockquote>
-<p>Nightshade includes a voxel-based Signed Distance Field (SDF) system for real-time terrain sculpting and procedural geometry.</p>
-<h2 id="sdf-world"><a class="header" href="#sdf-world">SDF World</a></h2>
-<p>The SDF system uses a sparse brick map for efficient storage:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct SdfWorld {
-    pub brick_map: SparseBrickMap,
-    pub materials: Vec&lt;SdfMaterial&gt;,
-    pub clipmap: SdfClipmap,
-}
-<span class="boring">}</span></code></pre></pre>
+<p>Nightshade includes a voxel-based Signed Distance Field (SDF) system for real-time terrain sculpting and procedural geometry. The system stores distance values in a sparse brick map organized as a multi-level clipmap, with edits applied as CSG operations on SDF primitives and re-evaluated on the GPU each frame.</p>
 <h2 id="enabling-sdf"><a class="header" href="#enabling-sdf">Enabling SDF</a></h2>
 <p>Add the <code>sdf_sculpt</code> feature:</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "sdf_sculpt"] }
 </code></pre>
-<h2 id="sdf-operations"><a class="header" href="#sdf-operations">SDF Operations</a></h2>
-<h3 id="union"><a class="header" href="#union">Union</a></h3>
-<p>Add material:</p>
+<h2 id="how-the-sdf-system-works"><a class="header" href="#how-the-sdf-system-works">How the SDF System Works</a></h2>
+<h3 id="sparse-brick-map"><a class="header" href="#sparse-brick-map">Sparse Brick Map</a></h3>
+<p>The SDF volume is stored as a sparse grid of bricks. Each brick covers an 8-voxel cube (8x8x8 voxels) with 9x9x9 corner distance samples. The extra corners provide overlap for trilinear interpolation across brick boundaries.</p>
+<p>Each <code>BrickData</code> stores:</p>
+<ul>
+<li><code>distances: [f32; 729]</code> (9^3 corner samples) — signed distance values at each corner</li>
+<li><code>material_ids: [u32; 512]</code> (8^3 voxel cells) — material index per voxel</li>
+</ul>
+<p>A <code>BrickPointerGrid</code> maps 3D brick coordinates to atlas slots using a 128x128x128 virtual grid with toroidal wrapping. Unoccupied bricks store -1 (empty). The brick atlas is a 3D texture: 450x450x450 texels on native (360x360x360 on WASM), subdivided into 50x50x50 brick slots of 9 texels each, for a maximum of 125,000 bricks.</p>
+<h3 id="clipmap-lod"><a class="header" href="#clipmap-lod">Clipmap LOD</a></h3>
+<p>The SDF uses a clipmap with 10 levels of detail (configurable via <code>SdfWorld::with_config</code>). Each level doubles the voxel size from the previous:</p>
+<div class="table-wrapper"><table><thead><tr><th>Level</th><th>Voxel Size</th><th>Brick Coverage</th><th>Grid Extent</th></tr></thead><tbody>
+<tr><td>0</td><td>0.125</td><td>1.0</td><td>128.0</td></tr>
+<tr><td>1</td><td>0.25</td><td>2.0</td><td>256.0</td></tr>
+<tr><td>2</td><td>0.5</td><td>4.0</td><td>512.0</td></tr>
+<tr><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+<tr><td>9</td><td>64.0</td><td>512.0</td><td>65,536.0</td></tr>
+</tbody></table>
+</div>
+<p>The clipmap centers on the camera position. When the camera moves, bricks that scroll out of a level's grid are deallocated and returned to the free list. Newly scrolled-in bricks are marked dirty and re-evaluated. A BVH over all edit bounds accelerates this: only bricks whose expanded AABB intersects at least one edit's bounds are marked dirty.</p>
+<h3 id="brick-allocation"><a class="header" href="#brick-allocation">Brick Allocation</a></h3>
+<p>A <code>BrickAllocator</code> manages atlas slots with a free list. When a dirty brick is evaluated and contains surface data (has both positive and negative distance values), it gets allocated a slot. Bricks with no surface are left empty. When bricks scroll out of the grid, their slots are returned to the free list for reuse.</p>
+<h3 id="gpu-dispatch"><a class="header" href="#gpu-dispatch">GPU Dispatch</a></h3>
+<p>Each frame, <code>SdfWorld::update()</code> collects dirty bricks across all clipmap levels and creates <code>GpuBrickDispatch</code> records sorted by distance from the camera (closest bricks evaluated first). A per-frame budget (<code>max_updates_per_frame</code>, default 4000) limits how many bricks are re-evaluated.</p>
+<h2 id="sdf-world"><a class="header" href="#sdf-world">SDF World</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>sdf_sculpt(
-    world,
-    position,
-    SdfPrimitive::Sphere { radius: 2.0 },
-    SdfOperation::Union,
-    material_index
-);
+</span>pub struct SdfWorld {
+    pub edits: Vec&lt;SdfEdit&gt;,
+    pub clipmap: SdfClipmap,
+    pub bvh: SdfEditBvh,
+    pub dirty: bool,
+    pub pending_gpu_dispatches: Vec&lt;GpuBrickDispatch&gt;,
+    pub max_updates_per_frame: usize,
+    pub terrain: TerrainConfig,
+    pub smoothness_scale: f32,
+}
 <span class="boring">}</span></code></pre></pre>
-<h3 id="subtraction"><a class="header" href="#subtraction">Subtraction</a></h3>
-<p>Remove material (carve):</p>
+<p>Create with default settings (10 levels, base voxel size 0.125):</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>sdf_sculpt(
-    world,
-    position,
-    SdfPrimitive::Sphere { radius: 1.5 },
-    SdfOperation::Subtraction,
-    0
-);
+</span>let sdf_world = SdfWorld::new();
 <span class="boring">}</span></code></pre></pre>
-<h3 id="intersection"><a class="header" href="#intersection">Intersection</a></h3>
-<p>Keep only overlapping regions:</p>
+<p>Or with custom LOD configuration:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>sdf_sculpt(
-    world,
-    position,
-    SdfPrimitive::Box { half_extents: Vec3::new(2.0, 2.0, 2.0) },
-    SdfOperation::Intersection,
-    material_index
-);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="smooth-operations"><a class="header" href="#smooth-operations">Smooth Operations</a></h3>
-<p>Blend operations for organic shapes:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>sdf_sculpt(
-    world,
-    position,
-    SdfPrimitive::Sphere { radius: 1.0 },
-    SdfOperation::SmoothUnion { smoothness: 0.5 },
-    material_index
-);
-
-sdf_sculpt(
-    world,
-    position,
-    SdfPrimitive::Sphere { radius: 0.8 },
-    SdfOperation::SmoothSubtraction { smoothness: 0.3 },
-    0
-);
+</span>let sdf_world = SdfWorld::with_config(8, 0.25);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="sdf-primitives"><a class="header" href="#sdf-primitives">SDF Primitives</a></h2>
+<p>Six primitive shapes are available, each with an analytic distance function evaluated in local space:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub enum SdfPrimitive {
     Sphere { radius: f32 },
     Box { half_extents: Vec3 },
-    Capsule { radius: f32, height: f32 },
-    Cylinder { radius: f32, height: f32 },
+    Cylinder { radius: f32, half_height: f32 },
+    Torus { major_radius: f32, minor_radius: f32 },
+    Capsule { radius: f32, half_height: f32 },
+    Plane { normal: Vec3, offset: f32 },
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="sphere"><a class="header" href="#sphere">Sphere</a></h3>
@@ -273,166 +257,292 @@ sdf_sculpt(
     half_extents: Vec3::new(1.0, 2.0, 0.5)
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="capsule"><a class="header" href="#capsule">Capsule</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>SdfPrimitive::Capsule {
-    radius: 0.5,
-    height: 2.0
-}
-<span class="boring">}</span></code></pre></pre>
 <h3 id="cylinder"><a class="header" href="#cylinder">Cylinder</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>SdfPrimitive::Cylinder {
     radius: 1.0,
-    height: 3.0
+    half_height: 1.5
 }
 <span class="boring">}</span></code></pre></pre>
+<h3 id="torus"><a class="header" href="#torus">Torus</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Torus {
+    major_radius: 2.0,
+    minor_radius: 0.5
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="capsule"><a class="header" href="#capsule">Capsule</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Capsule {
+    radius: 0.5,
+    half_height: 1.0
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="plane"><a class="header" href="#plane">Plane</a></h3>
+<p>An infinite half-space defined by a normal direction and offset:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>SdfPrimitive::Plane {
+    normal: Vec3::new(0.0, 1.0, 0.0),
+    offset: 0.0,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="csg-operations"><a class="header" href="#csg-operations">CSG Operations</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum CsgOperation {
+    Union,
+    Subtraction,
+    Intersection,
+    SmoothUnion { smoothness: f32 },
+    SmoothSubtraction { smoothness: f32 },
+    SmoothIntersection { smoothness: f32 },
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The hard operations use min/max:</p>
+<div class="table-wrapper"><table><thead><tr><th>Operation</th><th>Formula</th></tr></thead><tbody>
+<tr><td>Union</td><td><code>min(a, b)</code></td></tr>
+<tr><td>Subtraction</td><td><code>max(a, -b)</code></td></tr>
+<tr><td>Intersection</td><td><code>max(a, b)</code></td></tr>
+</tbody></table>
+</div>
+<p>The smooth variants use polynomial smooth min (<code>h = clamp(0.5 + 0.5*(b-a)/k, 0, 1)</code>) for organic blending between shapes. The <code>smoothness</code> parameter controls the blend radius — larger values create a wider transition zone.</p>
+<p>Material blending during smooth operations uses a dither threshold: when the blend factor exceeds 0.5, the first material is used; otherwise the second.</p>
+<h2 id="sdf-edits"><a class="header" href="#sdf-edits">SDF Edits</a></h2>
+<p>An <code>SdfEdit</code> combines a primitive, a CSG operation, a 4x4 transform, and a material ID. The transform is stored alongside its precomputed inverse and uniform scale factor for efficient evaluation:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let edit = SdfEdit::union(
+    SdfPrimitive::Sphere { radius: 2.0 },
+    nalgebra_glm::translation(&amp;Vec3::new(0.0, 5.0, 0.0)),
+    material_id,
+);
+
+let edit = SdfEdit::smooth_subtraction(
+    SdfPrimitive::Sphere { radius: 1.5 },
+    nalgebra_glm::translation(&amp;position),
+    0,
+    0.5,
+);
+
+let edit = SdfEdit::from_operation(
+    SdfPrimitive::Box { half_extents: Vec3::new(1.0, 1.0, 1.0) },
+    CsgOperation::SmoothUnion { smoothness: 0.3 },
+    transform,
+    material_id,
+);
+<span class="boring">}</span></code></pre></pre>
+<p>To evaluate an edit at a world-space point, the point is transformed into local space via the inverse matrix, the primitive's distance function is evaluated, and the result is scaled by the uniform scale factor.</p>
+<h2 id="adding-and-modifying-edits"><a class="header" href="#adding-and-modifying-edits">Adding and Modifying Edits</a></h2>
+<h3 id="convenience-methods"><a class="header" href="#convenience-methods">Convenience Methods</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.sdf_world.add_sphere(center, 2.0, material_id);
+world.resources.sdf_world.add_box(center, half_extents, material_id);
+world.resources.sdf_world.add_ground_plane(0.0, material_id);
+world.resources.sdf_world.subtract_sphere(center, 1.5, 0.3);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="direct-edit-api"><a class="header" href="#direct-edit-api">Direct Edit API</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let index = world.resources.sdf_world.add_edit(edit);
+<span class="boring">}</span></code></pre></pre>
+<p>Each <code>add_edit</code> call pushes an undo action onto the undo stack and clears the redo stack. Use <code>add_edit_no_undo</code> to bypass undo tracking (useful for procedural generation).</p>
+<h3 id="modifying-existing-edits"><a class="header" href="#modifying-existing-edits">Modifying Existing Edits</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.sdf_world.modify_edit(index, |edit| {
+    edit.set_transform(new_transform);
+});
+<span class="boring">}</span></code></pre></pre>
+<p>This marks both the old and new bounds as dirty. Use <code>modify_edit_no_undo</code> for interactive sculpting where intermediate states shouldn't be individually undoable.</p>
+<h3 id="removing-edits"><a class="header" href="#removing-edits">Removing Edits</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.sdf_world.remove_edit(index);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="undoredo"><a class="header" href="#undoredo">Undo/Redo</a></h2>
+<p>The SDF world maintains undo and redo stacks (default max 100 entries):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if world.resources.sdf_world.can_undo() {
+    world.resources.sdf_world.undo();
+}
+
+if world.resources.sdf_world.can_redo() {
+    world.resources.sdf_world.redo();
+}
+
+world.resources.sdf_world.clear_undo_history();
+<span class="boring">}</span></code></pre></pre>
+<p>Three action types are tracked: <code>AddEdit</code>, <code>RemoveEdit</code>, and <code>ModifyEdit</code>. Each undo/redo operation re-marks the affected bounds as dirty and triggers re-evaluation.</p>
 <h2 id="sdf-materials"><a class="header" href="#sdf-materials">SDF Materials</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct SdfMaterial {
-    pub color: Vec3,
+    pub base_color: Vec3,
     pub roughness: f32,
     pub metallic: f32,
+    pub emissive: Vec3,
 }
+<span class="boring">}</span></code></pre></pre>
+<p>Materials are managed through the <code>SdfMaterialRegistry</code> resource. A default material (gray, roughness 0.5, non-metallic) is always present at index 0:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let rock = world.resources.sdf_material_registry.add_material(
+    SdfMaterial::new(Vec3::new(0.5, 0.45, 0.4))
+        .with_roughness(0.9)
+);
 
-world.resources.sdf_world.materials.push(SdfMaterial {
-    color: Vec3::new(0.5, 0.3, 0.2),
-    roughness: 0.8,
-    metallic: 0.0,
+let gold = world.resources.sdf_material_registry.add_material(
+    SdfMaterial::new(Vec3::new(1.0, 0.84, 0.0))
+        .with_roughness(0.3)
+        .with_metallic(1.0)
+);
+
+let lava = world.resources.sdf_material_registry.add_material(
+    SdfMaterial::new(Vec3::new(0.8, 0.2, 0.0))
+        .with_roughness(0.7)
+        .with_emissive(Vec3::new(5.0, 1.0, 0.0))
+);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="sdf-raycast"><a class="header" href="#sdf-raycast">SDF Raycast</a></h2>
+<p>The SDF world provides CPU-side sphere tracing (up to 512 steps) for picking and collision:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let origin = ray.origin;
+let direction = ray.direction;
+let max_distance = 100.0;
+
+if let Some(hit_point) = world.resources.sdf_world.raycast(origin, direction, max_distance) {
+    let normal = world.resources.sdf_world.evaluate_normal_at(hit_point);
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The raycast marches along the ray, stepping by the evaluated distance at each point (with a minimum step of half the base voxel size to avoid getting stuck inside surfaces). A hit is detected when the absolute distance falls below 0.1 times the base voxel size.</p>
+<p>Normal estimation uses central differences: the gradient of the distance field is computed by evaluating at six points offset by half the base voxel size along each axis.</p>
+<h2 id="terrain-generation"><a class="header" href="#terrain-generation">Terrain Generation</a></h2>
+<p>The SDF system includes built-in fBm (fractal Brownian motion) terrain with derivative-based dampening and domain rotation between octaves:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct TerrainConfig {
+    pub enabled: bool,
+    pub base_height: f32,
+    pub material_id: u32,
+    pub seed: u32,
+    pub frequency: f32,
+    pub amplitude: f32,
+    pub octaves: u32,
+    pub lacunarity: f32,
+    pub gain: f32,
+}
+<span class="boring">}</span></code></pre></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>enabled</code></td><td><code>false</code></td><td>Whether terrain is active</td></tr>
+<tr><td><code>base_height</code></td><td><code>0.0</code></td><td>Vertical offset of the terrain surface</td></tr>
+<tr><td><code>material_id</code></td><td><code>0</code></td><td>SDF material index for the terrain</td></tr>
+<tr><td><code>seed</code></td><td><code>0</code></td><td>Hash seed for noise generation</td></tr>
+<tr><td><code>frequency</code></td><td><code>0.01</code></td><td>Base noise frequency (lower = broader features)</td></tr>
+<tr><td><code>amplitude</code></td><td><code>30.0</code></td><td>Maximum height variation</td></tr>
+<tr><td><code>octaves</code></td><td><code>11</code></td><td>Number of noise layers</td></tr>
+<tr><td><code>lacunarity</code></td><td><code>2.0</code></td><td>Frequency multiplier per octave</td></tr>
+<tr><td><code>gain</code></td><td><code>0.5</code></td><td>Amplitude multiplier per octave</td></tr>
+</tbody></table>
+</div>
+<p>Enable terrain:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.resources.sdf_world.set_terrain_config(TerrainConfig {
+    enabled: true,
+    base_height: -5.0,
+    frequency: 0.02,
+    amplitude: 20.0,
+    octaves: 8,
+    seed: 42,
+    ..Default::default()
 });
+<span class="boring">}</span></code></pre></pre>
+<p>The terrain noise uses quintic smoothstep interpolation (<code>6t^5 - 15t^4 + 10t^3</code>) with analytic derivatives for gradient computation. Each octave applies a 2D rotation matrix (<code>[1.6, -1.2; 1.2, 1.6]</code>) to the sample coordinates before the next octave, which reduces directional artifacts. The derivative accumulator dampens amplitude in areas of high gradient, producing naturally eroded ridgelines.</p>
+<p>Terrain is evaluated only in the first 4 clipmap levels (highest detail) to avoid excessive computation at coarse LODs.</p>
+<p>Query terrain height at a world XZ position:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let height = world.resources.sdf_world.terrain.height_at(x, z);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="sculpting-tool-example"><a class="header" href="#sculpting-tool-example">Sculpting Tool Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct SculptTool {
     brush_size: f32,
-    material: usize,
-    operation: SdfOperation,
+    material_id: u32,
+    operation: CsgOperation,
 }
 
 fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let input = &amp;world.resources.input;
+    if world.resources.input.mouse.left_pressed {
+        let screen_pos = world.resources.input.mouse.position;
+        let ray = PickingRay::from_screen_position(world, screen_pos);
 
-    if input.mouse_buttons.left {
-        let ray = screen_to_ray(world, input.mouse_position.x, input.mouse_position.y);
+        if let Some(ray) = ray {
+            if let Some(hit) = world.resources.sdf_world.raycast(
+                ray.origin,
+                ray.direction,
+                100.0,
+            ) {
+                let normal = world.resources.sdf_world.evaluate_normal_at(hit);
 
-        if let Some(hit) = sdf_raycast(world, ray) {
-            let sculpt_pos = match self.tool.operation {
-                SdfOperation::Union =&gt; hit.point + hit.normal * self.tool.brush_size * 0.5,
-                SdfOperation::Subtraction =&gt; hit.point - hit.normal * self.tool.brush_size * 0.5,
-                _ =&gt; hit.point,
-            };
+                let sculpt_pos = match self.tool.operation {
+                    CsgOperation::Union | CsgOperation::SmoothUnion { .. } =&gt; {
+                        hit + normal * self.tool.brush_size * 0.5
+                    }
+                    CsgOperation::Subtraction | CsgOperation::SmoothSubtraction { .. } =&gt; {
+                        hit - normal * self.tool.brush_size * 0.5
+                    }
+                    _ =&gt; hit,
+                };
 
-            sdf_sculpt(
-                world,
-                sculpt_pos,
-                SdfPrimitive::Sphere { radius: self.tool.brush_size },
-                self.tool.operation.clone(),
-                self.tool.material
-            );
+                let edit = SdfEdit::from_operation(
+                    SdfPrimitive::Sphere { radius: self.tool.brush_size },
+                    self.tool.operation,
+                    nalgebra_glm::translation(&amp;sculpt_pos),
+                    self.tool.material_id,
+                );
+                world.resources.sdf_world.add_edit(edit);
+            }
         }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="procedural-generation"><a class="header" href="#procedural-generation">Procedural Generation</a></h2>
-<h3 id="terrain"><a class="header" href="#terrain">Terrain</a></h3>
+<h2 id="evaluating-the-distance-field"><a class="header" href="#evaluating-the-distance-field">Evaluating the Distance Field</a></h2>
+<p>Query the combined SDF (terrain + all edits) at any world-space point:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn generate_sdf_terrain(world: &amp;mut World, size: f32, height: f32) {
-    let noise = FastNoise::new();
-    noise.set_noise_type(NoiseType::Perlin);
-    noise.set_frequency(0.02);
+</span>let distance = world.resources.sdf_world.evaluate_at(point);
 
-    for x in (-size as i32)..(size as i32) {
-        for z in (-size as i32)..(size as i32) {
-            let fx = x as f32;
-            let fz = z as f32;
-            let h = noise.get_noise(fx, fz) * height;
-
-            sdf_sculpt(
-                world,
-                Vec3::new(fx, h * 0.5, fz),
-                SdfPrimitive::Box {
-                    half_extents: Vec3::new(0.5, h.abs() * 0.5 + 0.1, 0.5)
-                },
-                SdfOperation::Union,
-                0
-            );
-        }
-    }
-}
+let distance_lod = world.resources.sdf_world.evaluate_at_lod(point, 6);
 <span class="boring">}</span></code></pre></pre>
-<h3 id="cave-system"><a class="header" href="#cave-system">Cave System</a></h3>
+<p>The <code>evaluate_at_lod</code> variant limits the terrain noise octaves for cheaper evaluation at coarse LODs.</p>
+<h2 id="updating-the-sdf-world"><a class="header" href="#updating-the-sdf-world">Updating the SDF World</a></h2>
+<p>Call <code>update()</code> each frame with the camera position to recenter the clipmap, rebuild the BVH if needed, and generate GPU brick dispatches:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn carve_cave(world: &amp;mut World, path: &amp;[Vec3], radius: f32) {
-    for window in path.windows(2) {
-        let start = window[0];
-        let end = window[1];
-        let mid = (start + end) * 0.5;
-
-        sdf_sculpt(
-            world,
-            start,
-            SdfPrimitive::Sphere { radius },
-            SdfOperation::SmoothSubtraction { smoothness: 0.5 },
-            0
-        );
-
-        sdf_sculpt(
-            world,
-            mid,
-            SdfPrimitive::Sphere { radius: radius * 1.2 },
-            SdfOperation::SmoothSubtraction { smoothness: 0.5 },
-            0
-        );
-    }
-
-    sdf_sculpt(
-        world,
-        *path.last().unwrap(),
-        SdfPrimitive::Sphere { radius },
-        SdfOperation::SmoothSubtraction { smoothness: 0.5 },
-        0
-    );
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let camera_pos = get_active_camera_position(world);
+    world.resources.sdf_world.update(camera_pos);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="sdf-raycast"><a class="header" href="#sdf-raycast">SDF Raycast</a></h2>
-<p>Query the SDF for intersections:</p>
+<h2 id="querying-sdf-state"><a class="header" href="#querying-sdf-state">Querying SDF State</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct SdfHit {
-    pub point: Vec3,
-    pub normal: Vec3,
-    pub material: usize,
-}
-
-if let Some(hit) = sdf_raycast(world, ray) {
-    spawn_particle_effect(world, hit.point);
-}
+</span>let edit_count = world.resources.sdf_world.edit_count();
+let allocated_bricks = world.resources.sdf_world.allocated_brick_count();
+let max_bricks = world.resources.sdf_world.max_brick_count();
+let level_count = world.resources.sdf_world.level_count();
+let voxel_sizes = world.resources.sdf_world.voxel_sizes();
+let base_voxel_size = world.resources.sdf_world.base_voxel_size();
 <span class="boring">}</span></code></pre></pre>
-<h2 id="clipmap-lod"><a class="header" href="#clipmap-lod">Clipmap LOD</a></h2>
-<p>The SDF uses a clipmap for level-of-detail:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct SdfClipmap {
-    pub center: Vec3,
-    pub levels: u32,
-    pub base_resolution: u32,
-}
-
-world.resources.sdf_world.clipmap.center = camera_position;
-<span class="boring">}</span></code></pre></pre>
-<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
-<ul>
-<li>Use smooth operations sparingly (more expensive)</li>
-<li>Batch multiple sculpt operations</li>
-<li>Adjust clipmap resolution for performance vs quality</li>
-<li>SDF rendering uses a dedicated compute shader pass</li>
-</ul>
 
                     </main>
 
@@ -463,6 +573,22 @@ world.resources.sdf_world.clipmap.center = camera_position;
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

@@ -179,9 +179,9 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/skybox">Skybox</a></p>
 </blockquote>
-<p>Cameras define what the player sees in your game.</p>
-<h2 id="camera-components"><a class="header" href="#camera-components">Camera Components</a></h2>
-<p>A camera entity needs these components:</p>
+<p>Cameras define the viewpoint and projection used to render the scene. Nightshade uses reversed-Z depth buffers for both perspective and orthographic projections, and supports infinite far planes, input smoothing, and arc-ball orbit controllers.</p>
+<h2 id="camera-component"><a class="header" href="#camera-component">Camera Component</a></h2>
+<p>A camera entity needs a transform and the <code>CAMERA</code> component:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let camera = world.spawn_entities(
@@ -189,6 +189,19 @@
     1
 )[0];
 <span class="boring">}</span></code></pre></pre>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Camera {
+    pub projection: Projection,
+    pub smoothing: Option&lt;Smoothing&gt;,
+}
+
+pub enum Projection {
+    Perspective(PerspectiveCamera),
+    Orthographic(OrthographicCamera),
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The default <code>Camera</code> uses a perspective projection (45 degree FOV, infinite far plane, 0.01 near plane) with smoothing enabled.</p>
 <h2 id="spawning-cameras"><a class="header" href="#spawning-cameras">Spawning Cameras</a></h2>
 <h3 id="basic-camera"><a class="header" href="#basic-camera">Basic Camera</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -201,7 +214,7 @@
 world.resources.active_camera = Some(camera);
 <span class="boring">}</span></code></pre></pre>
 <h3 id="pan-orbit-camera"><a class="header" href="#pan-orbit-camera">Pan-Orbit Camera</a></h3>
-<p>For editor-style camera controls:</p>
+<p>For editor-style arc-ball controls:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::camera::commands::spawn_pan_orbit_camera;
@@ -215,59 +228,69 @@ let camera = spawn_pan_orbit_camera(
     "Orbit Camera".to_string(),
 );
 <span class="boring">}</span></code></pre></pre>
-<h2 id="camera-systems"><a class="header" href="#camera-systems">Camera Systems</a></h2>
-<h3 id="fly-camera"><a class="header" href="#fly-camera">Fly Camera</a></h3>
-<p>Free-flying camera with WASD controls:</p>
+<h2 id="perspective-projection"><a class="header" href="#perspective-projection">Perspective Projection</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    fly_camera_system(world);
+</span>pub struct PerspectiveCamera {
+    pub aspect_ratio: Option&lt;f32&gt;,
+    pub y_fov_rad: f32,
+    pub z_far: Option&lt;f32&gt;,
+    pub z_near: f32,
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="pan-orbit-camera-1"><a class="header" href="#pan-orbit-camera-1">Pan-Orbit Camera</a></h3>
-<p>Orbit around a focus point:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use nightshade::ecs::camera::systems::pan_orbit_camera_system;
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>aspect_ratio</code></td><td><code>None</code></td><td>Width/height ratio. <code>None</code> uses the viewport aspect ratio</td></tr>
+<tr><td><code>y_fov_rad</code></td><td><code>0.7854</code> (45 deg)</td><td>Vertical field of view in radians</td></tr>
+<tr><td><code>z_far</code></td><td><code>None</code></td><td>Far plane distance. <code>None</code> uses an infinite far plane</td></tr>
+<tr><td><code>z_near</code></td><td><code>0.01</code></td><td>Near plane distance</td></tr>
+</tbody></table>
+</div>
+<h3 id="reversed-z-projection"><a class="header" href="#reversed-z-projection">Reversed-Z Projection</a></h3>
+<p>Nightshade uses reversed-Z depth buffers where the near plane maps to depth 1.0 and the far plane maps to 0.0. This distributes floating-point precision more evenly across the depth range, dramatically reducing z-fighting artifacts at large distances.</p>
+<p>With an infinite far plane (<code>z_far: None</code>), the projection matrix is:</p>
+<pre><code>f = 1 / tan(fov / 2)
 
-fn run_systems(&amp;mut self, world: &amp;mut World) {
-    pan_orbit_camera_system(world);
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="follow-camera"><a class="header" href="#follow-camera">Follow Camera</a></h3>
-<p>Make camera follow a target:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn follow_camera_system(world: &amp;mut World, target: Entity, camera: Entity) {
-    let Some(target_pos) = world.get_local_transform(target).map(|t| t.translation) else {
-        return;
-    };
-
-    let offset = Vec3::new(0.0, 5.0, -10.0);
-    let camera_pos = target_pos + offset;
-
-    if let Some(transform) = world.get_local_transform_mut(camera) {
-        transform.translation = camera_pos;
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="perspective-vs-orthographic"><a class="header" href="#perspective-vs-orthographic">Perspective vs Orthographic</a></h2>
-<h3 id="perspective-camera"><a class="header" href="#perspective-camera">Perspective Camera</a></h3>
-<p>Standard 3D perspective with depth:</p>
+| f/aspect  0     0      0     |
+| 0         f     0      0     |
+| 0         0     0      z_near|
+| 0         0    -1      0     |
+</code></pre>
+<p>With a finite far plane, the matrix maps <code>[z_near, z_far]</code> to <code>[1.0, 0.0]</code>:</p>
+<pre><code>| f/aspect  0     0                          0                           |
+| 0         f     0                          0                           |
+| 0         0     z_near/(z_far - z_near)    z_near*z_far/(z_far-z_near) |
+| 0         0    -1                          0                           |
+</code></pre>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.set_camera(camera, Camera {
     projection: Projection::Perspective(PerspectiveCamera {
         y_fov_rad: 1.0,
-        aspect_ratio: Some(16.0 / 9.0),
+        aspect_ratio: None,
         z_near: 0.1,
         z_far: Some(1000.0),
     }),
     smoothing: None,
 });
 <span class="boring">}</span></code></pre></pre>
-<h3 id="orthographic-camera"><a class="header" href="#orthographic-camera">Orthographic Camera</a></h3>
-<p>No perspective distortion (useful for 2D or isometric):</p>
+<h2 id="orthographic-projection"><a class="header" href="#orthographic-projection">Orthographic Projection</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct OrthographicCamera {
+    pub x_mag: f32,
+    pub y_mag: f32,
+    pub z_far: f32,
+    pub z_near: f32,
+}
+<span class="boring">}</span></code></pre></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>x_mag</code></td><td><code>10.0</code></td><td>Half-width of the view volume (horizontal extent is ±x_mag)</td></tr>
+<tr><td><code>y_mag</code></td><td><code>10.0</code></td><td>Half-height of the view volume (vertical extent is ±y_mag)</td></tr>
+<tr><td><code>z_far</code></td><td><code>1000.0</code></td><td>Far clipping plane distance</td></tr>
+<tr><td><code>z_near</code></td><td><code>0.01</code></td><td>Near clipping plane distance</td></tr>
+</tbody></table>
+</div>
+<p>The orthographic projection also uses reversed-Z, mapping <code>[z_near, z_far]</code> to <code>[1.0, 0.0]</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.set_camera(camera, Camera {
@@ -280,30 +303,66 @@ fn run_systems(&amp;mut self, world: &amp;mut World) {
     smoothing: None,
 });
 <span class="boring">}</span></code></pre></pre>
-<h2 id="controlling-pan-orbit-camera"><a class="header" href="#controlling-pan-orbit-camera">Controlling Pan-Orbit Camera</a></h2>
-<p>Modify pan-orbit camera at runtime:</p>
+<h2 id="camera-systems"><a class="header" href="#camera-systems">Camera Systems</a></h2>
+<h3 id="fly-camera"><a class="header" href="#fly-camera">Fly Camera</a></h3>
+<p>Free-flying FPS-style camera with WASD movement:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>if let Some(pan_orbit) = world.get_pan_orbit_camera_mut(camera) {
-    pan_orbit.focus = Vec3::new(0.0, 2.0, 0.0);
-
-    pan_orbit.radius = 5.0;
-
-    pan_orbit.yaw += 0.1;
-    pan_orbit.pitch += 0.05;
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    fly_camera_system(world);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="camera-smoothing"><a class="header" href="#camera-smoothing">Camera Smoothing</a></h2>
-<p>Add smoothing for smoother camera movement:</p>
+<h3 id="pan-orbit-camera-1"><a class="header" href="#pan-orbit-camera-1">Pan-Orbit Camera</a></h3>
+<p>Arc-ball camera that orbits around a focus point:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::camera::systems::pan_orbit_camera_system;
+
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    pan_orbit_camera_system(world);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="orthographic-camera"><a class="header" href="#orthographic-camera">Orthographic Camera</a></h3>
+<p>For 2D or isometric views:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::camera::systems::ortho_camera_system;
+
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    ortho_camera_system(world);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="input-smoothing"><a class="header" href="#input-smoothing">Input Smoothing</a></h2>
+<p>The <code>Smoothing</code> component applies frame-rate-independent exponential smoothing to all camera input. The smoothing factor is computed as:</p>
+<pre><code>smoothing_factor = 1.0 - smoothness^7 ^ delta_time
+</code></pre>
+<p>Where <code>smoothness</code> is the per-device smoothness parameter. A smoothness of 0 gives instant response; values approaching 1 make the input increasingly sluggish. The <code>powi(7)</code> exponent makes the smoothness parameter feel linear to adjust.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Smoothing {
+    pub mouse_sensitivity: f32,
+    pub mouse_smoothness: f32,
+    pub mouse_dpi_scale: f32,
+    pub keyboard_smoothness: f32,
+    pub gamepad_sensitivity: f32,
+    pub gamepad_smoothness: f32,
+    pub gamepad_deadzone: f32,
+}
+<span class="boring">}</span></code></pre></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>mouse_sensitivity</code></td><td><code>0.5</code></td><td>Mouse look speed multiplier</td></tr>
+<tr><td><code>mouse_smoothness</code></td><td><code>0.05</code></td><td>Mouse input smoothing (0 = instant, 1 = no change)</td></tr>
+<tr><td><code>mouse_dpi_scale</code></td><td><code>1.0</code></td><td>DPI scaling factor for mouse input</td></tr>
+<tr><td><code>keyboard_smoothness</code></td><td><code>0.08</code></td><td>Keyboard movement smoothing</td></tr>
+<tr><td><code>gamepad_sensitivity</code></td><td><code>1.5</code></td><td>Gamepad stick look speed</td></tr>
+<tr><td><code>gamepad_smoothness</code></td><td><code>0.06</code></td><td>Gamepad input smoothing</td></tr>
+<tr><td><code>gamepad_deadzone</code></td><td><code>0.15</code></td><td>Gamepad stick deadzone threshold</td></tr>
+</tbody></table>
+</div>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.set_camera(camera, Camera {
-    projection: Projection::Perspective(PerspectiveCamera {
-        y_fov_rad: 1.0,
-        aspect_ratio: None,
-        z_near: 0.1,
-        z_far: Some(1000.0),
-    }),
+    projection: Projection::Perspective(PerspectiveCamera::default()),
     smoothing: Some(Smoothing {
         mouse_sensitivity: 0.5,
         mouse_smoothness: 0.05,
@@ -312,29 +371,107 @@ fn run_systems(&amp;mut self, world: &amp;mut World) {
     }),
 });
 <span class="boring">}</span></code></pre></pre>
+<h2 id="pan-orbit-camera-configuration"><a class="header" href="#pan-orbit-camera-configuration">Pan-Orbit Camera Configuration</a></h2>
+<p>The <code>PanOrbitCamera</code> component provides a fully configurable arc-ball camera with Blender-style controls by default.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct PanOrbitCamera {
+    pub focus: Vec3,
+    pub radius: f32,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub target_focus: Vec3,
+    pub target_radius: f32,
+    pub target_yaw: f32,
+    pub target_pitch: f32,
+    pub enabled: bool,
+    // ... configuration fields
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="default-controls"><a class="header" href="#default-controls">Default Controls</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Action</th><th>Mouse</th><th>Gamepad</th><th>Touch</th></tr></thead><tbody>
+<tr><td>Orbit</td><td>Middle button</td><td>Right stick</td><td>Single finger drag</td></tr>
+<tr><td>Pan</td><td>Shift + Middle button</td><td>Left stick</td><td>Two finger drag</td></tr>
+<tr><td>Zoom (drag)</td><td>Ctrl + Middle button</td><td>Triggers</td><td>Pinch</td></tr>
+<tr><td>Zoom (step)</td><td>Scroll wheel</td><td>—</td><td>—</td></tr>
+</tbody></table>
+</div>
+<h3 id="builder-api"><a class="header" href="#builder-api">Builder API</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let pan_orbit = PanOrbitCamera::new(focus, 10.0)
+    .with_yaw_pitch(0.5, 0.4)
+    .with_zoom_limits(1.0, Some(100.0))
+    .with_pitch_limits(-1.5, 1.5)
+    .with_smoothness(0.1, 0.02, 0.1)
+    .with_buttons(PanOrbitButton::Middle, PanOrbitButton::Middle)
+    .with_modifiers(None, Some(PanOrbitModifier::Shift))
+    .with_upside_down(false);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="sensitivity-and-smoothness"><a class="header" href="#sensitivity-and-smoothness">Sensitivity and Smoothness</a></h3>
+<p>Each action has independent sensitivity and smoothness parameters:</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>orbit_sensitivity</code></td><td><code>1.0</code></td><td>Mouse orbit speed</td></tr>
+<tr><td><code>pan_sensitivity</code></td><td><code>1.0</code></td><td>Mouse pan speed</td></tr>
+<tr><td><code>zoom_sensitivity</code></td><td><code>1.0</code></td><td>Scroll zoom speed</td></tr>
+<tr><td><code>orbit_smoothness</code></td><td><code>0.1</code></td><td>Orbit interpolation smoothness</td></tr>
+<tr><td><code>pan_smoothness</code></td><td><code>0.02</code></td><td>Pan interpolation smoothness</td></tr>
+<tr><td><code>zoom_smoothness</code></td><td><code>0.1</code></td><td>Zoom interpolation smoothness</td></tr>
+<tr><td><code>gamepad_orbit_sensitivity</code></td><td><code>2.0</code></td><td>Gamepad orbit speed</td></tr>
+<tr><td><code>gamepad_pan_sensitivity</code></td><td><code>10.0</code></td><td>Gamepad pan speed</td></tr>
+<tr><td><code>gamepad_zoom_sensitivity</code></td><td><code>5.0</code></td><td>Gamepad zoom speed</td></tr>
+<tr><td><code>gamepad_deadzone</code></td><td><code>0.15</code></td><td>Stick deadzone</td></tr>
+<tr><td><code>gamepad_smoothness</code></td><td><code>0.06</code></td><td>Gamepad smoothing</td></tr>
+</tbody></table>
+</div>
+<p>Target values (<code>target_yaw</code>, <code>target_pitch</code>, <code>target_focus</code>, <code>target_radius</code>) are set by user input, then the current values interpolate towards them using the smoothing formula. The system snaps to the target when the difference falls below 0.001.</p>
+<h3 id="zoom-and-pitch-limits"><a class="header" href="#zoom-and-pitch-limits">Zoom and Pitch Limits</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(pan_orbit) = world.get_pan_orbit_camera_mut(camera) {
+    pan_orbit.zoom_lower_limit = 1.0;
+    pan_orbit.zoom_upper_limit = Some(50.0);
+    pan_orbit.pitch_upper_limit = std::f32::consts::FRAC_PI_2 - 0.01;
+    pan_orbit.pitch_lower_limit = -(std::f32::consts::FRAC_PI_2 - 0.01);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="upside-down-handling"><a class="header" href="#upside-down-handling">Upside-Down Handling</a></h3>
+<p>When <code>allow_upside_down</code> is <code>true</code>, the pitch can exceed ±90 degrees. When the camera goes upside down, the yaw direction is automatically reversed for intuitive mouse control.</p>
+<h3 id="runtime-control"><a class="header" href="#runtime-control">Runtime Control</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(pan_orbit) = world.get_pan_orbit_camera_mut(camera) {
+    pan_orbit.target_focus = Vec3::new(0.0, 2.0, 0.0);
+    pan_orbit.target_radius = 5.0;
+    pan_orbit.target_yaw += 0.1;
+    pan_orbit.target_pitch += 0.05;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="computing-camera-transform"><a class="header" href="#computing-camera-transform">Computing Camera Transform</a></h3>
+<p>The pan-orbit camera position is computed from yaw, pitch, and radius:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let (position, rotation) = pan_orbit.compute_camera_transform();
+<span class="boring">}</span></code></pre></pre>
+<p>The camera is placed at <code>focus + rotate(yaw, pitch) * (0, 0, radius)</code> — the rotation is composed as yaw (around Y) then pitch (around X).</p>
 <h2 id="screen-to-world-conversion"><a class="header" href="#screen-to-world-conversion">Screen-to-World Conversion</a></h2>
-<p>Convert screen coordinates to world ray:</p>
+<p>Convert screen coordinates to a world-space ray:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::picking::PickingRay;
 
-let screen_pos = Vec2::new(mouse_x, mouse_y);
+let screen_pos = world.resources.input.mouse.position;
 if let Some(ray) = PickingRay::from_screen_position(world, screen_pos) {
     let origin = ray.origin;
     let direction = ray.direction;
-    // Use ray for picking, projectiles, etc.
 }
 <span class="boring">}</span></code></pre></pre>
+<p>For perspective cameras, the ray origin is the camera position and the direction is computed by unprojecting through the inverse view-projection matrix. For orthographic cameras, the origin is the unprojected near-plane point and the direction is the camera's forward vector.</p>
 <h2 id="multiple-cameras"><a class="header" href="#multiple-cameras">Multiple Cameras</a></h2>
 <p>Switch between cameras:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct MyGame {
-    main_camera: Entity,
-    debug_camera: Entity,
-}
-
-fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
+</span>fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
     if state == ElementState::Pressed &amp;&amp; key == KeyCode::Tab {
         let current = world.resources.active_camera;
         world.resources.active_camera = if current == Some(self.main_camera) {
@@ -350,11 +487,11 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="main-loop.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="post-processing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="meshes-models.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="materials.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -364,17 +501,33 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="main-loop.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="post-processing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="meshes-models.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="materials.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

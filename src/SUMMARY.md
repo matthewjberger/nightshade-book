@@ -13,30 +13,60 @@
 
 ---
 
-# Core Concepts
+# Architecture
+
+- [Architecture Overview](architecture-overview.md)
+
+---
+
+# Foundation Layer
+
+- [Entity Component System](ecs.md)
+  - [The freecs Macro](ecs-macro.md)
+  - [Entities](entities.md)
+  - [Components](components.md)
+  - [Queries & Iteration](queries.md)
+  - [Resources](ecs-resources.md)
+  - [Tags, Events & Commands](tags-events-commands.md)
+- [Math & Coordinates](math.md)
+- [Time](time.md)
+
+---
+
+# Core Systems
 
 - [The State Trait](state-trait.md)
+- [Main Loop & Frame Lifecycle](main-loop.md)
 - [World & Resources](world-resources.md)
-- [Entity Component System](ecs.md)
-  - [Components](components.md)
-  - [Spawning Entities](spawning-entities.md)
-  - [Querying Entities](querying-entities.md)
-- [Scene Hierarchy](scene-hierarchy.md)
+- [Transform Hierarchy](scene-hierarchy.md)
+- [Input System](input.md)
+  - [Keyboard & Mouse](keyboard-mouse.md)
+  - [Gamepad Support](gamepad.md)
 - [Event System](event-system.md)
-- [Main Loop](main-loop.md)
 
 ---
 
 # Rendering
 
+- [Rendering Architecture](rendering-architecture.md)
+- [The Render Graph](render-graph.md)
+  - [Resources & Textures](render-graph-resources.md)
+  - [Passes & the PassNode Trait](render-graph-passes.md)
+  - [Dependency Resolution & Scheduling](render-graph-scheduling.md)
+  - [Resource Aliasing & Memory](render-graph-aliasing.md)
+  - [Custom Passes](render-graph-custom.md)
+- [The Default Pipeline](default-pipeline.md)
+  - [Shadow Mapping](shadows.md)
+  - [Geometry Passes](geometry-passes.md)
+  - [Post-Processing](post-processing.md)
 - [Cameras](cameras.md)
-- [Meshes & Models](meshes-models.md)
 - [Materials](materials.md)
+- [Meshes & Models](meshes-models.md)
 - [Lighting](lighting.md)
-- [Post-Processing](post-processing.md)
-- [Render Graph](render-graph.md)
+- [Textures & the Texture Cache](textures.md)
 - [Water](water.md)
 - [Decals](decals.md)
+- [Sprites](sprites.md)
 
 ---
 
@@ -65,19 +95,10 @@
 
 ---
 
-# Input
-
-- [Keyboard & Mouse](keyboard-mouse.md)
-- [Gamepad Support](gamepad.md)
-
----
-
 # User Interface
 
 - [egui Integration](egui.md)
 - [Mosaic Framework](mosaic.md)
-- [Editor Infrastructure](editor.md)
-- [File System](filesystem.md)
 - [Immediate Mode UI](immediate-ui.md)
 - [HUD Text](hud-text.md)
 
@@ -90,12 +111,27 @@
 - [Navigation Mesh](navmesh.md)
 - [Grass System](grass.md)
 - [Lines Rendering](lines.md)
-- [Audio Analyzer](audio-analyzer.md)
-- [Effects Pass](effects-pass.md)
 - [Picking System](picking.md)
 - [SDF Sculpting](sdf-sculpting.md)
 - [Lattice Deformation](lattice.md)
 - [Scripting](scripting.md)
+- [Effects Pass](effects-pass.md)
+
+---
+
+# Platform & Integration
+
+- [OpenXR VR](openxr.md)
+- [Steam Integration](steam.md)
+- [Webview](webview.md)
+- [WASM Plugins](plugins.md)
+
+---
+
+# Tutorials
+
+- [Building a 3D Game](tutorial-3d-game.md)
+- [Building a Terminal Game](tutorial-terminal-game.md)
 
 ---
 

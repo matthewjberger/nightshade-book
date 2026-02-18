@@ -179,10 +179,15 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/picking">Picking</a></p>
 </blockquote>
-<p>Picking allows you to select entities in the 3D world using mouse clicks or screen positions. Nightshade supports both CPU ray-based picking and GPU pixel-perfect picking.</p>
-<h2 id="ray-picking"><a class="header" href="#ray-picking">Ray Picking</a></h2>
-<p>Convert a screen position to a picking ray.</p>
-<h3 id="screen-to-ray"><a class="header" href="#screen-to-ray">Screen to Ray</a></h3>
+<p>Picking allows you to select entities in the 3D world using mouse clicks or screen positions. Nightshade provides two picking methods: fast bounding volume ray intersection and precise triangle mesh raycasting via Rapier physics colliders.</p>
+<h2 id="how-picking-works"><a class="header" href="#how-picking-works">How Picking Works</a></h2>
+<h3 id="screen-to-ray-conversion"><a class="header" href="#screen-to-ray-conversion">Screen-to-Ray Conversion</a></h3>
+<p><code>PickingRay::from_screen_position</code> converts a 2D screen coordinate into a 3D ray. It computes NDC coordinates from the screen position, builds the inverse view-projection matrix from the active camera, then unprojects through it:</p>
+<ul>
+<li><strong>Perspective cameras</strong>: The ray origin is the camera position. A clip-space point at <code>z=1.0</code> (reversed-Z near plane) is unprojected to get the world direction.</li>
+<li><strong>Orthographic cameras</strong>: Both near (<code>z=1.0</code>) and far (<code>z=0.0</code>) clip-space points are unprojected. The ray origin is the near point; the direction is the vector from near to far.</li>
+</ul>
+<p>Viewport rectangles are handled by converting screen coordinates to local viewport space and scaling by the viewport-to-window ratio.</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct PickingRay {
@@ -190,37 +195,84 @@
     pub direction: Vec3,
 }
 
-let screen_pos = Vec2::new(screen_x, screen_y);
-let ray = PickingRay::from_screen_position(world, screen_pos);
+let screen_pos = world.resources.input.mouse.position;
+if let Some(ray) = PickingRay::from_screen_position(world, screen_pos) {
+    // ray.origin and ray.direction are in world space
+}
 <span class="boring">}</span></code></pre></pre>
-<h3 id="pick-closest-entity"><a class="header" href="#pick-closest-entity">Pick Closest Entity</a></h3>
-<p>Fast picking using axis-aligned bounding boxes:</p>
+<h3 id="bounding-volume-picking-fast"><a class="header" href="#bounding-volume-picking-fast">Bounding Volume Picking (Fast)</a></h3>
+<p>The fast picking path tests the ray against every entity's bounding volume. For each entity with a <code>BoundingVolume</code> component:</p>
+<ol>
+<li>Transform the bounding volume by the entity's global transform</li>
+<li>Early reject using a bounding sphere test (project center onto ray, check distance)</li>
+<li>Test against the oriented bounding box (OBB) for a precise intersection distance</li>
+<li>Optionally skip invisible entities via the <code>Visibility</code> component</li>
+</ol>
+<p>Results are sorted by distance (closest first).</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let screen_pos = Vec2::new(screen_x, screen_y);
-
-if let Some(hit) = pick_closest_entity(world, screen_pos) {
+</span>if let Some(hit) = pick_closest_entity(world, screen_pos) {
     let entity = hit.entity;
     let distance = hit.distance;
     let position = hit.world_position;
-
-    select_entity(world, entity);
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="pick-all-entities"><a class="header" href="#pick-all-entities">Pick All Entities</a></h3>
-<p>Pick all entities at a screen position:</p>
+<p>Return all entities hit by the ray, sorted by distance:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let screen_pos = Vec2::new(screen_x, screen_y);
-let hits = pick_entities(world, screen_pos);
+</span>let hits = pick_entities(world, screen_pos, PickingOptions::default());
 
 for hit in &amp;hits {
     let entity = hit.entity;
     let distance = hit.distance;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="picking-options"><a class="header" href="#picking-options">Picking Options</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct PickingOptions {
+    pub max_distance: f32,       // Maximum ray distance (default: infinity)
+    pub ignore_invisible: bool,  // Skip entities with Visibility { visible: false } (default: true)
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="triangle-mesh-picking-precise"><a class="header" href="#triangle-mesh-picking-precise">Triangle Mesh Picking (Precise)</a></h2>
+<p>For pixel-precise picking, register entities for trimesh picking. This creates a Rapier physics collider from the entity's mesh geometry in a dedicated <code>PickingWorld</code> collision set.</p>
+<h3 id="registering-entities"><a class="header" href="#registering-entities">Registering Entities</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::picking::commands::*;
+
+register_entity_for_trimesh_picking(world, entity);
+<span class="boring">}</span></code></pre></pre>
+<p>This extracts the mesh vertices and indices from the entity's <code>RenderMesh</code>, applies the global transform's scale, and creates a <code>SharedShape::trimesh</code> collider positioned at the entity's world transform. The collider is stored in the <code>PickingWorld</code> resource (a <code>ColliderSet</code> with entity-to-handle mappings).</p>
+<p>For hierarchies (parent with child meshes):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>register_entity_hierarchy_for_trimesh_picking(world, root_entity);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="trimesh-raycasting"><a class="header" href="#trimesh-raycasting">Trimesh Raycasting</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(hit) = pick_closest_entity_trimesh(world, screen_pos) {
+    let entity = hit.entity;
+    let distance = hit.distance;
     let position = hit.world_position;
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="pick-result"><a class="header" href="#pick-result">Pick Result</a></h3>
+<p>This casts a Rapier ray against all registered trimesh colliders using <code>shape.cast_ray()</code>, returning the time of impact for each intersection.</p>
+<h3 id="updating-transforms"><a class="header" href="#updating-transforms">Updating Transforms</a></h3>
+<p>When a pickable entity moves, update its collider position:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>update_picking_transform(world, entity);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="unregistering"><a class="header" href="#unregistering">Unregistering</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>unregister_entity_from_picking(world, entity);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="pick-result"><a class="header" href="#pick-result">Pick Result</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct PickingResult {
@@ -229,32 +281,35 @@ for hit in &amp;hits {
     pub world_position: Vec3,
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="gpu-picking"><a class="header" href="#gpu-picking">GPU Picking</a></h2>
-<p>Pixel-perfect picking using a dedicated render pass. More accurate but requires a frame delay.</p>
-<h3 id="request-pick"><a class="header" href="#request-pick">Request Pick</a></h3>
+<h2 id="utility-functions"><a class="header" href="#utility-functions">Utility Functions</a></h2>
+<h3 id="ground-plane-intersection"><a class="header" href="#ground-plane-intersection">Ground Plane Intersection</a></h3>
+<p>Get the world position where a screen ray hits a horizontal plane:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>world.resources.gpu_picking.request_pick(screen_x, screen_y);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="get-result"><a class="header" href="#get-result">Get Result</a></h3>
-<p>Check for results in the next frame:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>if let Some(result) = world.resources.gpu_picking.take_result() {
-    let world_position = result.position;
-    let normal = result.normal;
-    let depth = result.depth;
-    let entity_id = result.entity_id;
+</span>if let Some(ground_pos) = get_ground_position_from_screen(world, screen_pos, 0.0) {
+    // ground_pos is on the Y=0 plane
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="gpu-pick-result"><a class="header" href="#gpu-pick-result">GPU Pick Result</a></h3>
+<h3 id="frustum-picking"><a class="header" href="#frustum-picking">Frustum Picking</a></h3>
+<p>Test which entities from a list are visible in the camera frustum:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub struct GpuPickResult {
-    pub entity_id: u32,
-    pub position: Vec3,
-    pub normal: Vec3,
-    pub depth: f32,
+</span>let visible = pick_entities_in_frustum(world, &amp;entity_list);
+<span class="boring">}</span></code></pre></pre>
+<p>This projects each entity's bounding sphere center into clip space and tests against NDC bounds, accounting for the sphere radius in NDC space.</p>
+<h3 id="plane-intersection"><a class="header" href="#plane-intersection">Plane Intersection</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let ray = PickingRay::from_screen_position(world, screen_pos)?;
+
+// Intersect with any plane (normal + distance from origin)
+if let Some(point) = ray.intersect_plane(Vec3::y(), 0.0) {
+    // point is on the plane
+}
+
+// Shorthand for horizontal ground plane
+if let Some(point) = ray.intersect_ground_plane(0.0) {
+    // point is on Y=0
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="mouse-click-selection"><a class="header" href="#mouse-click-selection">Mouse Click Selection</a></h2>
@@ -262,156 +317,22 @@ for hit in &amp;hits {
 </span><span class="boring">fn main() {
 </span>fn on_mouse_input(&amp;mut self, world: &amp;mut World, state: ElementState, button: MouseButton) {
     if button == MouseButton::Left &amp;&amp; state == ElementState::Pressed {
-        let screen_pos = world.resources.input.mouse_position;
+        let screen_pos = world.resources.input.mouse.position;
 
         if let Some(hit) = pick_closest_entity(world, screen_pos) {
             self.selected_entity = Some(hit.entity);
-            mark_as_selected(world, hit.entity);
         } else {
             self.selected_entity = None;
-            clear_selection(world);
         }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="hover-detection"><a class="header" href="#hover-detection">Hover Detection</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let screen_pos = world.resources.input.mouse_position;
-
-    for entity in world.query_entities(HOVERED) {
-        world.remove_hovered(entity);
-    }
-
-    if let Some(hit) = pick_closest_entity(world, screen_pos) {
-        world.set_hovered(hit.entity, Hovered);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="raycast-filtering"><a class="header" href="#raycast-filtering">Raycast Filtering</a></h2>
-<p>Pick only specific entity types:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn pick_enemies_only(world: &amp;World, screen_pos: Vec2) -&gt; Option&lt;PickingResult&gt; {
-    let ray = PickingRay::from_screen_position(world, screen_pos)?;
-    let mut closest: Option&lt;PickingResult&gt; = None;
-
-    for entity in world.query_entities(ENEMY | BOUNDING_VOLUME) {
-        let bounds = world.get_bounding_volume(entity).unwrap();
-        if let Some(distance) = ray_aabb_intersection(&amp;ray, &amp;bounds.aabb) {
-            let world_position = ray.origin + ray.direction * distance;
-            if closest.is_none() || distance &lt; closest.as_ref().unwrap().distance {
-                closest = Some(PickingResult {
-                    entity,
-                    distance,
-                    world_position,
-                });
-            }
-        }
-    }
-
-    closest
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="drag-selection-box-select"><a class="header" href="#drag-selection-box-select">Drag Selection (Box Select)</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct BoxSelect {
-    start: Option&lt;Vec2&gt;,
-    end: Option&lt;Vec2&gt;,
-}
-
-fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let input = &amp;world.resources.input;
-
-    if input.mouse_buttons.left_just_pressed {
-        self.box_select.start = Some(input.mouse_position);
-    }
-
-    if input.mouse_buttons.left {
-        self.box_select.end = Some(input.mouse_position);
-    }
-
-    if input.mouse_buttons.left_just_released {
-        if let (Some(start), Some(end)) = (self.box_select.start, self.box_select.end) {
-            let selected = entities_in_screen_rect(world, start, end);
-            self.selected_entities = selected;
-        }
-        self.box_select.start = None;
-        self.box_select.end = None;
-    }
-}
-
-fn entities_in_screen_rect(world: &amp;World, start: Vec2, end: Vec2) -&gt; Vec&lt;Entity&gt; {
-    let min_x = start.x.min(end.x);
-    let max_x = start.x.max(end.x);
-    let min_y = start.y.min(end.y);
-    let max_y = start.y.max(end.y);
-
-    let mut result = Vec::new();
-
-    for entity in world.query_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
-        let screen_pos = world_to_screen(world, entity);
-        if let Some(pos) = screen_pos {
-            if pos.x &gt;= min_x &amp;&amp; pos.x &lt;= max_x &amp;&amp; pos.y &gt;= min_y &amp;&amp; pos.y &lt;= max_y {
-                result.push(entity);
-            }
-        }
-    }
-
-    result
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="3d-gizmo-interaction"><a class="header" href="#3d-gizmo-interaction">3D Gizmo Interaction</a></h2>
-<p>Pick transform gizmo handles:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub enum GizmoHandle {
-    None,
-    TranslateX,
-    TranslateY,
-    TranslateZ,
-    RotateX,
-    RotateY,
-    RotateZ,
-    ScaleX,
-    ScaleY,
-    ScaleZ,
-}
-
-fn pick_gizmo_handle(world: &amp;World, ray: PickingRay, gizmo_position: Vec3) -&gt; GizmoHandle {
-    let x_axis = create_axis_collider(gizmo_position, Vec3::x_axis());
-    let y_axis = create_axis_collider(gizmo_position, Vec3::y_axis());
-    let z_axis = create_axis_collider(gizmo_position, Vec3::z_axis());
-
-    if ray_cylinder_intersection(&amp;ray, &amp;x_axis).is_some() {
-        return GizmoHandle::TranslateX;
-    }
-    if ray_cylinder_intersection(&amp;ray, &amp;y_axis).is_some() {
-        return GizmoHandle::TranslateY;
-    }
-    if ray_cylinder_intersection(&amp;ray, &amp;z_axis).is_some() {
-        return GizmoHandle::TranslateZ;
-    }
-
-    GizmoHandle::None
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ol>
-<li><strong>Use AABB picking first</strong>: Only use trimesh for precision when needed</li>
-<li><strong>Spatial partitioning</strong>: Use octrees or grids for many entities</li>
-<li><strong>Layer filtering</strong>: Skip entities that can't be picked</li>
-<li><strong>GPU picking for complex scenes</strong>: Better for dense geometry</li>
-<li><strong>Cache bounding volumes</strong>: Don't recompute every frame</li>
-</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="effects-pass.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="lines.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
@@ -425,7 +346,7 @@ fn pick_gizmo_handle(world: &amp;World, ray: PickingRay, gizmo_position: Vec3) -
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="effects-pass.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="lines.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
@@ -436,6 +357,22 @@ fn pick_gizmo_handle(world: &amp;World, ray: PickingRay, gizmo_position: Vec3) -
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

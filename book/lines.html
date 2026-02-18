@@ -176,13 +176,78 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="lines-rendering"><a class="header" href="#lines-rendering">Lines Rendering</a></h1>
+<blockquote>
+<p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/lines">Lines</a></p>
+</blockquote>
 <p>Debug line drawing for visualization, gizmos, and wireframes.</p>
+<h2 id="how-lines-rendering-works"><a class="header" href="#how-lines-rendering-works">How Lines Rendering Works</a></h2>
+<p>The lines system is a GPU-driven rendering pipeline that uses instanced rendering with compute-based frustum culling. Rather than submitting geometry for each line, the engine uploads all line data to a GPU storage buffer and renders them using a two-vertex line primitive with one instance per line.</p>
+<h3 id="the-two-vertex-trick"><a class="header" href="#the-two-vertex-trick">The Two-Vertex Trick</a></h3>
+<p>The vertex buffer contains only two vertices: position <code>[0, 0, 0]</code> and position <code>[1, 0, 0]</code>. Every line in the scene reuses these same two vertices through instancing. The vertex shader uses the instance index to look up the actual line data (start, end, color) from a storage buffer, then uses the vertex position's X coordinate (0.0 or 1.0) to interpolate between start and end:</p>
+<pre><code class="language-wgsl">let line = lines[in.instance_index];
+let pos = mix(line.start.xyz, line.end.xyz, in.position.x);
+out.clip_position = uniforms.view_proj * vec4&lt;f32&gt;(pos, 1.0);
+out.color = line.color;
+</code></pre>
+<p>This means rendering 100,000 lines requires only 2 vertices in GPU memory regardless of line count. All line data lives in a storage buffer that grows dynamically (starting at 1,024 lines, doubling as needed, up to 1,000,000).</p>
+<h3 id="gpu-frustum-culling"><a class="header" href="#gpu-frustum-culling">GPU Frustum Culling</a></h3>
+<p>A compute shader (<code>line_culling_gpu.wgsl</code>) runs before the render pass to determine which lines are visible. For each line, it tests both endpoints against the camera frustum planes. If either endpoint is inside the frustum, the line is visible. If neither is, the shader samples 8 intermediate points along the line segment to catch lines that span across the view without either endpoint being visible.</p>
+<p>Visible lines generate <code>DrawIndexedIndirectCommand</code> structs via atomic append:</p>
+<pre><code class="language-wgsl">let command_index = atomicAdd(&amp;draw_count, 1u);
+draw_commands[command_index].index_count = 2u;
+draw_commands[command_index].instance_count = 1u;
+draw_commands[command_index].first_instance = line_index;
+</code></pre>
+<p>The render pass then executes these commands with <code>multi_draw_indexed_indirect_count</code> (or <code>multi_draw_indexed_indirect</code> on macOS/WASM/OpenXR where count buffers are unavailable).</p>
+<h3 id="bounding-volume-lines"><a class="header" href="#bounding-volume-lines">Bounding Volume Lines</a></h3>
+<p>When <code>show_bounding_volumes</code> is enabled, a separate compute shader (<code>bounding_volume_lines.wgsl</code>) generates wireframe lines from entity OBBs (Oriented Bounding Boxes). Each bounding volume produces exactly 12 edge lines. The shader:</p>
+<ol>
+<li>Computes the 8 OBB corners using quaternion rotation in local space</li>
+<li>Transforms all corners to world space via the entity's model matrix</li>
+<li>Writes 12 edge lines (the box wireframe) into the line buffer at a pre-allocated offset</li>
+</ol>
+<h3 id="normal-visualization-lines"><a class="header" href="#normal-visualization-lines">Normal Visualization Lines</a></h3>
+<p>Another compute shader (<code>normal_lines.wgsl</code>) generates lines showing mesh surface normals. For each vertex, it:</p>
+<ol>
+<li>Transforms the vertex position to world space using the model matrix</li>
+<li>Transforms the normal using the upper-left 3x3 of the model matrix (the normal matrix)</li>
+<li>Computes the endpoint by extending along the normal by the configured length</li>
+<li>Writes a single line from the vertex position to the endpoint</li>
+</ol>
+<h3 id="gpu-data-layout"><a class="header" href="#gpu-data-layout">GPU Data Layout</a></h3>
+<p>Each line on the GPU is a 64-byte structure aligned to 16 bytes:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct GpuLineData {
+    start: [f32; 4],      // World-space start + padding
+    end: [f32; 4],        // World-space end + padding
+    color: [f32; 4],      // RGBA color
+    entity_id: u32,        // Source entity ID
+    visible: u32,          // Visibility flag
+    _padding: [u32; 2],
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="data-synchronization"><a class="header" href="#data-synchronization">Data Synchronization</a></h3>
+<p>Each frame, <code>sync_lines_data</code> queries all entities with <code>LINES | GLOBAL_TRANSFORM | VISIBILITY</code> components, transforms each line's start and end positions to world space using the entity's global transform matrix, packs them into <code>GpuLineData</code> structs, and uploads them to the GPU via <code>queue.write_buffer</code>. The total buffer includes user lines, bounding volume lines, and normal visualization lines.</p>
+<h2 id="lines-component"><a class="header" href="#lines-component">Lines Component</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct Lines {
+    pub lines: Vec&lt;Line&gt;,
+    pub version: u64,
+}
+
+pub struct Line {
+    pub start: Vec3,
+    pub end: Vec3,
+    pub color: Vec4,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The <code>version</code> field is a dirty counter. Calling <code>push()</code>, <code>clear()</code>, or <code>mark_dirty()</code> increments it, enabling the renderer to detect changes and skip re-uploading unchanged line data.</p>
 <h2 id="basic-line-drawing"><a class="header" href="#basic-line-drawing">Basic Line Drawing</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::lines::*;
-
-fn initialize(&amp;mut self, world: &amp;mut World) {
+</span>fn initialize(&amp;mut self, world: &amp;mut World) {
     let entity = world.spawn_entities(LINES, 1)[0];
 
     let mut lines = Lines::new();
@@ -195,19 +260,6 @@ fn initialize(&amp;mut self, world: &amp;mut World) {
     world.set_lines(entity, lines);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="lines-component"><a class="header" href="#lines-component">Lines Component</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct Lines {
-    pub lines: Vec&lt;Line&gt;,
-}
-
-pub struct Line {
-    pub start: Vec3,
-    pub end: Vec3,
-    pub color: Vec4,
-}
-<span class="boring">}</span></code></pre></pre>
 <h2 id="adding-lines"><a class="header" href="#adding-lines">Adding Lines</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -216,25 +268,12 @@ pub struct Line {
 // Single line
 lines.add(start, end, color);
 
-// Multiple lines
+// Coordinate axes
 lines.add(Vec3::zeros(), Vec3::x(), Vec4::new(1.0, 0.0, 0.0, 1.0));
 lines.add(Vec3::zeros(), Vec3::y(), Vec4::new(0.0, 1.0, 0.0, 1.0));
 lines.add(Vec3::zeros(), Vec3::z(), Vec4::new(0.0, 0.0, 1.0, 1.0));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="drawing-shapes"><a class="header" href="#drawing-shapes">Drawing Shapes</a></h2>
-<h3 id="coordinate-axes"><a class="header" href="#coordinate-axes">Coordinate Axes</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_axes(lines: &amp;mut Lines, origin: Vec3, scale: f32) {
-    let red = Vec4::new(1.0, 0.0, 0.0, 1.0);
-    let green = Vec4::new(0.0, 1.0, 0.0, 1.0);
-    let blue = Vec4::new(0.0, 0.0, 1.0, 1.0);
-
-    lines.add(origin, origin + Vec3::x() * scale, red);
-    lines.add(origin, origin + Vec3::y() * scale, green);
-    lines.add(origin, origin + Vec3::z() * scale, blue);
-}
-<span class="boring">}</span></code></pre></pre>
 <h3 id="wireframe-box"><a class="header" href="#wireframe-box">Wireframe Box</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -267,91 +306,34 @@ lines.add(Vec3::zeros(), Vec3::z(), Vec4::new(0.0, 0.0, 1.0, 1.0));
 </span>fn draw_sphere(lines: &amp;mut Lines, center: Vec3, radius: f32, color: Vec4, segments: u32) {
     let step = std::f32::consts::TAU / segments as f32;
 
-    // XY circle
     for index in 0..segments {
         let angle1 = index as f32 * step;
         let angle2 = (index + 1) as f32 * step;
 
+        // XY circle
         let p1 = center + Vec3::new(angle1.cos() * radius, angle1.sin() * radius, 0.0);
         let p2 = center + Vec3::new(angle2.cos() * radius, angle2.sin() * radius, 0.0);
         lines.add(p1, p2, color);
-    }
 
-    // XZ circle
-    for index in 0..segments {
-        let angle1 = index as f32 * step;
-        let angle2 = (index + 1) as f32 * step;
-
+        // XZ circle
         let p1 = center + Vec3::new(angle1.cos() * radius, 0.0, angle1.sin() * radius);
         let p2 = center + Vec3::new(angle2.cos() * radius, 0.0, angle2.sin() * radius);
         lines.add(p1, p2, color);
-    }
 
-    // YZ circle
-    for index in 0..segments {
-        let angle1 = index as f32 * step;
-        let angle2 = (index + 1) as f32 * step;
-
+        // YZ circle
         let p1 = center + Vec3::new(0.0, angle1.cos() * radius, angle1.sin() * radius);
         let p2 = center + Vec3::new(0.0, angle2.cos() * radius, angle2.sin() * radius);
         lines.add(p1, p2, color);
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="grid"><a class="header" href="#grid">Grid</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_grid(lines: &amp;mut Lines, size: f32, divisions: u32, color: Vec4) {
-    let step = size / divisions as f32;
-    let half = size / 2.0;
-
-    for index in 0..=divisions {
-        let offset = -half + index as f32 * step;
-
-        // X-axis lines
-        lines.add(
-            Vec3::new(-half, 0.0, offset),
-            Vec3::new(half, 0.0, offset),
-            color,
-        );
-
-        // Z-axis lines
-        lines.add(
-            Vec3::new(offset, 0.0, -half),
-            Vec3::new(offset, 0.0, half),
-            color,
-        );
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="arrow"><a class="header" href="#arrow">Arrow</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_arrow(lines: &amp;mut Lines, start: Vec3, end: Vec3, color: Vec4, head_size: f32) {
-    lines.add(start, end, color);
-
-    let direction = (end - start).normalize();
-    let perpendicular = if direction.y.abs() &lt; 0.9 {
-        direction.cross(&amp;Vec3::y()).normalize()
-    } else {
-        direction.cross(&amp;Vec3::x()).normalize()
-    };
-
-    let head_base = end - direction * head_size;
-    let offset = perpendicular * head_size * 0.5;
-
-    lines.add(end, head_base + offset, color);
-    lines.add(end, head_base - offset, color);
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="updating-lines"><a class="header" href="#updating-lines">Updating Lines</a></h2>
+<h2 id="updating-lines-each-frame"><a class="header" href="#updating-lines-each-frame">Updating Lines Each Frame</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
     if let Some(lines) = world.get_lines_mut(self.debug_lines) {
         lines.clear();
 
-        // Draw velocity vectors for all physics bodies
         for entity in world.query_entities(RIGID_BODY | LOCAL_TRANSFORM) {
             if let (Some(body), Some(transform)) = (
                 world.get_rigid_body(entity),
@@ -385,113 +367,37 @@ world.resources.graphics.normal_line_length = 0.2;
 world.resources.graphics.normal_line_color = [0.0, 1.0, 0.0, 1.0];
 <span class="boring">}</span></code></pre></pre>
 <h2 id="gpu-culling"><a class="header" href="#gpu-culling">GPU Culling</a></h2>
-<p>Lines are frustum-culled on the GPU for performance:</p>
+<p>Lines are frustum-culled on the GPU via a compute shader. Toggle this with:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.resources.graphics.gpu_culling_enabled = true;
 <span class="boring">}</span></code></pre></pre>
+<p>When enabled, only lines visible to the camera are drawn. The compute shader outputs indirect draw commands, so the CPU never needs to know which lines survived culling.</p>
 <h2 id="line-limits"><a class="header" href="#line-limits">Line Limits</a></h2>
-<p>The system supports up to 1,000,000 lines per component:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>const MAX_LINES: u32 = 1_000_000;
 <span class="boring">}</span></code></pre></pre>
+<p>The buffer starts at 1,024 lines and grows by 2x when capacity is exceeded.</p>
 <h2 id="transform-gizmos"><a class="header" href="#transform-gizmos">Transform Gizmos</a></h2>
 <p>Built-in gizmos for entity manipulation:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::gizmos::*;
 
-// Translation gizmo (XYZ arrows)
 create_translation_gizmo(world, entity);
-
-// Rotation gizmo (rings)
 create_rotation_gizmo(world, entity);
-
-// Scale gizmo (cubes with cylinders)
 create_scale_gizmo(world, entity);
 <span class="boring">}</span></code></pre></pre>
-<h2 id="debug-helpers"><a class="header" href="#debug-helpers">Debug Helpers</a></h2>
-<h3 id="draw-physics-colliders"><a class="header" href="#draw-physics-colliders">Draw Physics Colliders</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_colliders(world: &amp;mut World, lines_entity: Entity) {
-    if let Some(lines) = world.get_lines_mut(lines_entity) {
-        lines.clear();
-
-        for entity in world.query_entities(COLLIDER | GLOBAL_TRANSFORM) {
-            if let (Some(collider), Some(transform)) = (
-                world.get_collider(entity),
-                world.get_global_transform(entity),
-            ) {
-                match &amp;collider.shape {
-                    ColliderShape::Sphere { radius } =&gt; {
-                        draw_sphere(lines, transform.translation(), *radius, Vec4::new(0.0, 1.0, 0.0, 1.0), 16);
-                    }
-                    ColliderShape::Box { half_extents } =&gt; {
-                        draw_box(lines, transform.translation(), *half_extents, Vec4::new(0.0, 1.0, 0.0, 1.0));
-                    }
-                    _ =&gt; {}
-                }
-            }
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="draw-navigation-path"><a class="header" href="#draw-navigation-path">Draw Navigation Path</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_navmesh_path(lines: &amp;mut Lines, path: &amp;[Vec3], color: Vec4) {
-    for index in 0..path.len().saturating_sub(1) {
-        lines.add(path[index], path[index + 1], color);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="draw-ray"><a class="header" href="#draw-ray">Draw Ray</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn draw_ray(lines: &amp;mut Lines, origin: Vec3, direction: Vec3, length: f32, color: Vec4) {
-    let end = origin + direction.normalize() * length;
-    draw_arrow(lines, origin, end, color, 0.1);
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ul>
-<li>Clear and rebuild lines each frame for dynamic visualization</li>
-<li>Use GPU culling for large numbers of lines</li>
-<li>Batch related lines in a single Lines component</li>
-<li>Disable debug visualization in release builds</li>
-</ul>
-<h2 id="example-debug-overlay"><a class="header" href="#example-debug-overlay">Example: Debug Overlay</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct DebugOverlay {
-    lines_entity: Entity,
-    show_colliders: bool,
-    show_velocities: bool,
-    show_paths: bool,
-}
-
-impl DebugOverlay {
-    fn update(&amp;self, world: &amp;mut World) {
-        if let Some(lines) = world.get_lines_mut(self.lines_entity) {
-            lines.clear();
-
-            if self.show_colliders {
-                self.draw_all_colliders(world, lines);
-            }
-
-            if self.show_velocities {
-                self.draw_all_velocities(world, lines);
-            }
-
-            if self.show_paths {
-                self.draw_all_paths(world, lines);
-            }
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
+<h2 id="rendering-pipeline"><a class="header" href="#rendering-pipeline">Rendering Pipeline</a></h2>
+<p>The lines pass fits into the render graph as a geometry pass that writes to <code>scene_color</code> and <code>depth</code>. The execution order each frame is:</p>
+<ol>
+<li>Generate bounding volume lines (compute shader, 64 threads/workgroup, 12 lines per bounding volume)</li>
+<li>Generate normal visualization lines (compute shader, 256 threads/workgroup, 1 line per vertex)</li>
+<li>Frustum cull all lines (compute shader, 256 threads/workgroup, outputs indirect draw commands)</li>
+<li>Render visible lines (instanced <code>LineList</code> primitive with alpha blending and <code>GreaterEqual</code> depth test for reversed-Z)</li>
+</ol>
+<p>The render pipeline uses <code>wgpu::PrimitiveTopology::LineList</code>, draws indices 0-1 per instance, and routes each instance to the correct line data via <code>first_instance</code> in the indirect draw command. The fragment shader is a simple color passthrough.</p>
 
                     </main>
 
@@ -501,7 +407,7 @@ impl DebugOverlay {
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="audio-analyzer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="picking.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -515,13 +421,29 @@ impl DebugOverlay {
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="audio-analyzer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="picking.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

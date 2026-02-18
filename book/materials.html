@@ -179,15 +179,24 @@
 <blockquote>
 <p><strong>Live Demos:</strong> <a href="https://matthewberger.dev/nightshade/textures">Textures</a> | <a href="https://matthewberger.dev/nightshade/alpha_blending">Alpha Blending</a></p>
 </blockquote>
-<p>Materials define the visual appearance of meshes using PBR (Physically Based Rendering).</p>
+<p>Materials define the visual appearance of meshes using PBR (Physically Based Rendering) following the glTF 2.0 metallic-roughness workflow. Nightshade supports the full glTF PBR model plus several extensions: KHR_materials_transmission, KHR_materials_volume, KHR_materials_specular, and KHR_materials_emissive_strength.</p>
 <h2 id="material-structure"><a class="header" href="#material-structure">Material Structure</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Material {
+    // Core PBR
     pub base_color: [f32; 4],
+    pub roughness: f32,
+    pub metallic: f32,
     pub emissive_factor: [f32; 3],
+    pub emissive_strength: f32,
     pub alpha_mode: AlphaMode,
     pub alpha_cutoff: f32,
+    pub unlit: bool,
+    pub double_sided: bool,
+    pub uv_scale: [f32; 2],
+
+    // Textures
     pub base_texture: Option&lt;String&gt;,
     pub base_texture_uv_set: u32,
     pub emissive_texture: Option&lt;String&gt;,
@@ -195,24 +204,89 @@
     pub normal_texture: Option&lt;String&gt;,
     pub normal_texture_uv_set: u32,
     pub normal_scale: f32,
+    pub normal_map_flip_y: bool,
+    pub normal_map_two_component: bool,
     pub metallic_roughness_texture: Option&lt;String&gt;,
     pub metallic_roughness_texture_uv_set: u32,
     pub occlusion_texture: Option&lt;String&gt;,
     pub occlusion_texture_uv_set: u32,
-    pub roughness: f32,
-    pub metallic: f32,
-    pub unlit: bool,
-    pub double_sided: bool,
-    pub emissive_strength: f32,
+    pub occlusion_strength: f32,
+
+    // Transmission (KHR_materials_transmission)
+    pub transmission_factor: f32,
+    pub transmission_texture: Option&lt;String&gt;,
+    pub transmission_texture_uv_set: u32,
+
+    // Volume (KHR_materials_volume)
+    pub thickness: f32,
+    pub thickness_texture: Option&lt;String&gt;,
+    pub thickness_texture_uv_set: u32,
+    pub attenuation_color: [f32; 3],
+    pub attenuation_distance: f32,
+    pub ior: f32,
+
+    // Specular (KHR_materials_specular)
+    pub specular_factor: f32,
+    pub specular_color_factor: [f32; 3],
+    pub specular_texture: Option&lt;String&gt;,
+    pub specular_texture_uv_set: u32,
+    pub specular_color_texture: Option&lt;String&gt;,
+    pub specular_color_texture_uv_set: u32,
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="core-pbr-fields"><a class="header" href="#core-pbr-fields">Core PBR Fields</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>base_color</code></td><td><code>[0.7, 0.7, 0.7, 1.0]</code></td><td>RGBA albedo color, multiplied with <code>base_texture</code></td></tr>
+<tr><td><code>roughness</code></td><td><code>0.5</code></td><td>Surface roughness (0 = mirror, 1 = fully diffuse)</td></tr>
+<tr><td><code>metallic</code></td><td><code>0.0</code></td><td>Metalness (0 = dielectric, 1 = conductor)</td></tr>
+<tr><td><code>emissive_factor</code></td><td><code>[0.0, 0.0, 0.0]</code></td><td>RGB emissive color, multiplied with <code>emissive_texture</code></td></tr>
+<tr><td><code>emissive_strength</code></td><td><code>1.0</code></td><td>HDR intensity multiplier for emissive output</td></tr>
+<tr><td><code>alpha_mode</code></td><td><code>Opaque</code></td><td>Transparency handling mode</td></tr>
+<tr><td><code>alpha_cutoff</code></td><td><code>0.5</code></td><td>Alpha threshold for <code>AlphaMode::Mask</code></td></tr>
+<tr><td><code>unlit</code></td><td><code>false</code></td><td>Skip lighting calculations (flat shaded)</td></tr>
+<tr><td><code>double_sided</code></td><td><code>false</code></td><td>Render both sides of faces</td></tr>
+<tr><td><code>uv_scale</code></td><td><code>[1.0, 1.0]</code></td><td>UV coordinate scale multiplier</td></tr>
+</tbody></table>
+</div>
+<h3 id="normal-map-options"><a class="header" href="#normal-map-options">Normal Map Options</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>normal_scale</code></td><td><code>1.0</code></td><td>Normal map intensity multiplier</td></tr>
+<tr><td><code>normal_map_flip_y</code></td><td><code>false</code></td><td>Flip the Y (green) channel for DirectX-style normal maps</td></tr>
+<tr><td><code>normal_map_two_component</code></td><td><code>false</code></td><td>Two-component normal map (RG only, B reconstructed)</td></tr>
+<tr><td><code>occlusion_strength</code></td><td><code>1.0</code></td><td>Ambient occlusion effect strength (0 = none, 1 = full)</td></tr>
+</tbody></table>
+</div>
+<h3 id="transmission-and-volume"><a class="header" href="#transmission-and-volume">Transmission and Volume</a></h3>
+<p>These fields implement light transmission through surfaces (glass, water, thin-shell materials):</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>transmission_factor</code></td><td><code>0.0</code></td><td>Fraction of light transmitted through the surface (0 = opaque, 1 = fully transmissive)</td></tr>
+<tr><td><code>thickness</code></td><td><code>0.0</code></td><td>Volume thickness for refraction (0 = thin-wall)</td></tr>
+<tr><td><code>attenuation_color</code></td><td><code>[1.0, 1.0, 1.0]</code></td><td>Color of light absorbed inside the volume</td></tr>
+<tr><td><code>attenuation_distance</code></td><td><code>0.0</code></td><td>Distance at which light is attenuated to <code>attenuation_color</code></td></tr>
+<tr><td><code>ior</code></td><td><code>1.5</code></td><td>Index of refraction (1.0 = air, 1.33 = water, 1.5 = glass, 2.42 = diamond)</td></tr>
+</tbody></table>
+</div>
+<h3 id="specular"><a class="header" href="#specular">Specular</a></h3>
+<p>Overrides the default Fresnel reflectance for dielectric materials:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>specular_factor</code></td><td><code>1.0</code></td><td>Specular intensity override (0 = no specular, 1 = default F0)</td></tr>
+<tr><td><code>specular_color_factor</code></td><td><code>[1.0, 1.0, 1.0]</code></td><td>Tints the specular reflection color</td></tr>
+</tbody></table>
+</div>
+<h2 id="alpha-modes"><a class="header" href="#alpha-modes">Alpha Modes</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum AlphaMode {
+    Opaque,  // Fully opaque, alpha ignored
+    Mask,    // Binary transparency using alpha_cutoff
+    Blend,   // Full alpha blending
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="creating-materials"><a class="header" href="#creating-materials">Creating Materials</a></h2>
 <h3 id="basic-colored-material"><a class="header" href="#basic-colored-material">Basic Colored Material</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use nightshade::ecs::material::*;
-
-let red_material = Material {
+</span>let red_material = Material {
     base_color: [1.0, 0.0, 0.0, 1.0],
     roughness: 0.5,
     metallic: 0.0,
@@ -228,7 +302,7 @@ material_registry_insert(
 <h3 id="metallic-material"><a class="header" href="#metallic-material">Metallic Material</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let gold_material = Material {
+</span>let gold = Material {
     base_color: [1.0, 0.84, 0.0, 1.0],
     roughness: 0.3,
     metallic: 1.0,
@@ -236,43 +310,60 @@ material_registry_insert(
 };
 <span class="boring">}</span></code></pre></pre>
 <h3 id="emissive-material"><a class="header" href="#emissive-material">Emissive Material</a></h3>
+<p>The final emissive output is <code>emissive_factor * emissive_strength * emissive_texture</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let glowing_material = Material {
+</span>let neon = Material {
     base_color: [0.2, 0.8, 1.0, 1.0],
-    emissive_factor: [2.0, 8.0, 10.0],
+    emissive_factor: [0.2, 0.8, 1.0],
+    emissive_strength: 10.0,
     roughness: 0.8,
-    metallic: 0.0,
     ..Default::default()
 };
 <span class="boring">}</span></code></pre></pre>
-<h3 id="transparent-material"><a class="header" href="#transparent-material">Transparent Material</a></h3>
+<h3 id="glass--transmissive-material"><a class="header" href="#glass--transmissive-material">Glass / Transmissive Material</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let glass_material = Material {
+</span>let glass = Material {
+    base_color: [0.95, 0.95, 1.0, 1.0],
+    roughness: 0.05,
+    metallic: 0.0,
+    transmission_factor: 0.95,
+    ior: 1.5,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="colored-glass-with-volume-absorption"><a class="header" href="#colored-glass-with-volume-absorption">Colored Glass with Volume Absorption</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let stained_glass = Material {
+    base_color: [0.8, 0.2, 0.2, 1.0],
+    roughness: 0.05,
+    transmission_factor: 0.9,
+    thickness: 0.02,
+    attenuation_color: [0.8, 0.1, 0.1],
+    attenuation_distance: 0.05,
+    ior: 1.52,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="transparent-alpha-blended-material"><a class="header" href="#transparent-alpha-blended-material">Transparent (Alpha Blended) Material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let ghost = Material {
     base_color: [0.9, 0.95, 1.0, 0.3],
     alpha_mode: AlphaMode::Blend,
     roughness: 0.1,
-    metallic: 0.0,
     ..Default::default()
 };
 <span class="boring">}</span></code></pre></pre>
-<h2 id="alpha-modes"><a class="header" href="#alpha-modes">Alpha Modes</a></h2>
+<h3 id="foliage-alpha-mask"><a class="header" href="#foliage-alpha-mask">Foliage (Alpha Mask)</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum AlphaMode {
-    Opaque,       // Fully opaque, alpha ignored
-    Mask,         // Binary transparency using alpha_cutoff
-    Blend,        // Full alpha blending
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="alpha-cutoff-mask-mode"><a class="header" href="#alpha-cutoff-mask-mode">Alpha Cutoff (Mask Mode)</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let foliage_material = Material {
-    base_color: [0.2, 0.8, 0.2, 1.0],
+</span>let foliage = Material {
+    base_texture: Some("leaf_color".to_string()),
     alpha_mode: AlphaMode::Mask,
-    alpha_cutoff: 0.5,  // Pixels with alpha &lt; 0.5 are discarded
+    alpha_cutoff: 0.5,
     double_sided: true,
     ..Default::default()
 };
@@ -281,8 +372,7 @@ material_registry_insert(
 <h3 id="loading-textures"><a class="header" href="#loading-textures">Loading Textures</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// From embedded bytes
-let texture_bytes = include_bytes!("../assets/wood.png");
+</span>let texture_bytes = include_bytes!("../assets/wood.png");
 let image = image::load_from_memory(texture_bytes).unwrap().to_rgba8();
 
 world.queue_command(WorldCommand::LoadTexture {
@@ -292,46 +382,63 @@ world.queue_command(WorldCommand::LoadTexture {
     height: image.height(),
 });
 <span class="boring">}</span></code></pre></pre>
-<h3 id="applying-textures"><a class="header" href="#applying-textures">Applying Textures</a></h3>
+<h3 id="full-pbr-texture-set"><a class="header" href="#full-pbr-texture-set">Full PBR Texture Set</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let wood_material = Material {
-    base_color: [1.0, 1.0, 1.0, 1.0],
-    base_texture: Some("wood".to_string()),
-    roughness: 0.8,
-    metallic: 0.0,
-    ..Default::default()
-};
-<span class="boring">}</span></code></pre></pre>
-<h3 id="with-normal-map"><a class="header" href="#with-normal-map">With Normal Map</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let brick_material = Material {
-    base_color: [1.0, 1.0, 1.0, 1.0],
+</span>let brick = Material {
     base_texture: Some("brick_color".to_string()),
     normal_texture: Some("brick_normal".to_string()),
     normal_scale: 1.0,
-    roughness: 0.9,
-    metallic: 0.0,
+    metallic_roughness_texture: Some("brick_metallic_roughness".to_string()),
+    occlusion_texture: Some("brick_ao".to_string()),
+    roughness: 1.0,
+    metallic: 1.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<p>When a <code>metallic_roughness_texture</code> is present, the <code>roughness</code> and <code>metallic</code> values are multiplied with the texture's green and blue channels respectively.</p>
+<h3 id="uv-scaling"><a class="header" href="#uv-scaling">UV Scaling</a></h3>
+<p>Tile a texture by scaling UV coordinates:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let tiled = Material {
+    base_texture: Some("tile".to_string()),
+    uv_scale: [4.0, 4.0],
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="directx-normal-maps"><a class="header" href="#directx-normal-maps">DirectX Normal Maps</a></h3>
+<p>Some normal maps (e.g., from Substance or older tools) use a flipped Y channel:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let material = Material {
+    normal_texture: Some("dx_normal".to_string()),
+    normal_map_flip_y: true,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<p>For two-component normal maps (RG only, B reconstructed from RG):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let material = Material {
+    normal_texture: Some("bc5_normal".to_string()),
+    normal_map_two_component: true,
     ..Default::default()
 };
 <span class="boring">}</span></code></pre></pre>
 <h2 id="assigning-materials-to-entities"><a class="header" href="#assigning-materials-to-entities">Assigning Materials to Entities</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// Register material
-material_registry_insert(
+</span>material_registry_insert(
     &amp;mut world.resources.material_registry,
     "my_material".to_string(),
     my_material,
 );
 
-// Add reference
 if let Some(&amp;index) = world.resources.material_registry.registry.name_to_index.get("my_material") {
     world.resources.material_registry.registry.add_reference(index);
 }
 
-// Assign to entity
 world.set_material_ref(entity, MaterialRef::new("my_material"));
 <span class="boring">}</span></code></pre></pre>
 <h2 id="procedural-textures"><a class="header" href="#procedural-textures">Procedural Textures</a></h2>
@@ -343,13 +450,13 @@ world.set_material_ref(entity, MaterialRef::new("my_material"));
 
     for y in 0..size {
         for x in 0..size {
-            let idx = (y * size + x) * 4;
+            let index = (y * size + x) * 4;
             let checker = ((x / 32) + (y / 32)) % 2 == 0;
             let value = if checker { 255 } else { 64 };
-            data[idx] = value;
-            data[idx + 1] = value;
-            data[idx + 2] = value;
-            data[idx + 3] = 255;
+            data[index] = value;
+            data[index + 1] = value;
+            data[index + 2] = value;
+            data[index + 3] = 255;
         }
     }
 
@@ -364,46 +471,16 @@ world.queue_command(WorldCommand::LoadTexture {
     height: 256,
 });
 <span class="boring">}</span></code></pre></pre>
-<h2 id="common-material-presets"><a class="header" href="#common-material-presets">Common Material Presets</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn create_plastic(color: Vec3) -&gt; Material {
-    Material {
-        base_color: [color.x, color.y, color.z, 1.0],
-        roughness: 0.4,
-        metallic: 0.0,
-        ..Default::default()
-    }
-}
-
-fn create_metal(color: Vec3) -&gt; Material {
-    Material {
-        base_color: [color.x, color.y, color.z, 1.0],
-        roughness: 0.2,
-        metallic: 1.0,
-        ..Default::default()
-    }
-}
-
-fn create_rough(color: Vec3) -&gt; Material {
-    Material {
-        base_color: [color.x, color.y, color.z, 1.0],
-        roughness: 0.95,
-        metallic: 0.0,
-        ..Default::default()
-    }
-}
-<span class="boring">}</span></code></pre></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="meshes-models.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="cameras.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="lighting.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="meshes-models.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -413,17 +490,33 @@ fn create_rough(color: Vec3) -&gt; Material {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="meshes-models.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="cameras.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="lighting.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="meshes-models.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

@@ -157,23 +157,43 @@ fn update_flashlight(world: &mut World, flashlight: Entity) {
 }
 ```
 
-## Shadow Settings
+## How Lighting Works
 
-Configure shadow quality through graphics resources:
+Nightshade uses a **clustered forward rendering** pipeline. The view frustum is divided into a 16x9x24 grid of clusters. A compute shader assigns each light to the clusters it overlaps, producing a per-cluster light list (up to 256 lights per cluster). During the mesh pass, each fragment looks up its cluster and only evaluates the lights assigned to it, avoiding the cost of testing every light for every pixel.
 
-```rust
-world.resources.graphics.shadow_map_size = 2048;
-world.resources.graphics.shadow_cascades = 4;
-world.resources.graphics.shadow_distance = 100.0;
+### PBR Lighting Model
+
+All lights are evaluated using the **Cook-Torrance microfacet BRDF**:
+
+- **Normal Distribution Function (D)**: Trowbridge-Reitz GGX models the statistical distribution of microfacet orientations. The squared roughness parameter (`a = roughness * roughness`) controls how concentrated the specular highlight is.
+
+- **Geometry Function (G)**: Schlick-Beckmann approximation with Smith's method accounts for self-shadowing between microfacets. Two terms are combined: one for the view direction and one for the light direction.
+
+- **Fresnel (F)**: Schlick's approximation computes how reflectivity changes with viewing angle. For dielectrics, F0 is derived from the index of refraction. For metals, F0 equals the base color.
+
+The final light contribution per light is:
+
+```
+(kD * albedo / PI + specular) * radiance * NdotL
 ```
 
-## Ambient Light
+where `kD = (1 - F) * (1 - metallic)` ensures metals have no diffuse component.
 
-Set ambient lighting through the atmosphere:
+### Image-Based Lighting
+
+Ambient lighting comes from two pre-computed cubemaps:
+
+- **Irradiance map**: Pre-convolved diffuse environment lighting, sampled in the surface normal direction
+- **Prefiltered environment map**: 5 mip levels of increasingly blurred specular reflections, sampled in the reflection direction at a mip level determined by roughness
+
+A 2D BRDF lookup texture (computed via the split-sum approximation) combines with the prefiltered map to produce the final specular IBL contribution.
+
+## Atmosphere
+
+Set the sky rendering mode:
 
 ```rust
 world.resources.graphics.atmosphere = Atmosphere::Sky;
-world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
 ```
 
 ## Multiple Lights

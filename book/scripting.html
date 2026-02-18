@@ -179,7 +179,7 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/block_breaker_scripts">Block Breaker with Scripts</a></p>
 </blockquote>
-<p>Nightshade supports runtime scripting using <a href="https://rhai.rs/">Rhai</a>, an embedded scripting language for Rust.</p>
+<p>Nightshade supports runtime scripting using <a href="https://rhai.rs/">Rhai</a>, an embedded scripting language for Rust. Scripts run each frame and communicate with the engine through scope variables — reading entity transforms, input state, and time, then writing back updated positions, rotations, and commands.</p>
 <h2 id="enabling-scripting"><a class="header" href="#enabling-scripting">Enabling Scripting</a></h2>
 <p>Add the <code>scripting</code> feature:</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "scripting"] }
@@ -188,308 +188,197 @@
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Script {
-    pub code: String,
-    pub compiled: Option&lt;rhai::AST&gt;,
+    pub source: ScriptSource,
+    pub enabled: bool,
 }
+
+pub enum ScriptSource {
+    File { path: String },
+    Embedded { source: String },
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Scripts can be loaded from a file path (with hot-reloading on native) or embedded as a string:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let script = Script::from_source(r#"
+    pos_x += dt * 5.0;
+"#);
+
+let script = Script::from_file("scripts/enemy.rhai");
 <span class="boring">}</span></code></pre></pre>
 <h2 id="attaching-scripts-to-entities"><a class="header" href="#attaching-scripts-to-entities">Attaching Scripts to Entities</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let entity = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | SCRIPT, 1)[0];
+</span>let entity = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | SCRIPT,
+    1
+)[0];
 
-world.set_script(entity, Script {
-    code: r#"
-        fn update(dt) {
-            let pos = get_position(self);
-            set_position(self, pos.x + dt, pos.y, pos.z);
-        }
-    "#.to_string(),
-    compiled: None,
-});
+world.set_script(entity, Script::from_source(r#"
+    pos_y = (time * 2.0).sin() + 1.0;
+"#));
 <span class="boring">}</span></code></pre></pre>
-<h2 id="script-api"><a class="header" href="#script-api">Script API</a></h2>
-<p>Scripts have access to engine functions:</p>
-<h3 id="transform-functions"><a class="header" href="#transform-functions">Transform Functions</a></h3>
+<p>Scripts are disabled by default. Enable them to start execution:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let pos = get_position(entity);
-set_position(entity, x, y, z);
-
-let rot = get_rotation(entity);
-set_rotation(entity, x, y, z, w);
-
-let scale = get_scale(entity);
-set_scale(entity, x, y, z);
+</span>if let Some(script) = world.get_script_mut(entity) {
+    script.enabled = true;
+}
 <span class="boring">}</span></code></pre></pre>
-<h3 id="entity-functions"><a class="header" href="#entity-functions">Entity Functions</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let new_entity = spawn_entity("cube", x, y, z);
-
-despawn_entity(entity);
-
-let parent = get_parent(entity);
-set_parent(child, parent);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="component-access"><a class="header" href="#component-access">Component Access</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let health = get_component(entity, "health");
-set_component(entity, "health", health - 10);
-
-let has_enemy = has_component(entity, "enemy");
-<span class="boring">}</span></code></pre></pre>
-<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>play_sound("explosion");
-play_sound_at(entity, "footstep");
-stop_sound(entity);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="physics"><a class="header" href="#physics">Physics</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>apply_impulse(entity, x, y, z);
-apply_force(entity, x, y, z);
-set_velocity(entity, x, y, z);
-let vel = get_velocity(entity);
-<span class="boring">}</span></code></pre></pre>
-<h3 id="input"><a class="header" href="#input">Input</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let pressed = is_key_pressed("W");
-let just_pressed = is_key_just_pressed("Space");
-let mouse_x = get_mouse_x();
-let mouse_y = get_mouse_y();
-let left_click = is_mouse_pressed("Left");
-<span class="boring">}</span></code></pre></pre>
-<h3 id="math"><a class="header" href="#math">Math</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let dist = distance(x1, y1, z1, x2, y2, z2);
-let lerped = lerp(a, b, t);
-let clamped = clamp(value, min, max);
-let rand = random();
-let rand_range = random_range(min, max);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="script-lifecycle"><a class="header" href="#script-lifecycle">Script Lifecycle</a></h2>
-<h3 id="updatedt"><a class="header" href="#updatedt">update(dt)</a></h3>
-<p>Called every frame:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_script(entity, Script {
-    code: r#"
-        fn update(dt) {
-            // Move forward
-            let pos = get_position(self);
-            let speed = 5.0;
-            set_position(self, pos.x + speed * dt, pos.y, pos.z);
-        }
-    "#.to_string(),
-    compiled: None,
-});
-<span class="boring">}</span></code></pre></pre>
-<h3 id="on_collisionother"><a class="header" href="#on_collisionother">on_collision(other)</a></h3>
-<p>Called when colliding with another entity:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_script(entity, Script {
-    code: r#"
-        fn on_collision(other) {
-            if has_component(other, "player") {
-                play_sound("pickup");
-                despawn_entity(self);
-            }
-        }
-    "#.to_string(),
-    compiled: None,
-});
-<span class="boring">}</span></code></pre></pre>
-<h3 id="on_trigger_enterother--on_trigger_exitother"><a class="header" href="#on_trigger_enterother--on_trigger_exitother">on_trigger_enter(other) / on_trigger_exit(other)</a></h3>
-<p>Called when entering/exiting a trigger volume:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_script(trigger, Script {
-    code: r#"
-        fn on_trigger_enter(other) {
-            if has_component(other, "player") {
-                open_door();
-            }
-        }
-
-        fn on_trigger_exit(other) {
-            if has_component(other, "player") {
-                close_door();
-            }
-        }
-    "#.to_string(),
-    compiled: None,
-});
-<span class="boring">}</span></code></pre></pre>
+<h2 id="scope-variables"><a class="header" href="#scope-variables">Scope Variables</a></h2>
+<p>Scripts communicate with the engine entirely through variables injected into the Rhai scope. The system reads these variables after script execution to apply changes.</p>
+<h3 id="transform-variables"><a class="header" href="#transform-variables">Transform Variables</a></h3>
+<p>Read and write the entity's local transform:</p>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>pos_x</code>, <code>pos_y</code>, <code>pos_z</code></td><td><code>f64</code></td><td>Entity position</td></tr>
+<tr><td><code>rot_x</code>, <code>rot_y</code>, <code>rot_z</code></td><td><code>f64</code></td><td>Entity rotation (Euler angles in radians)</td></tr>
+<tr><td><code>scale_x</code>, <code>scale_y</code>, <code>scale_z</code></td><td><code>f64</code></td><td>Entity scale</td></tr>
+</tbody></table>
+</div>
+<p>Changes are only applied if the values actually differ from the current transform (compared with epsilon tolerance).</p>
+<h3 id="time-variables"><a class="header" href="#time-variables">Time Variables</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>dt</code> / <code>delta_time</code></td><td><code>f64</code></td><td>Frame delta time in seconds</td></tr>
+<tr><td><code>time</code></td><td><code>f64</code></td><td>Accumulated total time since scripts started</td></tr>
+</tbody></table>
+</div>
+<h3 id="input-variables"><a class="header" href="#input-variables">Input Variables</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>mouse_x</code>, <code>mouse_y</code></td><td><code>f64</code></td><td>Current mouse position</td></tr>
+<tr><td><code>pressed_keys</code></td><td><code>Array</code></td><td>Currently held key names (e.g., <code>["W", "SPACE"]</code>)</td></tr>
+<tr><td><code>just_pressed_keys</code></td><td><code>Array</code></td><td>Keys pressed this frame (not held from previous)</td></tr>
+</tbody></table>
+</div>
+<p>Key names are uppercase strings: <code>A</code>-<code>Z</code>, <code>0</code>-<code>9</code>, <code>SPACE</code>, <code>ENTER</code>, <code>ESCAPE</code>, <code>SHIFT</code>, <code>CTRL</code>, <code>ALT</code>, <code>TAB</code>, <code>BACKSPACE</code>, <code>UP</code>, <code>DOWN</code>, <code>LEFT</code>, <code>RIGHT</code>.</p>
+<h3 id="entity-access"><a class="header" href="#entity-access">Entity Access</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>entity_id</code></td><td><code>i64</code></td><td>This entity's ID (constant)</td></tr>
+<tr><td><code>entities</code></td><td><code>Map</code></td><td>Named entities with their positions and scales</td></tr>
+<tr><td><code>entity_names</code></td><td><code>Array</code></td><td>List of all named entity names</td></tr>
+</tbody></table>
+</div>
+<p>Access other entities by name:</p>
+<pre><code class="language-rhai">let player = entities["Player"];
+let player_x = player.x;
+let player_y = player.y;
+let player_z = player.z;
+</code></pre>
+<h3 id="game-state"><a class="header" href="#game-state">Game State</a></h3>
+<p>A shared <code>state</code> map persists across frames and is accessible to all scripts:</p>
+<pre><code class="language-rhai">state["score"] = state["score"] + 1.0;
+state["game_over"] = 1.0;
+</code></pre>
+<p>State values are <code>f64</code>. The state map is shared across all script entities.</p>
+<h3 id="spawning-and-despawning"><a class="header" href="#spawning-and-despawning">Spawning and Despawning</a></h3>
+<p>Set these variables to spawn or despawn entities:</p>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>do_spawn_cube</code></td><td><code>bool</code></td><td>Spawn a cube at <code>(spawn_cube_x/y/z)</code></td></tr>
+<tr><td><code>spawn_cube_x/y/z</code></td><td><code>f64</code></td><td>Spawn position for cube</td></tr>
+<tr><td><code>do_spawn_sphere</code></td><td><code>bool</code></td><td>Spawn a sphere at <code>(spawn_sphere_x/y/z)</code></td></tr>
+<tr><td><code>spawn_sphere_x/y/z</code></td><td><code>f64</code></td><td>Spawn position for sphere</td></tr>
+<tr><td><code>do_despawn</code></td><td><code>bool</code></td><td>Despawn this entity</td></tr>
+<tr><td><code>despawn_names</code></td><td><code>Array</code></td><td>Names of other entities to despawn</td></tr>
+</tbody></table>
+</div>
 <h2 id="example-scripts"><a class="header" href="#example-scripts">Example Scripts</a></h2>
-<h3 id="rotating-object"><a class="header" href="#rotating-object">Rotating Object</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>r#"
-    let rotation_speed = 1.0;
+<h3 id="moving-object"><a class="header" href="#moving-object">Moving Object</a></h3>
+<pre><code class="language-rhai">let speed = 5.0;
+pos_x += speed * dt;
 
-    fn update(dt) {
-        let rot = get_rotation(self);
-        let angle = rotation_speed * dt;
-        rotate_y(self, angle);
-    }
-"#
-<span class="boring">}</span></code></pre></pre>
+if pos_x &gt; 10.0 {
+    pos_x = -10.0;
+}
+</code></pre>
+<h3 id="keyboard-control"><a class="header" href="#keyboard-control">Keyboard Control</a></h3>
+<pre><code class="language-rhai">let speed = 8.0;
+
+if pressed_keys.contains("W") { pos_z -= speed * dt; }
+if pressed_keys.contains("S") { pos_z += speed * dt; }
+if pressed_keys.contains("A") { pos_x -= speed * dt; }
+if pressed_keys.contains("D") { pos_x += speed * dt; }
+
+if just_pressed_keys.contains("SPACE") {
+    do_spawn_sphere = true;
+    spawn_sphere_x = pos_x;
+    spawn_sphere_y = pos_y + 1.0;
+    spawn_sphere_z = pos_z;
+}
+</code></pre>
 <h3 id="follow-player"><a class="header" href="#follow-player">Follow Player</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>r#"
-    let speed = 3.0;
-    let player = null;
+<pre><code class="language-rhai">let speed = 3.0;
 
-    fn init() {
-        player = find_entity("Player");
+if "Player" in entities {
+    let player = entities["Player"];
+    let dx = player.x - pos_x;
+    let dz = player.z - pos_z;
+    let dist = (dx * dx + dz * dz).sqrt();
+
+    if dist &gt; 1.0 {
+        pos_x += (dx / dist) * speed * dt;
+        pos_z += (dz / dist) * speed * dt;
     }
+}
+</code></pre>
+<h3 id="rotating-object"><a class="header" href="#rotating-object">Rotating Object</a></h3>
+<pre><code class="language-rhai">let rotation_speed = 1.0;
+rot_y += rotation_speed * dt;
+</code></pre>
+<h3 id="bobbing-animation"><a class="header" href="#bobbing-animation">Bobbing Animation</a></h3>
+<pre><code class="language-rhai">let amplitude = 0.5;
+let frequency = 2.0;
+pos_y = 1.0 + (time * frequency).sin() * amplitude;
+</code></pre>
+<h3 id="scorekeeping"><a class="header" href="#scorekeeping">Scorekeeping</a></h3>
+<pre><code class="language-rhai">if !("score" in state) {
+    state["score"] = 0.0;
+}
 
-    fn update(dt) {
-        if player == null { return; }
-
-        let my_pos = get_position(self);
-        let player_pos = get_position(player);
-
-        let dx = player_pos.x - my_pos.x;
-        let dz = player_pos.z - my_pos.z;
-        let dist = sqrt(dx * dx + dz * dz);
-
-        if dist &gt; 1.0 {
-            let nx = dx / dist;
-            let nz = dz / dist;
-            set_position(self,
-                my_pos.x + nx * speed * dt,
-                my_pos.y,
-                my_pos.z + nz * speed * dt
-            );
-        }
-    }
-"#
-<span class="boring">}</span></code></pre></pre>
-<h3 id="patrol-between-points"><a class="header" href="#patrol-between-points">Patrol Between Points</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>r#"
-    let waypoints = [];
-    let current_waypoint = 0;
-    let speed = 2.0;
-    let threshold = 0.5;
-
-    fn init() {
-        waypoints = [
-            [0.0, 0.0, 0.0],
-            [10.0, 0.0, 0.0],
-            [10.0, 0.0, 10.0],
-            [0.0, 0.0, 10.0]
-        ];
-    }
-
-    fn update(dt) {
-        let pos = get_position(self);
-        let target = waypoints[current_waypoint];
-
-        let dx = target[0] - pos.x;
-        let dz = target[2] - pos.z;
-        let dist = sqrt(dx * dx + dz * dz);
-
-        if dist &lt; threshold {
-            current_waypoint = (current_waypoint + 1) % waypoints.len();
-        } else {
-            let nx = dx / dist;
-            let nz = dz / dist;
-            set_position(self,
-                pos.x + nx * speed * dt,
-                pos.y,
-                pos.z + nz * speed * dt
-            );
-        }
-    }
-"#
-<span class="boring">}</span></code></pre></pre>
-<h3 id="health-pickup"><a class="header" href="#health-pickup">Health Pickup</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>r#"
-    let heal_amount = 25;
-    let respawn_time = 10.0;
-    let timer = 0.0;
-    let active = true;
-
-    fn update(dt) {
-        if !active {
-            timer -= dt;
-            if timer &lt;= 0.0 {
-                active = true;
-                set_visible(self, true);
-            }
-        }
-    }
-
-    fn on_trigger_enter(other) {
-        if !active { return; }
-
-        if has_component(other, "player") {
-            let health = get_component(other, "health");
-            set_component(other, "health", health + heal_amount);
-            play_sound("heal");
-
-            active = false;
-            timer = respawn_time;
-            set_visible(self, false);
-        }
-    }
-"#
-<span class="boring">}</span></code></pre></pre>
+if just_pressed_keys.contains("E") {
+    state["score"] = state["score"] + 10.0;
+}
+</code></pre>
+<h3 id="despawning-named-entities"><a class="header" href="#despawning-named-entities">Despawning Named Entities</a></h3>
+<pre><code class="language-rhai">if just_pressed_keys.contains("X") {
+    despawn_names.push("Enemy_1");
+    despawn_names.push("Enemy_2");
+}
+</code></pre>
 <h2 id="script-runtime"><a class="header" href="#script-runtime">Script Runtime</a></h2>
-<p>The script runtime manages compilation and execution:</p>
+<p>The <code>ScriptRuntime</code> manages compilation, caching, and execution:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct ScriptRuntime {
-    engine: rhai::Engine,
-    scope: rhai::Scope&lt;'static&gt;,
+    pub engine: rhai::Engine,
+    pub game_state: HashMap&lt;String, f64&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="registering-custom-functions"><a class="header" href="#registering-custom-functions">Registering Custom Functions</a></h3>
+<p>Run the scripting system each frame:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    run_scripts_system(world, &amp;mut self.script_runtime);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="script-compilation"><a class="header" href="#script-compilation">Script Compilation</a></h3>
+<p>Scripts are compiled to AST on first execution and cached by a hash of the source code. Recompilation only occurs when the source changes. For file-based scripts, modification times are tracked and the script is automatically recompiled when the file changes (hot-reloading on native only).</p>
+<h3 id="custom-functions"><a class="header" href="#custom-functions">Custom Functions</a></h3>
+<p>Register additional Rhai functions:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>runtime.engine.register_fn("custom_function", |x: i64, y: i64| {
     x + y
 });
 <span class="boring">}</span></code></pre></pre>
-<h3 id="global-variables"><a class="header" href="#global-variables">Global Variables</a></h3>
+<h3 id="game-state-1"><a class="header" href="#game-state-1">Game State</a></h3>
+<p>The runtime's <code>game_state</code> map is injected into every script's scope as the <code>state</code> variable. Values persist across frames:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>runtime.scope.push("game_difficulty", 1);
-runtime.scope.push("player_score", 0);
+</span>runtime.set_state("difficulty".to_string(), 1.0);
+let score = runtime.get_state("score");
+runtime.reset_game_state();
 <span class="boring">}</span></code></pre></pre>
-<h2 id="debugging-scripts"><a class="header" href="#debugging-scripts">Debugging Scripts</a></h2>
-<h3 id="print-statements"><a class="header" href="#print-statements">Print Statements</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>r#"
-    fn update(dt) {
-        print("Entity position: " + get_position(self).x);
-    }
-"#
-<span class="boring">}</span></code></pre></pre>
-<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
-<p>Script errors are logged to the console:</p>
-<pre><code>[ERROR] Script error in entity 42: Variable 'undefined_var' not found
-</code></pre>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ul>
-<li>Scripts are compiled once and reused</li>
-<li>Avoid heavy computation in update()</li>
-<li>Use native Rust for performance-critical code</li>
-<li>Minimize entity queries in scripts</li>
-</ul>
+<h2 id="hot-reloading"><a class="header" href="#hot-reloading">Hot Reloading</a></h2>
+<p>On native platforms, file-based scripts are automatically hot-reloaded when modified. The runtime tracks file modification times and invalidates the compiled cache when changes are detected. This allows editing scripts in an external editor while the game is running.</p>
 
                     </main>
 
@@ -499,7 +388,7 @@ runtime.scope.push("player_score", 0);
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="example-minimal.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="effects-pass.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -513,13 +402,29 @@ runtime.scope.push("player_score", 0);
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="example-minimal.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="effects-pass.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

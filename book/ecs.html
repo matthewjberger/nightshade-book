@@ -176,111 +176,98 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="entity-component-system"><a class="header" href="#entity-component-system">Entity Component System</a></h1>
-<p>Nightshade uses <code>freecs</code>, a code-generated ECS with struct-of-arrays storage for cache-friendly access patterns.</p>
-<h2 id="ecs-concepts"><a class="header" href="#ecs-concepts">ECS Concepts</a></h2>
-<h3 id="entities"><a class="header" href="#entities">Entities</a></h3>
-<p>Entities are unique identifiers (IDs) that group components together. An entity is just a number - it has no data of its own.</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let entity: Entity = world.spawn_entities(LOCAL_TRANSFORM, 1)[0];
-<span class="boring">}</span></code></pre></pre>
-<h3 id="components"><a class="header" href="#components">Components</a></h3>
-<p>Components are plain data structs attached to entities:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct LocalTransform {
-    pub translation: Vec3,
-    pub rotation: Quat,
-    pub scale: Vec3,
-}
+<p>Nightshade uses <strong>freecs</strong>, a compile-time code-generated ECS with struct-of-arrays (SoA) storage. freecs generates all entity management, component storage, and query methods at compile time via the <code>ecs!</code> macro, with zero <code>unsafe</code> code.</p>
+<h2 id="what-is-an-ecs"><a class="header" href="#what-is-an-ecs">What is an ECS?</a></h2>
+<p>An Entity Component System separates data from behavior:</p>
+<ul>
+<li><strong>Entities</strong> are unique identifiers (IDs). They have no data of their own.</li>
+<li><strong>Components</strong> are plain data structs attached to entities. Each component type is stored in its own contiguous array.</li>
+<li><strong>Systems</strong> are functions that query entities by their component masks and process matching entities.</li>
+</ul>
+<p>This is fundamentally different from object-oriented game architectures where a <code>GameObject</code> class owns its data and behavior through inheritance. The OOP approach leads to deep inheritance hierarchies (the "diamond problem"), poor cache locality (objects scattered across the heap), and rigid coupling between data and logic. ECS inverts this: data is organized by type, not by object, and logic operates on slices of data rather than individual objects.</p>
+<h2 id="how-archetype-storage-works"><a class="header" href="#how-archetype-storage-works">How Archetype Storage Works</a></h2>
+<p>freecs uses <strong>archetype-based SoA (struct-of-arrays) storage</strong>. To understand why this matters, consider how data layouts affect performance.</p>
+<h3 id="array-of-structs-vs-struct-of-arrays"><a class="header" href="#array-of-structs-vs-struct-of-arrays">Array of Structs vs Struct of Arrays</a></h3>
+<p>In a traditional OOP game, entities are stored as an <strong>array of structs (AoS)</strong>:</p>
+<pre><code>Memory: [Entity0{pos,vel,hp,mesh}] [Entity1{pos,vel,hp,mesh}] [Entity2{pos,vel,hp,mesh}]
+</code></pre>
+<p>When a system iterates over all positions, it loads entire entity structs into cache lines even though it only needs the <code>pos</code> field. The rest is wasted bandwidth.</p>
+<p>In <strong>SoA storage</strong>, each component type gets its own contiguous array:</p>
+<pre><code>Positions:  [pos0] [pos1] [pos2] [pos3] ...
+Velocities: [vel0] [vel1] [vel2] [vel3] ...
+Health:     [hp0]  [hp1]  [hp2]  [hp3]  ...
+</code></pre>
+<p>Now a system iterating over positions reads a dense, contiguous block of memory. Every byte loaded into a cache line is useful. This can be 5-10x faster for large entity counts due to CPU cache prefetching.</p>
+<h3 id="archetype-tables"><a class="header" href="#archetype-tables">Archetype Tables</a></h3>
+<p>Not every entity has the same components. An entity with <code>Position | Velocity</code> is different from one with <code>Position | Velocity | Health</code>. freecs groups entities by their <strong>component mask</strong> (the exact set of components they have) into <strong>archetype tables</strong>.</p>
+<p>Each table stores only entities with identical component masks. Within a table, components are stored in SoA layout:</p>
+<pre><code>Table A (mask: Position | Velocity):
+  positions:  [p0, p1, p2]
+  velocities: [v0, v1, v2]
 
-pub struct Health {
-    pub current: f32,
-    pub maximum: f32,
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="systems"><a class="header" href="#systems">Systems</a></h3>
-<p>Systems are functions that process entities with specific components:</p>
+Table B (mask: Position | Velocity | Health):
+  positions:  [p3, p4]
+  velocities: [v3, v4]
+  healths:    [h3, h4]
+</code></pre>
+<p>When querying for <code>Position | Velocity</code>, the ECS checks each table's mask with a single bitwise AND. Table A matches, Table B also matches (it has a superset of the requested components). Tables whose masks don't include all requested components are skipped entirely without examining any entities.</p>
+<h3 id="component-masks-as-bitflags"><a class="header" href="#component-masks-as-bitflags">Component Masks as Bitflags</a></h3>
+<p>Each component is assigned a bit position at compile time. An entity's component mask is a single integer where bit N is set if the entity has component N:</p>
+<pre><code>LOCAL_TRANSFORM    = 0b0001
+GLOBAL_TRANSFORM   = 0b0010
+RENDER_MESH        = 0b0100
+MATERIAL_REF       = 0b1000
+</code></pre>
+<p>Querying <code>query_entities(RENDER_MESH | LOCAL_TRANSFORM)</code> becomes <code>table_mask &amp; query_mask == query_mask</code>, which is two CPU instructions (AND + CMP). This is why ECS queries scale to millions of entities.</p>
+<h2 id="why-freecs"><a class="header" href="#why-freecs">Why freecs?</a></h2>
+<p>freecs generates all ECS infrastructure at compile time from a single macro invocation. This means:</p>
+<ul>
+<li><strong>No runtime overhead</strong> for component lookups - everything is statically dispatched, no vtables, no hash lookups</li>
+<li><strong>SoA storage</strong> - components of the same type are stored in contiguous arrays, optimal for CPU cache utilization</li>
+<li><strong>Archetype tables</strong> - entities with the same component mask share a table, so queries skip irrelevant entities entirely</li>
+<li><strong>Zero <code>unsafe</code></strong> - the generated code uses only safe Rust</li>
+<li><strong>Bitflag queries</strong> - component presence is checked with bitmask operations, which is a single CPU instruction</li>
+<li><strong>Compile-time monomorphization</strong> - accessor methods like <code>get_local_transform()</code> compile down to a direct array index with no indirection</li>
+</ul>
+<h2 id="quick-overview"><a class="header" href="#quick-overview">Quick Overview</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn damage_system(world: &amp;mut World) {
-    for entity in world.query_entities(HEALTH | DAMAGE_OVER_TIME) {
-        let dot = world.get_damage_over_time(entity).unwrap();
-        if let Some(health) = world.get_health_mut(entity) {
-            health.current -= dot.damage_per_second * world.resources.window.timing.delta_time;
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="component-flags"><a class="header" href="#component-flags">Component Flags</a></h2>
-<p>Each component type has a corresponding bitflag for efficient queries:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub const LOCAL_TRANSFORM: ComponentFlags = 1 &lt;&lt; 0;
-pub const GLOBAL_TRANSFORM: ComponentFlags = 1 &lt;&lt; 1;
-pub const RENDER_MESH: ComponentFlags = 1 &lt;&lt; 2;
-pub const MATERIAL_REF: ComponentFlags = 1 &lt;&lt; 3;
-pub const CAMERA: ComponentFlags = 1 &lt;&lt; 4;
-pub const LIGHT: ComponentFlags = 1 &lt;&lt; 5;
-<span class="boring">}</span></code></pre></pre>
-<p>Combine flags with bitwise OR:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>const RENDERABLE: ComponentFlags = LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH | MATERIAL_REF;
+</span>use nightshade::prelude::*;
 
-let entity = world.spawn_entities(RENDERABLE, 1)[0];
-<span class="boring">}</span></code></pre></pre>
-<h2 id="working-with-components"><a class="header" href="#working-with-components">Working with Components</a></h2>
-<h3 id="setting-components"><a class="header" href="#setting-components">Setting Components</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.set_local_transform(entity, LocalTransform {
+// Spawn an entity with transform and mesh components
+let entity = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH | MATERIAL_REF,
+    1,
+)[0];
+
+// Set component values
+world.set_local_transform(entity, LocalTransform {
     translation: Vec3::new(0.0, 5.0, 0.0),
     rotation: Quat::identity(),
     scale: Vec3::new(1.0, 1.0, 1.0),
 });
-
 world.set_render_mesh(entity, RenderMesh {
     name: "cube".to_string(),
     id: None,
 });
-<span class="boring">}</span></code></pre></pre>
-<h3 id="getting-components-immutable"><a class="header" href="#getting-components-immutable">Getting Components (Immutable)</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>if let Some(transform) = world.get_local_transform(entity) {
-    let position = transform.translation;
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="getting-components-mutable"><a class="header" href="#getting-components-mutable">Getting Components (Mutable)</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>if let Some(transform) = world.get_local_transform_mut(entity) {
-    transform.translation.y += 1.0;
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="checking-component-presence"><a class="header" href="#checking-component-presence">Checking Component Presence</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>if world.entity_has_components(entity, RENDER_MESH) {
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="entity-hierarchy"><a class="header" href="#entity-hierarchy">Entity Hierarchy</a></h2>
-<p>Entities can form parent-child relationships:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use nightshade::ecs::transform::components::Parent;
+world.set_material_ref(entity, MaterialRef::new("Default"));
 
-world.update_parent(child_entity, Some(Parent(Some(parent_entity))));
-
-world.update_parent(child_entity, Some(Parent(None)));
-
-if let Some(children) = world.resources.children_cache.get(&amp;parent_entity) {
-    for child in children {
-    }
+// Query all entities with a specific set of components
+for entity in world.query_entities(RENDER_MESH | LOCAL_TRANSFORM) {
+    let transform = world.get_local_transform(entity).unwrap();
+    let mesh = world.get_render_mesh(entity).unwrap();
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Child transforms are relative to their parent. The engine automatically propagates transforms through the hierarchy.</p>
+<h2 id="component-flags"><a class="header" href="#component-flags">Component Flags</a></h2>
+<p>Each component has a corresponding bitflag constant. Combine flags with <code>|</code> to describe which components an entity has:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const RENDERABLE: ComponentFlags =
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH | MATERIAL_REF;
+
+let entity = world.spawn_entities(RENDERABLE, 1)[0];
+<span class="boring">}</span></code></pre></pre>
+<p>The full list of built-in component flags is in the <a href="components.html">Components</a> chapter.</p>
 <h2 id="custom-game-ecs"><a class="header" href="#custom-game-ecs">Custom Game ECS</a></h2>
 <p>For complex games, define a separate ECS for game-specific data:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -289,21 +276,19 @@ if let Some(children) = world.resources.children_cache.get(&amp;parent_entity) {
 
 ecs! {
     GameWorld {
-        components {
-            player_state: PlayerState =&gt; PLAYER_STATE,
-            inventory: Inventory =&gt; INVENTORY,
-            health: Health =&gt; HEALTH,
-            enemy_ai: EnemyAI =&gt; ENEMY_AI,
-        },
-        resources {
-            game_time: GameTime,
-            score: u32,
-            level: u32,
-        }
+        player_state: PlayerState =&gt; PLAYER_STATE,
+        inventory: Inventory =&gt; INVENTORY,
+        health: Health =&gt; HEALTH,
+        enemy_ai: EnemyAI =&gt; ENEMY_AI,
+    }
+    Resources {
+        game_time: GameTime,
+        score: u32,
+        level: u32,
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Then use both worlds together:</p>
+<p>Then use both worlds together in your State:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct MyGame {
@@ -313,21 +298,29 @@ ecs! {
 impl State for MyGame {
     fn run_systems(&amp;mut self, world: &amp;mut World) {
         update_player(&amp;mut self.game);
-
         sync_positions(&amp;self.game, world);
     }
 }
 <span class="boring">}</span></code></pre></pre>
+<h2 id="chapter-guide"><a class="header" href="#chapter-guide">Chapter Guide</a></h2>
+<ul>
+<li><a href="ecs-macro.html">The freecs Macro</a> - Full macro syntax and what gets generated</li>
+<li><a href="entities.html">Entities</a> - Spawning, despawning, and entity IDs</li>
+<li><a href="components.html">Components</a> - All 48 built-in components</li>
+<li><a href="queries.html">Queries &amp; Iteration</a> - Querying and iterating over entities</li>
+<li><a href="ecs-resources.html">Resources</a> - Global singleton data</li>
+<li><a href="tags-events-commands.html">Tags, Events &amp; Commands</a> - Events, command buffers, and deferred operations</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="world-resources.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="architecture-overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="components.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="ecs-macro.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -337,17 +330,33 @@ impl State for MyGame {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="world-resources.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="architecture-overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="components.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="ecs-macro.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

@@ -2,18 +2,25 @@
 
 > **Live Demos:** [Bloom](https://matthewberger.dev/nightshade/bloom) | [SSAO](https://matthewberger.dev/nightshade/ssao) | [Depth of Field](https://matthewberger.dev/nightshade/depth_of_field)
 
-Nightshade includes several post-processing effects that enhance visual quality.
+Post-processing passes read the HDR scene color, depth, and normals to produce the final image. These passes are added in `configure_render_graph()`.
 
-## Available Effects
+## Available Passes
 
-| Effect | Description |
-|--------|-------------|
-| Bloom | Glow around bright areas |
-| SSAO | Screen-space ambient occlusion |
-| Depth of Field | Focus blur effect |
-| Tonemapping | HDR to LDR conversion |
-| Color Grading | Color adjustments |
-| Anti-Aliasing | Edge smoothing |
+| Pass | Description | Reads | Writes |
+|------|-------------|-------|--------|
+| `SsaoPass` | Screen-space ambient occlusion | depth, normals | ssao_raw |
+| `SsaoBlurPass` | Bilateral blur for SSAO | ssao_raw | ssao |
+| `SsgiPass` | Screen-space global illumination (half-res) | scene_color, depth, normals | ssgi_raw |
+| `SsgiBlurPass` | Bilateral blur for SSGI | ssgi_raw | ssgi |
+| `SsrPass` | Screen-space reflections | scene_color, depth, normals | ssr_raw |
+| `SsrBlurPass` | Blur for SSR | ssr_raw | ssr |
+| `BloomPass` | HDR bloom with mip chain | scene_color | bloom |
+| `DepthOfFieldPass` | Bokeh depth of field | scene_color, depth | scene_color |
+| `PostProcessPass` | Final tonemapping and compositing | scene_color, bloom, ssao | output |
+| `EffectsPass` | Custom shader effects | scene_color | scene_color |
+| `OutlinePass` | Selection outline | selection_mask | scene_color |
+| `BlitPass` | Simple texture copy | input | output |
+| `ComputeGrayscalePass` | Grayscale conversion | input | output |
 
 ## Enabling Effects
 
@@ -21,133 +28,167 @@ Control post-processing through `world.resources.graphics`:
 
 ```rust
 fn initialize(&mut self, world: &mut World) {
-    // Bloom
     world.resources.graphics.bloom_enabled = true;
     world.resources.graphics.bloom_intensity = 0.3;
-    world.resources.graphics.bloom_threshold = 1.0;
 
-    // SSAO
     world.resources.graphics.ssao_enabled = true;
     world.resources.graphics.ssao_radius = 0.5;
     world.resources.graphics.ssao_intensity = 1.0;
 
-    // Tonemapping
     world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 }
 ```
 
+## SSAO (Screen-Space Ambient Occlusion)
+
+In the real world, corners, crevices, and enclosed spaces receive less ambient light because surrounding geometry occludes incoming light from many directions. SSAO approximates this effect in screen space by analyzing the depth buffer.
+
+### How SSAO Works
+
+For each pixel, the shader reconstructs the 3D position from the depth buffer, then samples several random points in a hemisphere oriented along the surface normal. Each sample point is projected back into screen space to check the depth buffer: if the stored depth is closer than the sample point, that direction is occluded. The ratio of occluded samples to total samples gives the occlusion factor.
+
+The key inputs are:
+- **Depth buffer** - Provides the 3D position of each pixel
+- **View-space normals** - Orients the sampling hemisphere along the surface
+- **Random noise** - Rotates the sample kernel per-pixel to avoid banding patterns
+
+The raw SSAO output is noisy because of the limited sample count (typically 16-64 samples per pixel). A bilateral blur pass smooths the result while preserving edges (it avoids blurring across depth discontinuities, which would cause halos around objects).
+
+```rust
+world.resources.graphics.ssao_enabled = true;
+world.resources.graphics.ssao_radius = 0.5;
+world.resources.graphics.ssao_intensity = 1.0;
+world.resources.graphics.ssao_bias = 0.025;
+```
+
+- `ssao_radius` - The hemisphere radius in world units. Larger values detect occlusion from farther geometry but can cause over-darkening.
+- `ssao_bias` - A small depth offset to prevent self-occlusion artifacts on flat surfaces.
+- `ssao_intensity` - Multiplier for the final occlusion factor.
+
+## SSGI (Screen-Space Global Illumination)
+
+In real-world lighting, light bounces between surfaces. A red wall next to a white floor tints the floor red. Traditional rasterization only computes direct lighting (light source to surface to camera). Global illumination (GI) adds these indirect bounces.
+
+SSGI approximates one bounce of indirect light using only screen-space information. For each pixel, the shader traces short rays through the depth buffer to find nearby surfaces, then samples the color at those hit points as incoming indirect light. This is conceptually similar to SSAO but samples color instead of just occlusion.
+
+SSGI is computed at half resolution for performance (the indirect illumination is low-frequency and doesn't need full resolution), then bilaterally blurred and upsampled.
+
+## SSR (Screen-Space Reflections)
+
+SSR adds dynamic reflections by ray-marching through the depth buffer. For each reflective pixel, the shader computes the reflection vector from the camera direction and the surface normal, then steps along that vector in screen space, checking the depth buffer at each step. When the ray intersects a surface (the ray's depth exceeds the depth buffer value), the color at that screen position becomes the reflection.
+
+This technique works well for reflections of on-screen geometry but has inherent limitations: off-screen objects cannot be reflected, and reflections at grazing angles stretch across large screen areas. The blur pass hides artifacts from these limitations, and a fallback to environment maps or IBL fills in where SSR has no data.
+
 ## Bloom
 
-Bloom creates a glow effect around bright pixels:
+Bloom simulates the light scattering that occurs in real cameras and the human eye when bright light sources bleed into surrounding areas. In HDR rendering, pixels can have values above 1.0 (the displayable range). Bloom extracts these bright pixels and spreads their light outward.
+
+### How Bloom Works
+
+The bloom pipeline uses a progressive downsample/upsample approach (similar to the technique described in the Call of Duty: Advanced Warfare presentation):
+
+1. **Threshold** - Extract pixels brighter than a threshold from the HDR scene color
+2. **Downsample chain** - Progressively halve the resolution through multiple mip levels (e.g., 1920x1080 -> 960x540 -> 480x270 -> ...), applying a blur at each step. This is much cheaper than blurring at full resolution because each mip level has 1/4 the pixels.
+3. **Upsample chain** - Walk back up the mip chain, additively blending each level with the one above it. This produces a smooth, wide blur that spans many pixels without requiring a massive blur kernel.
+4. **Composite** - Add the bloom result to the scene color during the final post-process pass.
+
+The mip-chain approach produces natural-looking bloom because it captures both tight glow (from the high-resolution mips) and wide glow (from the low-resolution mips) simultaneously.
+
+Bloom creates a glow effect around bright pixels using this mip-chain downsample/upsample approach:
 
 ```rust
 world.resources.graphics.bloom_enabled = true;
-world.resources.graphics.bloom_intensity = 0.5;  // Glow strength
-world.resources.graphics.bloom_threshold = 1.0;  // Brightness cutoff
-world.resources.graphics.bloom_radius = 0.005;   // Blur spread
+world.resources.graphics.bloom_intensity = 0.5;
 ```
 
-### Emissive Materials for Bloom
-
-Materials with emissive values will glow:
+Materials with high emissive values produce the strongest bloom:
 
 ```rust
-let glowing_material = Material {
+let glowing = Material {
     base_color: [0.2, 0.8, 1.0, 1.0],
-    emissive_factor: [2.0, 8.0, 10.0],  // High values create bloom
+    emissive_factor: [2.0, 8.0, 10.0],
     ..Default::default()
 };
 ```
 
-## SSAO (Screen-Space Ambient Occlusion)
+## Depth of Field
 
-SSAO adds subtle shadows in corners and crevices:
+Depth of field simulates the optical behavior of a physical camera lens. A real lens can only focus at one distance; objects nearer or farther than the focal plane appear blurred. The amount of blur (the circle of confusion, or CoC) increases with distance from the focal plane and is controlled by the aperture size.
+
+### How DoF Works
+
+1. **CoC computation** - For each pixel, compute the circle of confusion from the depth buffer value, the focus distance, and the aperture. The CoC is the diameter (in pixels) of the blur disc for that pixel.
+2. **Blur** - Apply a variable-radius blur where the kernel size is proportional to the CoC. Pixels with large CoC values (far from focus) get blurred heavily; pixels near the focal plane remain sharp.
+3. **Bokeh** - Bright out-of-focus highlights form characteristic shapes (circles, hexagons) called bokeh. The shader can emphasize bright pixels during the blur to simulate this optical effect.
+
+Focus blur based on distance from a focus plane:
 
 ```rust
-world.resources.graphics.ssao_enabled = true;
-world.resources.graphics.ssao_radius = 0.5;     // Sample radius
-world.resources.graphics.ssao_intensity = 1.0;  // Shadow darkness
-world.resources.graphics.ssao_bias = 0.025;     // Depth comparison bias
+world.resources.graphics.depth_of_field.enabled = true;
+world.resources.graphics.depth_of_field.focus_distance = 10.0;
+world.resources.graphics.depth_of_field.focus_range = 5.0;
+world.resources.graphics.depth_of_field.max_blur_radius = 10.0;
+world.resources.graphics.depth_of_field.bokeh_threshold = 1.0;
+world.resources.graphics.depth_of_field.bokeh_intensity = 1.0;
 ```
 
 ## Tonemapping
 
-Convert HDR colors to displayable range:
+HDR rendering computes lighting in a physically linear color space where values can range from 0 to thousands. But displays can only show values between 0 and 1. Tonemapping is the process of compressing the HDR range into the displayable LDR range while preserving the perception of brightness differences and color relationships.
+
+Different tonemapping curves make different trade-offs:
+- **Reinhard** - Simple `color / (color + 1)` mapping. Preserves highlights but can look washed out.
+- **ACES** (Academy Color Encoding System) - Film-industry standard curve with good contrast and a slight warm tint. Widely used in games.
+- **AgX** - A more recent curve designed to handle highly saturated colors better than ACES (which can produce hue shifts in bright saturated regions).
+- **Neutral** - Minimal color manipulation, useful when color grading is handled externally.
+
+The `PostProcessPass` performs HDR-to-LDR tonemapping:
 
 ```rust
 pub enum TonemapAlgorithm {
-    Reinhard,         // Simple, good for general use
-    Aces,             // Film-like, high contrast
-    Reinhard,         // Simple, preserves detail
-    ReinhardExtended, // Reinhard with white point
-    Uncharted2,       // Video game standard
-    AgX,              // Neutral, balanced
-    Neutral,          // Minimal color shift
-    None,             // No tonemapping (LDR only)
+    Reinhard,
+    Aces,
+    ReinhardExtended,
+    Uncharted2,
+    AgX,
+    Neutral,
+    None,
 }
 
 world.resources.graphics.color_grading.tonemap_algorithm = TonemapAlgorithm::Aces;
 ```
 
-## Depth of Field
-
-Blur based on distance from focus:
-
-```rust
-world.resources.graphics.dof_enabled = true;
-world.resources.graphics.dof_focus_distance = 10.0;  // In-focus distance
-world.resources.graphics.dof_aperture = 0.05;        // Blur amount
-world.resources.graphics.dof_focal_length = 50.0;    // Lens simulation
-```
-
 ## Color Grading
 
-Adjust colors for stylistic effect:
-
 ```rust
-world.resources.graphics.saturation = 1.0;   // 0 = grayscale, 1 = normal
-world.resources.graphics.contrast = 1.0;     // Higher = more contrast
-world.resources.graphics.brightness = 0.0;   // Offset
+world.resources.graphics.color_grading.saturation = 1.0;
+world.resources.graphics.color_grading.contrast = 1.0;
+world.resources.graphics.color_grading.brightness = 0.0;
 ```
 
-## Vignette
+## Effects Pass
 
-Darken screen edges:
+The `EffectsPass` runs custom WGSL shader effects for specialized visual treatments:
 
-```rust
-world.resources.graphics.vignette_enabled = true;
-world.resources.graphics.vignette_intensity = 0.3;
-world.resources.graphics.vignette_radius = 0.75;
-```
+- Color grading presets
+- Chromatic aberration
+- Film grain
+- Custom shader effects
+
+See [Effects Pass](effects-pass.md) for details.
 
 ## Custom Post-Processing
 
-Add custom passes via the render graph:
+Add custom post-processing passes via the render graph. See [Custom Passes](render-graph-custom.md) for implementation examples.
 
-```rust
-fn configure_render_graph(
-    &mut self,
-    graph: &mut RenderGraph<World>,
-    device: &wgpu::Device,
-    surface_format: wgpu::TextureFormat,
-    resources: RenderResources,
-) {
-    let custom_pass = MyCustomPass::new(device);
-    graph.add_pass(
-        Box::new(custom_pass),
-        &[("input", resources.scene_color), ("output", resources.post_processed)],
-    );
-}
-```
-
-## Performance Considerations
-
-Post-processing effects have performance costs:
+## Performance
 
 | Effect | Cost | Notes |
 |--------|------|-------|
-| Bloom | Medium | Multiple blur passes |
-| SSAO | High | Many depth samples |
+| Bloom | Medium | Multiple blur passes at half resolution |
+| SSAO | High | Many depth samples per pixel |
+| SSGI | High | Half resolution helps, but still expensive |
+| SSR | High | Ray tracing through depth buffer |
 | DoF | Medium | Gaussian blur |
 | Tonemapping | Low | Per-pixel math |
 | Color Grading | Low | Per-pixel math |

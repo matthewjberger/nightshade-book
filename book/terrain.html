@@ -179,7 +179,37 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/terrain">Terrain</a></p>
 </blockquote>
-<p>Nightshade supports procedural terrain generation with LOD and tessellation.</p>
+<p>Nightshade supports procedural terrain generation with noise-based heightmaps, physics collision, and PBR materials.</p>
+<h2 id="how-terrain-works"><a class="header" href="#how-terrain-works">How Terrain Works</a></h2>
+<p>Terrain in Nightshade is a regular mesh generated from a noise-based heightmap. The engine creates a grid of vertices at configurable resolution, samples a noise function at each vertex to determine its height, computes per-vertex normals from the surrounding triangle faces, and registers the result in the mesh cache. The terrain entity is then rendered through the standard mesh pipeline with full PBR material support, shadow casting, and physics collision.</p>
+<h3 id="mesh-generation-pipeline"><a class="header" href="#mesh-generation-pipeline">Mesh Generation Pipeline</a></h3>
+<p>The <code>generate_terrain_mesh</code> function builds the terrain in four steps:</p>
+<ol>
+<li>
+<p><strong>Vertex generation</strong> - Creates a grid of <code>resolution_x * resolution_z</code> vertices. The grid is centered at the origin, with X coordinates ranging from <code>-width/2</code> to <code>+width/2</code> and Z from <code>-depth/2</code> to <code>+depth/2</code>. Each vertex's Y coordinate is sampled from the noise function and multiplied by <code>height_scale</code>. UV coordinates are computed as the normalized grid position multiplied by <code>uv_scale</code>, controlling how textures tile across the surface.</p>
+</li>
+<li>
+<p><strong>Index generation</strong> - Creates two triangles per grid cell with counter-clockwise winding order. For a cell at grid position <code>(x, z)</code>, the two triangles use indices <code>[top_left, bottom_left, top_right]</code> and <code>[top_right, bottom_left, bottom_right]</code>. Total indices: <code>(resolution_x - 1) * (resolution_z - 1) * 6</code>.</p>
+</li>
+<li>
+<p><strong>Normal calculation</strong> - Per-vertex normals are accumulated from the face normals of all adjacent triangles. Each face normal is computed from the cross product of two triangle edges. After accumulation, normals are normalized to unit length.</p>
+</li>
+<li>
+<p><strong>Bounding volume</strong> - An OBB (Oriented Bounding Box) is computed from the min/max heights, used for frustum culling during rendering.</p>
+</li>
+</ol>
+<h3 id="noise-sampling"><a class="header" href="#noise-sampling">Noise Sampling</a></h3>
+<p>The terrain uses the <code>noise</code> crate with four algorithms:</p>
+<div class="table-wrapper"><table><thead><tr><th>NoiseType</th><th>Algorithm</th><th>Character</th></tr></thead><tbody>
+<tr><td><code>Perlin</code></td><td>Fbm<Perlin></td><td>Smooth rolling hills</td></tr>
+<tr><td><code>Simplex</code></td><td>Fbm<OpenSimplex></td><td>Similar to Perlin, fewer directional artifacts</td></tr>
+<tr><td><code>Billow</code></td><td>Billow<Perlin></td><td>Rounded, cloud-like features</td></tr>
+<tr><td><code>RidgedMulti</code></td><td>RidgedMulti<Perlin></td><td>Sharp ridges, good for mountains</td></tr>
+</tbody></table>
+</div>
+<p>All types are wrapped in multi-octave fractional Brownian motion (fBm), which layers multiple noise samples at increasing frequency and decreasing amplitude. The <code>octaves</code> parameter controls how many layers are added: more octaves add finer detail but cost more to evaluate. <code>Lacunarity</code> is the frequency multiplier per octave (default 2.0), and <code>persistence</code> is the amplitude multiplier per octave (default 0.5).</p>
+<h3 id="physics-integration"><a class="header" href="#physics-integration">Physics Integration</a></h3>
+<p><code>spawn_terrain</code> automatically creates a static rigid body with a heightfield collider. The heightfield shape stores a 2D grid of height values with a scale factor. The height data is transposed from mesh ordering (<code>z * resolution_x + x</code>) to heightfield ordering (<code>z + resolution_z * x</code>) because Rapier expects column-major layout. The collider has high friction (0.9), no restitution, and all collision groups enabled.</p>
 <h2 id="enabling-terrain"><a class="header" href="#enabling-terrain">Enabling Terrain</a></h2>
 <p>Terrain requires the <code>terrain</code> feature:</p>
 <pre><code class="language-toml">[dependencies]
@@ -191,49 +221,63 @@ nightshade = { git = "...", features = ["engine", "terrain"] }
 </span>use nightshade::ecs::terrain::*;
 
 fn initialize(&amp;mut self, world: &amp;mut World) {
-    let config = TerrainConfig::default();
-    let material_id = MaterialRef::new("terrain");
-    spawn_terrain_with_material(world, &amp;config, material_id);
+    let config = TerrainConfig::new(100.0, 100.0, 64, 64)
+        .with_height_scale(10.0)
+        .with_frequency(0.02);
+
+    spawn_terrain(world, &amp;config, Vec3::zeros());
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="terrain-configuration"><a class="header" href="#terrain-configuration">Terrain Configuration</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let config = TerrainConfig {
-    size: 512.0,
-    resolution: 256,
-    height_scale: 50.0,
-    noise: NoiseConfig {
-        noise_type: NoiseType::Perlin,
-        frequency: 0.01,
-        octaves: 6,
-        ..Default::default()
-    },
-};
+</span>pub struct TerrainConfig {
+    pub width: f32,           // Terrain width in world units
+    pub depth: f32,           // Terrain depth in world units
+    pub resolution_x: u32,   // Vertex count along X
+    pub resolution_z: u32,   // Vertex count along Z
+    pub height_scale: f32,   // Height multiplier for noise values
+    pub noise: NoiseConfig,  // Noise generation settings
+    pub uv_scale: [f32; 2],  // Texture tiling [u, v]
+}
 <span class="boring">}</span></code></pre></pre>
-<h2 id="terrain-with-custom-material"><a class="header" href="#terrain-with-custom-material">Terrain with Custom Material</a></h2>
+<h3 id="builder-methods"><a class="header" href="#builder-methods">Builder Methods</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let snow_material = Material {
-    base_color: [0.95, 0.97, 1.0, 1.0],
+</span>let config = TerrainConfig::new(200.0, 200.0, 128, 128)
+    .with_height_scale(25.0)
+    .with_noise(NoiseConfig {
+        noise_type: NoiseType::RidgedMulti,
+        frequency: 0.01,
+        octaves: 6,
+        lacunarity: 2.0,
+        persistence: 0.5,
+        seed: 42,
+    })
+    .with_uv_scale([8.0, 8.0]);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="terrain-with-material"><a class="header" href="#terrain-with-material">Terrain with Material</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let material = Material {
+    base_color: [0.3, 0.5, 0.2, 1.0],
     roughness: 0.85,
     metallic: 0.0,
     ..Default::default()
 };
 
-let material_id = MaterialRef::new("snow_terrain");
-spawn_terrain_with_material(world, &amp;config, material_id);
+spawn_terrain_with_material(world, &amp;config, Vec3::zeros(), material);
 <span class="boring">}</span></code></pre></pre>
 <h2 id="sampling-terrain-height"><a class="header" href="#sampling-terrain-height">Sampling Terrain Height</a></h2>
-<p>Get the terrain height at any position:</p>
+<p>Query the terrain height at any world position without mesh lookup. This samples the noise function directly:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn get_ground_height(config: &amp;TerrainConfig, x: f32, z: f32) -&gt; f32 {
-    sample_terrain_height(x, z, config)
-}
-
-// Place object on terrain
-fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, config: &amp;TerrainConfig) {
+</span>let height = sample_terrain_height(x, z, &amp;config);
+<span class="boring">}</span></code></pre></pre>
+<p>Use this to place objects on the terrain surface:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, config: &amp;TerrainConfig) {
     let y = sample_terrain_height(x, z, config);
 
     if let Some(transform) = world.get_local_transform_mut(entity) {
@@ -241,134 +285,33 @@ fn place_on_terrain(world: &amp;mut World, entity: Entity, x: f32, z: f32, confi
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="terrain-physics"><a class="header" href="#terrain-physics">Terrain Physics</a></h2>
-<p>Add collision to terrain:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn add_terrain_collision(world: &amp;mut World, config: &amp;TerrainConfig) {
-    // Generate heightfield data
-    let resolution = 64;
-    let mut heights = Vec::new();
-
-    for z in 0..resolution {
-        let mut row = Vec::new();
-        for x in 0..resolution {
-            let world_x = (x as f32 / resolution as f32) * config.size;
-            let world_z = (z as f32 / resolution as f32) * config.size;
-            row.push(sample_terrain_height(world_x, world_z, config));
-        }
-        heights.push(row);
-    }
-
-    // Create heightfield collider
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | COLLIDER,
-        1
-    )[0];
-
-    world.set_collider(entity, ColliderComponent {
-        shape: ColliderShape::Heightfield {
-            heights,
-            scale: Vec3::new(config.size, 1.0, config.size),
-        },
-        handle: None,
-    });
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="custom-terrain-pass"><a class="header" href="#custom-terrain-pass">Custom Terrain Pass</a></h2>
-<p>For advanced terrain rendering:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>impl State for TerrainDemo {
-    fn configure_render_graph(
-        &amp;mut self,
-        graph: &amp;mut RenderGraph&lt;World&gt;,
-        device: &amp;wgpu::Device,
-        surface_format: wgpu::TextureFormat,
-        resources: RenderResources,
-    ) {
-        let terrain_pass = TerrainPass::new(
-            device,
-            self.config.clone(),
-            wgpu::TextureFormat::Rgba16Float,
-        );
-
-        graph
-            .pass(Box::new(terrain_pass))
-            .slot("color", resources.scene_color)
-            .slot("depth", resources.depth);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="chunk-management"><a class="header" href="#chunk-management">Chunk Management</a></h2>
-<p>Terrain chunks load/unload based on camera position:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct ChunkManager {
-    loaded_chunks: HashMap&lt;(i32, i32), Entity&gt;,
-    config: TerrainConfig,
-}
-
-impl ChunkManager {
-    fn update(&amp;mut self, world: &amp;mut World, camera_pos: Vec3) {
-        let chunk_x = (camera_pos.x / self.config.size) as i32;
-        let chunk_z = (camera_pos.z / self.config.size) as i32;
-
-        // Load nearby chunks
-        for dz in -self.config.view_distance as i32..=self.config.view_distance as i32 {
-            for dx in -self.config.view_distance as i32..=self.config.view_distance as i32 {
-                let key = (chunk_x + dx, chunk_z + dz);
-                if !self.loaded_chunks.contains_key(&amp;key) {
-                    self.load_chunk(world, key);
-                }
-            }
-        }
-
-        // Unload distant chunks
-        self.loaded_chunks.retain(|&amp;(cx, cz), entity| {
-            let dist = ((cx - chunk_x).abs().max((cz - chunk_z).abs())) as u32;
-            if dist &gt; self.config.view_distance + 1 {
-                world.despawn_entities(&amp;[*entity]);
-                false
-            } else {
-                true
-            }
-        });
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="lod-system"><a class="header" href="#lod-system">LOD System</a></h2>
-<p>Terrain automatically adjusts detail based on distance:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let config = TerrainConfig {
-    size: 512.0,
-    resolution: 256,
-    height_scale: 50.0,
-    noise: NoiseConfig {
-        noise_type: NoiseType::Perlin,
-        frequency: 0.01,
-        octaves: 6,
-        ..Default::default()
-    },
-};
-<span class="boring">}</span></code></pre></pre>
-<h2 id="wireframe-toggle"><a class="header" href="#wireframe-toggle">Wireframe Toggle</a></h2>
-<p>Debug terrain with wireframe:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use std::sync::atomic::{AtomicBool, Ordering};
-
-static WIREFRAME: AtomicBool = AtomicBool::new(false);
-
-fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: ElementState) {
-    if state == ElementState::Pressed &amp;&amp; key == KeyCode::KeyT {
-        let current = WIREFRAME.load(Ordering::Relaxed);
-        WIREFRAME.store(!current, Ordering::Relaxed);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-
+<h2 id="rendering"><a class="header" href="#rendering">Rendering</a></h2>
+<p>Terrain is rendered through the standard mesh pipeline (<code>MeshPass</code>). It uses the same PBR shader as all other meshes, which means terrain automatically gets:</p>
+<ul>
+<li>Directional and point light shadows (cascaded shadow maps)</li>
+<li>Screen-space ambient occlusion (SSAO)</li>
+<li>Screen-space global illumination (SSGI)</li>
+<li>Image-based lighting (IBL)</li>
+<li>Normal mapping if a normal texture is provided in the material</li>
+<li>Full Cook-Torrance BRDF with metallic-roughness workflow</li>
+</ul>
+<p>The mesh is uploaded to GPU vertex and index buffers once at creation time. During rendering, the MeshPass performs frustum culling using the terrain's bounding volume, then draws it with the assigned material's textures bound.</p>
+<h2 id="entity-components"><a class="header" href="#entity-components">Entity Components</a></h2>
+<p><code>spawn_terrain</code> creates an entity with these components:</p>
+<div class="table-wrapper"><table><thead><tr><th>Component</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>NAME</code></td><td>"Terrain"</td></tr>
+<tr><td><code>LOCAL_TRANSFORM</code></td><td>Position in world</td></tr>
+<tr><td><code>GLOBAL_TRANSFORM</code></td><td>Computed world matrix</td></tr>
+<tr><td><code>LOCAL_TRANSFORM_DIRTY</code></td><td>Triggers transform update</td></tr>
+<tr><td><code>RENDER_MESH</code></td><td>References cached mesh</td></tr>
+<tr><td><code>MATERIAL_REF</code></td><td>PBR material</td></tr>
+<tr><td><code>BOUNDING_VOLUME</code></td><td>OBB for frustum culling</td></tr>
+<tr><td><code>CASTS_SHADOW</code></td><td>Enabled by default</td></tr>
+<tr><td><code>RIGID_BODY</code></td><td>Static physics body</td></tr>
+<tr><td><code>COLLIDER</code></td><td>HeightField shape</td></tr>
+<tr><td><code>VISIBILITY</code></td><td>Visible by default</td></tr>
+</tbody></table>
+</div>
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
@@ -398,6 +341,22 @@ fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: 
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

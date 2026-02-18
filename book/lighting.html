@@ -317,20 +317,37 @@ let sun = spawn_sun(world);
     world.mark_local_transform_dirty(flashlight);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="shadow-settings"><a class="header" href="#shadow-settings">Shadow Settings</a></h2>
-<p>Configure shadow quality through graphics resources:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>world.resources.graphics.shadow_map_size = 2048;
-world.resources.graphics.shadow_cascades = 4;
-world.resources.graphics.shadow_distance = 100.0;
-<span class="boring">}</span></code></pre></pre>
-<h2 id="ambient-light"><a class="header" href="#ambient-light">Ambient Light</a></h2>
-<p>Set ambient lighting through the atmosphere:</p>
+<h2 id="how-lighting-works"><a class="header" href="#how-lighting-works">How Lighting Works</a></h2>
+<p>Nightshade uses a <strong>clustered forward rendering</strong> pipeline. The view frustum is divided into a 16x9x24 grid of clusters. A compute shader assigns each light to the clusters it overlaps, producing a per-cluster light list (up to 256 lights per cluster). During the mesh pass, each fragment looks up its cluster and only evaluates the lights assigned to it, avoiding the cost of testing every light for every pixel.</p>
+<h3 id="pbr-lighting-model"><a class="header" href="#pbr-lighting-model">PBR Lighting Model</a></h3>
+<p>All lights are evaluated using the <strong>Cook-Torrance microfacet BRDF</strong>:</p>
+<ul>
+<li>
+<p><strong>Normal Distribution Function (D)</strong>: Trowbridge-Reitz GGX models the statistical distribution of microfacet orientations. The squared roughness parameter (<code>a = roughness * roughness</code>) controls how concentrated the specular highlight is.</p>
+</li>
+<li>
+<p><strong>Geometry Function (G)</strong>: Schlick-Beckmann approximation with Smith's method accounts for self-shadowing between microfacets. Two terms are combined: one for the view direction and one for the light direction.</p>
+</li>
+<li>
+<p><strong>Fresnel (F)</strong>: Schlick's approximation computes how reflectivity changes with viewing angle. For dielectrics, F0 is derived from the index of refraction. For metals, F0 equals the base color.</p>
+</li>
+</ul>
+<p>The final light contribution per light is:</p>
+<pre><code>(kD * albedo / PI + specular) * radiance * NdotL
+</code></pre>
+<p>where <code>kD = (1 - F) * (1 - metallic)</code> ensures metals have no diffuse component.</p>
+<h3 id="image-based-lighting"><a class="header" href="#image-based-lighting">Image-Based Lighting</a></h3>
+<p>Ambient lighting comes from two pre-computed cubemaps:</p>
+<ul>
+<li><strong>Irradiance map</strong>: Pre-convolved diffuse environment lighting, sampled in the surface normal direction</li>
+<li><strong>Prefiltered environment map</strong>: 5 mip levels of increasingly blurred specular reflections, sampled in the reflection direction at a mip level determined by roughness</li>
+</ul>
+<p>A 2D BRDF lookup texture (computed via the split-sum approximation) combines with the prefiltered map to produce the final specular IBL contribution.</p>
+<h2 id="atmosphere"><a class="header" href="#atmosphere">Atmosphere</a></h2>
+<p>Set the sky rendering mode:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>world.resources.graphics.atmosphere = Atmosphere::Sky;
-world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
 <span class="boring">}</span></code></pre></pre>
 <h2 id="multiple-lights"><a class="header" href="#multiple-lights">Multiple Lights</a></h2>
 <p>Nightshade supports multiple lights in a scene. Create point and spot lights manually as shown above:</p>
@@ -350,11 +367,11 @@ world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="materials.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="meshes-models.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="post-processing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="textures.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -364,17 +381,33 @@ world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="materials.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="meshes-models.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="post-processing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="textures.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

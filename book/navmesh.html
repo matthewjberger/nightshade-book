@@ -179,14 +179,54 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/navmesh">NavMesh</a></p>
 </blockquote>
-<p>AI pathfinding using Recast navigation mesh generation.</p>
+<p>AI pathfinding using Recast navigation mesh generation, A*/Dijkstra/Greedy pathfinding, funnel path smoothing, and agent movement with local avoidance.</p>
+<h2 id="how-navigation-meshes-work"><a class="header" href="#how-navigation-meshes-work">How Navigation Meshes Work</a></h2>
+<p>A navigation mesh (navmesh) is a set of convex polygons (usually triangles) that represent the walkable surfaces of a level. Instead of testing every point in the world for walkability, AI agents pathfind through connected triangles, then smooth the resulting path through shared edges.</p>
+<h3 id="navmesh-generation-recast-pipeline"><a class="header" href="#navmesh-generation-recast-pipeline">Navmesh Generation (Recast Pipeline)</a></h3>
+<p>Nightshade uses the Recast algorithm (via the <code>rerecast</code> crate) to automatically generate a navmesh from world geometry. The pipeline has 13 steps:</p>
+<ol>
+<li><strong>Build trimesh</strong> - Collect all mesh vertices and indices from the scene</li>
+<li><strong>Mark walkable triangles</strong> - Classify each triangle by its slope angle against the walkable threshold</li>
+<li><strong>Create heightfield</strong> - Rasterize the scene into a voxel grid with configurable cell size and height</li>
+<li><strong>Rasterize triangles</strong> - Project each walkable triangle into the heightfield</li>
+<li><strong>Filter obstacles</strong> - Remove low-hanging obstacles, ledge spans, and low-height spans that agents can't traverse</li>
+<li><strong>Compact heightfield</strong> - Convert to a more efficient representation for region building</li>
+<li><strong>Erode walkable area</strong> - Shrink walkable areas by the agent radius to prevent wall clipping</li>
+<li><strong>Build distance field</strong> - Compute the distance from each cell to the nearest boundary</li>
+<li><strong>Create regions</strong> - Group connected cells into regions using watershed partitioning. <code>min_region_size</code> (default 8) filters tiny regions, <code>merge_region_size</code> (default 20) combines small adjacent regions</li>
+<li><strong>Build contours</strong> - Trace region boundaries into simplified contour polygons, controlled by <code>max_simplification_error</code></li>
+<li><strong>Convert to polygon mesh</strong> - Triangulate contours into convex polygons (up to <code>max_vertices_per_polygon</code>, default 6)</li>
+<li><strong>Generate detail mesh</strong> - Add interior detail vertices for height accuracy, controlled by <code>detail_sample_dist</code> and <code>detail_sample_max_error</code></li>
+<li><strong>Convert to NavMeshWorld</strong> - Build the engine's navmesh data structure with adjacency and spatial hash</li>
+</ol>
+<h3 id="pathfinding-algorithms"><a class="header" href="#pathfinding-algorithms">Pathfinding Algorithms</a></h3>
+<p>Three algorithms are available:</p>
+<p><strong>A*</strong> (default) - Explores nodes ordered by <code>f = g + h</code> where <code>g</code> is the cost so far and <code>h</code> is the heuristic (straight-line distance to goal). Finds the optimal path efficiently by prioritizing nodes closer to the destination.</p>
+<p><strong>Dijkstra</strong> - Explores nodes ordered only by <code>g</code> cost, ignoring direction to goal. Explores more nodes but guarantees the shortest path even with complex cost functions.</p>
+<p><strong>Greedy Best-First</strong> - Explores nodes ordered only by heuristic <code>h</code>, ignoring path cost. Very fast but may not find optimal paths, especially around concave obstacles.</p>
+<p>All three operate on the triangle adjacency graph, where edges connect triangles that share an edge and costs are the distances between triangle centers.</p>
+<h3 id="funnel-algorithm-path-smoothing"><a class="header" href="#funnel-algorithm-path-smoothing">Funnel Algorithm (Path Smoothing)</a></h3>
+<p>Raw paths through the navmesh are sequences of triangle centers, which zig-zag unnecessarily. The <strong>funnel algorithm</strong> produces smooth, natural-looking paths:</p>
+<ol>
+<li><strong>Portal collection</strong> - Extract the shared edges (portals) between consecutive triangles in the path</li>
+<li><strong>Funnel narrowing</strong> - Maintain a funnel (left and right boundaries) that starts wide at the first portal. As you advance through portals, narrow the funnel. When a portal would flip the funnel inside-out, emit the funnel apex as a waypoint and restart</li>
+<li><strong>Simplification</strong> - Remove waypoints that don't improve the path within an epsilon tolerance (collinear point removal)</li>
+</ol>
+<p>The result is the shortest path through the triangle corridor that doesn't cross any triangle boundaries.</p>
+<h3 id="agent-movement-system"><a class="header" href="#agent-movement-system">Agent Movement System</a></h3>
+<p>Five systems run each frame via <code>run_navmesh_systems</code>:</p>
+<ol>
+<li><strong>Triangle tracking</strong> - Finds which navmesh triangle each agent currently occupies using point-in-triangle tests with barycentric coordinates</li>
+<li><strong>Path processing</strong> - Agents in <code>PathPending</code> state get their path computed, smoothed, and simplified. State transitions to <code>Moving</code> or <code>NoPath</code></li>
+<li><strong>Local avoidance</strong> - Repulsive forces between nearby agents (within <code>agent_radius * 2.5</code>) prevent crowding. Avoidance velocity is blended at 25% with the primary movement direction</li>
+<li><strong>Movement</strong> - Advances agents along waypoints at their configured speed. Samples navmesh height at each new position using barycentric interpolation for vertical alignment. Maximum step height of 1.0 unit prevents teleporting through terrain</li>
+<li><strong>Surface snapping</strong> - Idle and arrived agents are snapped to the navmesh surface when their Y position drifts more than 0.01 units</li>
+</ol>
 <h2 id="enabling-navmesh"><a class="header" href="#enabling-navmesh">Enabling NavMesh</a></h2>
-<p>NavMesh requires the <code>navmesh</code> feature:</p>
 <pre><code class="language-toml">[dependencies]
 nightshade = { git = "...", features = ["engine", "navmesh"] }
 </code></pre>
 <h2 id="generating-a-navmesh"><a class="header" href="#generating-a-navmesh">Generating a NavMesh</a></h2>
-<p>Generate a navigation mesh from world geometry:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use nightshade::ecs::navmesh::*;
@@ -197,59 +237,54 @@ fn setup_navmesh(world: &amp;mut World) {
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="navmesh-configuration"><a class="header" href="#navmesh-configuration">NavMesh Configuration</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>cell_size</code></td><td>Horizontal voxel resolution</td></tr>
-<tr><td><code>cell_height</code></td><td>Vertical voxel resolution</td></tr>
-<tr><td><code>agent_height</code></td><td>Agent height for walkability</td></tr>
-<tr><td><code>agent_radius</code></td><td>Agent radius for clearance</td></tr>
-<tr><td><code>agent_max_climb</code></td><td>Maximum step height</td></tr>
-<tr><td><code>agent_max_slope</code></td><td>Maximum walkable slope (degrees)</td></tr>
-</tbody></table>
-</div>
-<h2 id="creating-navmesh-agents"><a class="header" href="#creating-navmesh-agents">Creating NavMesh Agents</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn spawn_npc(world: &amp;mut World, position: Vec3) -&gt; Entity {
-    let agent = spawn_navmesh_agent(world, position, 0.4, 1.0);
-    agent
+</span>pub struct RecastNavMeshConfig {
+    pub agent_radius: f32,              // Character collision radius (0.4)
+    pub agent_height: f32,              // Character height (1.8)
+    pub cell_size_fraction: f32,        // XZ voxel resolution divisor (3.0)
+    pub cell_height_fraction: f32,      // Y voxel resolution divisor (6.0)
+    pub walkable_climb: f32,            // Max step height (0.4)
+    pub walkable_slope_angle: f32,      // Max walkable slope in degrees (45)
+    pub min_region_size: i32,           // Min region area (8)
+    pub merge_region_size: i32,         // Region merge threshold (20)
+    pub max_simplification_error: f32,  // Contour simplification (1.3)
+    pub max_vertices_per_polygon: i32,  // Polygon complexity (6)
+    pub detail_sample_dist: f32,        // Detail mesh sampling (6.0)
+    pub detail_sample_max_error: f32,   // Detail mesh error (1.0)
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="setting-agent-destination"><a class="header" href="#setting-agent-destination">Setting Agent Destination</a></h2>
+<h2 id="agent-state-machine"><a class="header" href="#agent-state-machine">Agent State Machine</a></h2>
+<pre><code>Idle → PathPending → Moving → Arrived
+              ↓
+           NoPath
+</code></pre>
+<h2 id="creating-agents"><a class="header" href="#creating-agents">Creating Agents</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn set_npc_destination(world: &amp;mut World, agent: Entity, target: Vec3) {
-    set_agent_destination(world, agent, target);
-}
+</span>let agent = spawn_navmesh_agent(world, position, speed);
 <span class="boring">}</span></code></pre></pre>
-<h2 id="updating-agents"><a class="header" href="#updating-agents">Updating Agents</a></h2>
-<p>Call the navigation system each frame:</p>
+<h2 id="setting-destinations"><a class="header" href="#setting-destinations">Setting Destinations</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>set_agent_destination(world, agent, target_position);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="running-the-navigation-system"><a class="header" href="#running-the-navigation-system">Running the Navigation System</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let dt = world.resources.window.timing.delta_time;
-    run_navmesh_systems(world, dt);
+    run_navmesh_systems(world);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="checking-path-status"><a class="header" href="#checking-path-status">Checking Path Status</a></h2>
+<h2 id="checking-agent-status"><a class="header" href="#checking-agent-status">Checking Agent Status</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn has_reached_destination(world: &amp;World, agent: Entity) -&gt; bool {
-    if let Some(nav_agent) = world.get_navmesh_agent(agent) {
-        nav_agent.target_position.is_none() || nav_agent.current_path.is_empty()
-    } else {
-        true
-    }
-}
-
-fn get_remaining_distance(world: &amp;World, agent: Entity) -&gt; f32 {
-    if let Some(nav_agent) = world.get_navmesh_agent(agent) {
-        if let Some(agent_pos) = world.get_local_transform(agent).map(|t| t.translation) {
-            if let Some(target) = nav_agent.target_position {
-                return (target - agent_pos).magnitude();
-            }
-        }
-    }
-    0.0
+</span>match get_agent_state(world, agent) {
+    NavMeshAgentState::Idle =&gt; { /* waiting */ }
+    NavMeshAgentState::PathPending =&gt; { /* computing */ }
+    NavMeshAgentState::Moving =&gt; { /* walking */ }
+    NavMeshAgentState::Arrived =&gt; { /* at destination */ }
+    NavMeshAgentState::NoPath =&gt; { /* unreachable */ }
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="patrol-behavior"><a class="header" href="#patrol-behavior">Patrol Behavior</a></h2>
@@ -261,53 +296,34 @@ fn get_remaining_distance(world: &amp;World, agent: Entity) -&gt; f32 {
 }
 
 fn update_patrol(world: &amp;mut World, agent: Entity, patrol: &amp;mut PatrolBehavior) {
-    if has_reached_destination(world, agent) {
+    if matches!(get_agent_state(world, agent), NavMeshAgentState::Arrived) {
         patrol.current_waypoint = (patrol.current_waypoint + 1) % patrol.waypoints.len();
-        let target = patrol.waypoints[patrol.current_waypoint];
-        set_agent_destination(world, agent, target);
+        set_agent_destination(world, agent, patrol.waypoints[patrol.current_waypoint]);
     }
 }
-<span class="boring">}</span></code></pre></pre>
-<h2 id="chase-behavior"><a class="header" href="#chase-behavior">Chase Behavior</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn update_chase(world: &amp;mut World, agent: Entity, target_entity: Entity) {
-    if let Some(target_pos) = world.get_local_transform(target_entity).map(|t| t.translation) {
-        // Only update path periodically to avoid constant recalculation
-        set_agent_destination(world, agent, target_pos);
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="navmesh-areas"><a class="header" href="#navmesh-areas">NavMesh Areas</a></h2>
-<p>Define different terrain costs:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let config = RecastNavMeshConfig {
-    // Base configuration...
-    ..Default::default()
-};
-
-// Areas can be marked during navmesh generation
-// Higher cost = agents avoid this area
-// Area 0: Ground (cost 1.0)
-// Area 1: Road (cost 0.5 - preferred)
-// Area 2: Mud (cost 3.0 - avoided)
 <span class="boring">}</span></code></pre></pre>
 <h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<p>Draw the navmesh for debugging:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn draw_navmesh_debug(world: &amp;mut World) {
-    if let Some(navmesh) = &amp;world.resources.navmesh.navmesh {
-        for triangle in navmesh.triangles() {
-            // Draw triangle edges as lines
-            draw_debug_line(world, triangle.v0, triangle.v1, Vec4::new(0.0, 1.0, 0.0, 1.0));
-            draw_debug_line(world, triangle.v1, triangle.v2, Vec4::new(0.0, 1.0, 0.0, 1.0));
-            draw_debug_line(world, triangle.v2, triangle.v0, Vec4::new(0.0, 1.0, 0.0, 1.0));
-        }
-    }
-}
+</span>set_navmesh_debug_draw(world, true);
 <span class="boring">}</span></code></pre></pre>
+<p>The debug visualization draws:</p>
+<ul>
+<li>Navmesh triangles as green wireframe (offset 0.15 units above surface)</li>
+<li>Agent paths as yellow lines between waypoints</li>
+<li>Current path segment as cyan from agent to next waypoint</li>
+<li>Waypoints as orange crosses</li>
+<li>Destination as a magenta diamond marker with a vertical pole</li>
+</ul>
+<h2 id="navmeshworld-resource"><a class="header" href="#navmeshworld-resource">NavMeshWorld Resource</a></h2>
+<p>The generated navmesh is stored in <code>world.resources.navmesh</code> as a <code>NavMeshWorld</code>:</p>
+<ul>
+<li><strong>Vertices</strong> - All navmesh vertex positions</li>
+<li><strong>Triangles</strong> - Walkable triangles with center, normal, area, and edge indices</li>
+<li><strong>Edges</strong> - Triangle edges with indices of the two triangles they belong to (for portal detection)</li>
+<li><strong>Adjacency</strong> - <code>HashMap&lt;usize, Vec&lt;NavMeshConnection&gt;&gt;</code> mapping each triangle to its neighbors with traversal costs</li>
+<li><strong>Spatial Hash</strong> - Grid-based spatial index for fast point-in-triangle queries</li>
+</ul>
 
                     </main>
 
@@ -338,6 +354,22 @@ fn update_patrol(world: &amp;mut World, agent: Entity, patrol: &amp;mut PatrolBe
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

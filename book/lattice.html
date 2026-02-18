@@ -179,98 +179,152 @@
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/lattice">Lattice</a></p>
 </blockquote>
-<p>Lattice deformation (also called Free-Form Deformation or FFD) allows you to deform meshes by manipulating a grid of control points surrounding the mesh.</p>
+<p>Lattice deformation (Free-Form Deformation / FFD) deforms meshes by manipulating a grid of control points surrounding the mesh. Vertices are displaced based on trilinear interpolation of the nearest control point displacements, producing smooth spatial warping effects like bending, twisting, tapering, and bulging.</p>
 <h2 id="enabling-lattice"><a class="header" href="#enabling-lattice">Enabling Lattice</a></h2>
 <p>Add the <code>lattice</code> feature:</p>
 <pre><code class="language-toml">nightshade = { git = "...", features = ["engine", "lattice"] }
 </code></pre>
+<h2 id="how-lattice-deformation-works"><a class="header" href="#how-lattice-deformation-works">How Lattice Deformation Works</a></h2>
+<p>The Lattice component defines a 3D grid of control points within an axis-aligned bounding box. Each control point has a base position (computed from the grid dimensions and bounds) and a displacement vector. When a mesh vertex needs to be deformed:</p>
+<ol>
+<li>The vertex's world-space position is converted to UVW coordinates (0-1 range within the lattice bounds)</li>
+<li>The 8 surrounding control points are looked up from the grid indices</li>
+<li>The displacement is computed by trilinear interpolation of those 8 control point displacements</li>
+<li>Vertices outside the lattice bounds are either unaffected (falloff = 0) or smoothly blended based on the falloff distance</li>
+</ol>
+<p>The deformation is applied as a morph target on the GPU. The system converts world-space displacements back to local space via the entity's inverse model matrix, creates a <code>MorphTarget</code> with per-vertex position offsets, and updates the mesh cache.</p>
 <h2 id="lattice-component"><a class="header" href="#lattice-component">Lattice Component</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct Lattice {
-    pub resolution: UVec3,
-    pub bounds: Aabb,
-    pub control_points: Vec&lt;Vec3&gt;,
-    pub interpolation: LatticeInterpolation,
-}
-
-pub enum LatticeInterpolation {
-    Linear,
-    Bezier,
+    pub base_points: Vec&lt;Vec3&gt;,
+    pub displacements: Vec&lt;Vec3&gt;,
+    pub dimensions: [usize; 3],
+    pub bounds_min: Vec3,
+    pub bounds_max: Vec3,
+    pub falloff: f32,
+    pub version: u32,
 }
 <span class="boring">}</span></code></pre></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>base_points</code></td><td>Undeformed control point positions, computed from bounds and dimensions</td></tr>
+<tr><td><code>displacements</code></td><td>Per-control-point displacement vectors (initially zero)</td></tr>
+<tr><td><code>dimensions</code></td><td>Grid resolution as <code>[x, y, z]</code></td></tr>
+<tr><td><code>bounds_min</code></td><td>Lower corner of the lattice bounding box</td></tr>
+<tr><td><code>bounds_max</code></td><td>Upper corner of the lattice bounding box</td></tr>
+<tr><td><code>falloff</code></td><td>Distance beyond lattice bounds where deformation fades to zero (0 = hard cutoff)</td></tr>
+<tr><td><code>version</code></td><td>Auto-incremented when displacements change, used for dirty detection</td></tr>
+</tbody></table>
+</div>
 <h2 id="creating-a-lattice"><a class="header" href="#creating-a-lattice">Creating a Lattice</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let min = Vec3::new(-1.0, -1.0, -1.0);
-let max = Vec3::new(1.0, 1.0, 1.0);
-let dims = UVec3::new(4, 4, 4);
-let lattice_entity = create_lattice_entity(world, min, max, dims);
+</span>use nightshade::ecs::lattice::systems::create_lattice_entity;
+
+let lattice_entity = create_lattice_entity(
+    world,
+    Vec3::new(-2.0, -2.0, -2.0),
+    Vec3::new(2.0, 2.0, 2.0),
+    [4, 4, 4],
+);
 <span class="boring">}</span></code></pre></pre>
-<h2 id="influenced-meshes"><a class="header" href="#influenced-meshes">Influenced Meshes</a></h2>
-<p>Register a mesh entity for lattice deformation:</p>
+<p>This spawns an entity with the <code>LATTICE</code> component. The constructor computes base point positions by subdividing the bounding box evenly according to the dimensions. For a 4x4x4 lattice, this creates 64 control points.</p>
+<p>With falloff for smooth blending beyond the bounds:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>register_entity_for_lattice_deformation(world, mesh_entity, lattice_entity);
+</span>let lattice = Lattice::new(bounds_min, bounds_max, [4, 4, 4])
+    .with_falloff(1.0);
+world.set_lattice(lattice_entity, lattice);
 <span class="boring">}</span></code></pre></pre>
+<h2 id="registering-influenced-meshes"><a class="header" href="#registering-influenced-meshes">Registering Influenced Meshes</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::lattice::systems::register_entity_for_lattice_deformation;
+
+register_entity_for_lattice_deformation(world, mesh_entity, lattice_entity);
+<span class="boring">}</span></code></pre></pre>
+<p>This adds <code>LATTICE_INFLUENCED</code> and <code>MORPH_WEIGHTS</code> components to the mesh entity. The <code>LatticeInfluenced</code> component stores the lattice entity reference, the last known lattice version, and the last entity position — used to skip re-evaluation when nothing has changed.</p>
 <h2 id="manipulating-control-points"><a class="header" href="#manipulating-control-points">Manipulating Control Points</a></h2>
+<p>Displacements are set per-grid-coordinate:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn bend_lattice(world: &amp;mut World, lattice: Entity, amount: f32) {
-    if let Some(lat) = world.get_lattice_mut(lattice) {
-        let res = lat.resolution;
-
-        for z in 0..res.z {
-            for y in 0..res.y {
-                for x in 0..res.x {
-                    let index = (z * res.y * res.x + y * res.x + x) as usize;
-
-                    let t = x as f32 / (res.x - 1) as f32;
-                    let bend = (t * std::f32::consts::PI).sin() * amount;
-
-                    lat.control_points[index].y += bend;
-                }
-            }
-        }
-    }
+</span>if let Some(lattice) = world.get_lattice_mut(lattice_entity) {
+    lattice.set_displacement(1, 2, 1, Vec3::new(0.0, 0.5, 0.0));
 }
 <span class="boring">}</span></code></pre></pre>
+<p>The <code>set_displacement</code> method automatically increments the version counter, which triggers re-evaluation on influenced meshes.</p>
+<p>To read the current deformed position (base + displacement):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let point = lattice.get_point(1, 2, 1);
+<span class="boring">}</span></code></pre></pre>
+<p>To get the displacement alone:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let displacement = lattice.get_displacement(1, 2, 1);
+<span class="boring">}</span></code></pre></pre>
+<p>Reset all displacements to zero:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>lattice.reset_displacements();
+<span class="boring">}</span></code></pre></pre>
+<h2 id="indexing"><a class="header" href="#indexing">Indexing</a></h2>
+<p>Control point indices follow x-major ordering: <code>index = z * (nx * ny) + y * nx + x</code>. The <code>get_index</code> method computes this:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let index = lattice.get_index(x, y, z);
+<span class="boring">}</span></code></pre></pre>
 <h2 id="deformation-system"><a class="header" href="#deformation-system">Deformation System</a></h2>
-<p>Call the lattice deformation system each frame:</p>
+<p>Call the lattice deformation system each frame to apply updated displacements:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn run_systems(&amp;mut self, world: &amp;mut World) {
     lattice_deformation_system(world);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="interpolation-modes"><a class="header" href="#interpolation-modes">Interpolation Modes</a></h2>
-<h3 id="linear"><a class="header" href="#linear">Linear</a></h3>
-<p>Faster but produces faceted results:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>lattice.interpolation = LatticeInterpolation::Linear;
-<span class="boring">}</span></code></pre></pre>
-<h3 id="bezier"><a class="header" href="#bezier">Bezier</a></h3>
-<p>Smoother results using Bernstein polynomials:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>lattice.interpolation = LatticeInterpolation::Bezier;
-<span class="boring">}</span></code></pre></pre>
-<h2 id="common-effects"><a class="header" href="#common-effects">Common Effects</a></h2>
-<h3 id="bulge"><a class="header" href="#bulge">Bulge</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn bulge_center(world: &amp;mut World, lattice: Entity, strength: f32) {
-    if let Some(lat) = world.get_lattice_mut(lattice) {
-        let center = (lat.bounds.min + lat.bounds.max) * 0.5;
-        let max_dist = (lat.bounds.max - lat.bounds.min).magnitude() * 0.5;
+<p>The system queries all entities with <code>LATTICE_INFLUENCED | RENDER_MESH | MORPH_WEIGHTS | GLOBAL_TRANSFORM</code>. For each entity, it checks whether the lattice version or entity position has changed since the last update. If so, it:</p>
+<ol>
+<li>Reads the mesh vertices from the mesh cache</li>
+<li>Transforms each vertex position to world space via the entity's global transform</li>
+<li>Calls <code>lattice.sample(world_pos)</code> to get the world-space displacement</li>
+<li>Converts the displacement back to local space via the inverse model matrix</li>
+<li>Creates a <code>MorphTarget</code> with the per-vertex local-space displacements</li>
+<li>Updates the mesh cache and marks it dirty for GPU re-upload</li>
+</ol>
+<h2 id="trilinear-interpolation"><a class="header" href="#trilinear-interpolation">Trilinear Interpolation</a></h2>
+<p>The <code>sample()</code> method converts a world position to UVW coordinates within the lattice bounds, finds the 8 surrounding control points, and interpolates their displacements:</p>
+<pre><code>uvw = (world_pos - bounds_min) / (bounds_max - bounds_min)
 
-        for point in &amp;mut lat.control_points {
-            let to_center = center - *point;
-            let dist = to_center.magnitude();
-            let factor = 1.0 - (dist / max_dist).min(1.0);
-            let displacement = to_center.normalize() * factor * factor * strength;
-            *point -= displacement;
+fx = uvw.x * (nx - 1)    // fractional grid coordinate
+x0 = floor(fx)           // lower grid index
+tx = fx - x0             // interpolation weight
+
+// Interpolate 8 corners along X, then Y, then Z
+d00 = lerp(d000, d100, tx)
+d10 = lerp(d010, d110, tx)
+d01 = lerp(d001, d101, tx)
+d11 = lerp(d011, d111, tx)
+d0  = lerp(d00, d10, ty)
+d1  = lerp(d01, d11, ty)
+result = lerp(d0, d1, tz)
+</code></pre>
+<p>For points outside the lattice bounds, the UVW coordinates are clamped to [0, 1] and the displacement is attenuated by the falloff factor. The falloff is computed as <code>max(0, 1 - normalized_distance / falloff)</code> where <code>normalized_distance</code> is the distance from the point to the clamped position, scaled by the average lattice dimension.</p>
+<h2 id="common-deformation-effects"><a class="header" href="#common-deformation-effects">Common Deformation Effects</a></h2>
+<h3 id="bend"><a class="header" href="#bend">Bend</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn bend_lattice(world: &amp;mut World, lattice_entity: Entity, amount: f32) {
+    if let Some(lattice) = world.get_lattice_mut(lattice_entity) {
+        let [nx, ny, nz] = lattice.dimensions;
+
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let t = x as f32 / (nx - 1) as f32;
+                    let bend = (t * std::f32::consts::PI).sin() * amount;
+                    lattice.set_displacement(x, y, z, Vec3::new(0.0, bend, 0.0));
+                }
+            }
         }
     }
 }
@@ -278,18 +332,29 @@ let lattice_entity = create_lattice_entity(world, min, max, dims);
 <h3 id="twist"><a class="header" href="#twist">Twist</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn twist_lattice(world: &amp;mut World, lattice: Entity, angle: f32) {
-    if let Some(lat) = world.get_lattice_mut(lattice) {
-        let height = lat.bounds.max.y - lat.bounds.min.y;
+</span>fn twist_lattice(world: &amp;mut World, lattice_entity: Entity, angle: f32) {
+    if let Some(lattice) = world.get_lattice_mut(lattice_entity) {
+        let [nx, ny, nz] = lattice.dimensions;
+        let bounds_min = lattice.bounds_min;
+        let bounds_max = lattice.bounds_max;
+        let height = bounds_max.y - bounds_min.y;
 
-        for point in &amp;mut lat.control_points {
-            let t = (point.y - lat.bounds.min.y) / height;
-            let twist_angle = t * angle;
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let base = lattice.base_points[lattice.get_index(x, y, z)];
+                    let t = (base.y - bounds_min.y) / height;
+                    let twist_angle = t * angle;
 
-            let x = point.x;
-            let z = point.z;
-            point.x = x * twist_angle.cos() - z * twist_angle.sin();
-            point.z = x * twist_angle.sin() + z * twist_angle.cos();
+                    let new_x = base.x * twist_angle.cos() - base.z * twist_angle.sin();
+                    let new_z = base.x * twist_angle.sin() + base.z * twist_angle.cos();
+
+                    lattice.set_displacement(
+                        x, y, z,
+                        Vec3::new(new_x - base.x, 0.0, new_z - base.z),
+                    );
+                }
+            }
         }
     }
 }
@@ -297,63 +362,54 @@ let lattice_entity = create_lattice_entity(world, min, max, dims);
 <h3 id="taper"><a class="header" href="#taper">Taper</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn taper_lattice(world: &amp;mut World, lattice: Entity, top_scale: f32) {
-    if let Some(lat) = world.get_lattice_mut(lattice) {
-        let center_x = (lat.bounds.min.x + lat.bounds.max.x) * 0.5;
-        let center_z = (lat.bounds.min.z + lat.bounds.max.z) * 0.5;
-        let height = lat.bounds.max.y - lat.bounds.min.y;
+</span>fn taper_lattice(world: &amp;mut World, lattice_entity: Entity, top_scale: f32) {
+    if let Some(lattice) = world.get_lattice_mut(lattice_entity) {
+        let [nx, ny, nz] = lattice.dimensions;
+        let bounds_min = lattice.bounds_min;
+        let bounds_max = lattice.bounds_max;
+        let center_x = (bounds_min.x + bounds_max.x) * 0.5;
+        let center_z = (bounds_min.z + bounds_max.z) * 0.5;
+        let height = bounds_max.y - bounds_min.y;
 
-        for point in &amp;mut lat.control_points {
-            let t = (point.y - lat.bounds.min.y) / height;
-            let scale = 1.0 + (top_scale - 1.0) * t;
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let base = lattice.base_points[lattice.get_index(x, y, z)];
+                    let t = (base.y - bounds_min.y) / height;
+                    let scale = 1.0 + (top_scale - 1.0) * t;
 
-            point.x = center_x + (point.x - center_x) * scale;
-            point.z = center_z + (point.z - center_z) * scale;
+                    let new_x = center_x + (base.x - center_x) * scale;
+                    let new_z = center_z + (base.z - center_z) * scale;
+
+                    lattice.set_displacement(
+                        x, y, z,
+                        Vec3::new(new_x - base.x, 0.0, new_z - base.z),
+                    );
+                }
+            }
         }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="wave"><a class="header" href="#wave">Wave</a></h3>
+<h3 id="animated-wave"><a class="header" href="#animated-wave">Animated Wave</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn wave_lattice(world: &amp;mut World, lattice: Entity, amplitude: f32, frequency: f32, time: f32) {
-    if let Some(lat) = world.get_lattice_mut(lattice) {
-        for point in &amp;mut lat.control_points {
-            let wave = (point.x * frequency + time).sin() * amplitude;
-            point.y += wave;
+</span>fn wave_lattice(world: &amp;mut World, lattice_entity: Entity, amplitude: f32, frequency: f32, time: f32) {
+    if let Some(lattice) = world.get_lattice_mut(lattice_entity) {
+        let [nx, ny, nz] = lattice.dimensions;
+
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let base = lattice.base_points[lattice.get_index(x, y, z)];
+                    let wave = (base.x * frequency + time).sin() * amplitude;
+                    lattice.set_displacement(x, y, z, Vec3::new(0.0, wave, 0.0));
+                }
+            }
         }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="animated-deformation"><a class="header" href="#animated-deformation">Animated Deformation</a></h2>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct BreathingEffect {
-    lattice: Entity,
-    time: f32,
-}
-
-fn run_systems(&amp;mut self, world: &amp;mut World) {
-    let dt = world.resources.window.timing.delta_time;
-    self.breathing.time += dt;
-
-    if let Some(lat) = world.get_lattice_mut(self.breathing.lattice) {
-        let breath = (self.breathing.time * 2.0).sin() * 0.1 + 1.0;
-
-        for point in &amp;mut lat.control_points {
-            let original = get_original_point(point);
-            *point = original * breath;
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="performance-tips"><a class="header" href="#performance-tips">Performance Tips</a></h2>
-<ul>
-<li>Use lower lattice resolutions (4x4x4 is often sufficient)</li>
-<li>Linear interpolation is faster than Bezier</li>
-<li>Cache original positions to avoid recomputation</li>
-<li>Only update lattice when control points actually change</li>
-</ul>
 
                     </main>
 
@@ -384,6 +440,22 @@ fn run_systems(&amp;mut self, world: &amp;mut World) {
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

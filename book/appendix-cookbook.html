@@ -176,9 +176,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
-<p>Common recipes and patterns for Nightshade game development.</p>
-<h2 id="player-movement"><a class="header" href="#player-movement">Player Movement</a></h2>
-<h3 id="basic-wasd-movement"><a class="header" href="#basic-wasd-movement">Basic WASD Movement</a></h3>
+<p>Quick recipes organized by what you want to accomplish. Each recipe is self-contained and uses real Nightshade API patterns.</p>
+<h2 id="i-want-to-move-things"><a class="header" href="#i-want-to-move-things">I Want To... Move Things</a></h2>
+<h3 id="move-a-player-with-wasd"><a class="header" href="#move-a-player-with-wasd">Move a player with WASD</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn player_movement(world: &amp;mut World, player: Entity, speed: f32) {
@@ -198,10 +198,11 @@
         if let Some(transform) = world.get_local_transform_mut(player) {
             transform.translation += direction * speed * dt;
         }
+        mark_local_transform_dirty(world, player);
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="camera-relative-movement"><a class="header" href="#camera-relative-movement">Camera-Relative Movement</a></h3>
+<h3 id="move-a-player-relative-to-the-camera"><a class="header" href="#move-a-player-relative-to-the-camera">Move a player relative to the camera</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>fn camera_relative_movement(
@@ -225,7 +226,6 @@
     input = input.normalize();
 
     let Some(camera_transform) = world.get_global_transform(camera) else { return };
-
     let forward = camera_transform.forward_vector();
     let forward_flat = Vec3::new(forward.x, 0.0, forward.z).normalize();
     let right_flat = Vec3::new(forward.z, 0.0, -forward.x).normalize();
@@ -243,12 +243,13 @@
             dt * 10.0,
         );
     }
+    mark_local_transform_dirty(world, player);
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="jumping"><a class="header" href="#jumping">Jumping</a></h3>
+<h3 id="add-jumping-with-gravity"><a class="header" href="#add-jumping-with-gravity">Add jumping with gravity</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct PlayerState {
+</span>struct JumpState {
     velocity_y: f32,
     grounded: bool,
 }
@@ -256,14 +257,13 @@
 fn handle_jumping(
     world: &amp;mut World,
     player: Entity,
-    state: &amp;mut PlayerState,
+    state: &amp;mut JumpState,
     jump_force: f32,
     gravity: f32,
 ) {
     let dt = world.resources.window.timing.delta_time;
-    let keyboard = &amp;world.resources.input.keyboard;
 
-    if state.grounded &amp;&amp; keyboard.is_key_pressed(KeyCode::Space) {
+    if state.grounded &amp;&amp; world.resources.input.keyboard.is_key_pressed(KeyCode::Space) {
         state.velocity_y = jump_force;
         state.grounded = false;
     }
@@ -281,46 +281,70 @@ fn handle_jumping(
             state.grounded = true;
         }
     }
+    mark_local_transform_dirty(world, player);
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="camera-systems"><a class="header" href="#camera-systems">Camera Systems</a></h2>
-<h3 id="smooth-follow-camera"><a class="header" href="#smooth-follow-camera">Smooth Follow Camera</a></h3>
+<h3 id="make-an-object-bob-up-and-down"><a class="header" href="#make-an-object-bob-up-and-down">Make an object bob up and down</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct FollowCamera {
-    offset: Vec3,
-    smoothness: f32,
-}
-
-fn follow_camera_system(
-    world: &amp;mut World,
-    target: Entity,
-    camera: Entity,
-    config: &amp;FollowCamera,
-) {
-    let dt = world.resources.window.timing.delta_time;
-
-    let Some(target_transform) = world.get_global_transform(target) else { return };
-    let target_pos = target_transform.translation() + config.offset;
-
-    if let Some(cam_transform) = world.get_local_transform_mut(camera) {
-        cam_transform.translation = nalgebra_glm::lerp(
-            &amp;cam_transform.translation,
-            &amp;target_pos,
-            dt * config.smoothness,
-        );
-
-        let look_at = target_transform.translation();
-        let direction = (look_at - cam_transform.translation).normalize();
-        let pitch = (-direction.y).asin();
-        let yaw = direction.x.atan2(direction.z);
-
-        cam_transform.rotation = nalgebra_glm::quat_angle_axis(yaw, &amp;Vec3::y())
-            * nalgebra_glm::quat_angle_axis(pitch, &amp;Vec3::x());
+</span>fn bob_system(world: &amp;mut World, entity: Entity, time: f32, amplitude: f32, frequency: f32) {
+    if let Some(transform) = world.get_local_transform_mut(entity) {
+        transform.translation.y = 1.0 + (time * frequency).sin() * amplitude;
     }
+    mark_local_transform_dirty(world, entity);
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="third-person-orbit-camera"><a class="header" href="#third-person-orbit-camera">Third-Person Orbit Camera</a></h3>
+<h3 id="rotate-an-object-continuously"><a class="header" href="#rotate-an-object-continuously">Rotate an object continuously</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spin_system(world: &amp;mut World, entity: Entity, time: f32) {
+    if let Some(transform) = world.get_local_transform_mut(entity) {
+        transform.rotation = nalgebra_glm::quat_angle_axis(time, &amp;Vec3::y());
+    }
+    mark_local_transform_dirty(world, entity);
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-set-up-cameras"><a class="header" href="#i-want-to-set-up-cameras">I Want To... Set Up Cameras</a></h2>
+<h3 id="make-a-first-person-camera"><a class="header" href="#make-a-first-person-camera">Make a first-person camera</a></h3>
+<p>Horizontal yaw on the player body, vertical pitch on the camera. The camera is parented to the player so it follows automatically:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn setup_fps_camera(world: &amp;mut World, player: Entity) -&gt; Entity {
+    let camera = world.spawn_entities(
+        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | CAMERA | PARENT,
+        1,
+    )[0];
+
+    world.set_local_transform(camera, LocalTransform {
+        translation: Vec3::new(0.0, 0.7, 0.0),
+        ..Default::default()
+    });
+    world.set_camera(camera, Camera::default());
+    world.set_parent(camera, Parent(Some(player)));
+    world.resources.active_camera = Some(camera);
+
+    camera
+}
+
+fn fps_look(world: &amp;mut World, player: Entity, camera: Entity) {
+    let mouse_delta = world.resources.input.mouse.position_delta;
+    let sensitivity = 0.002;
+
+    if let Some(transform) = world.get_local_transform_mut(player) {
+        let yaw = nalgebra_glm::quat_angle_axis(-mouse_delta.x * sensitivity, &amp;Vec3::y());
+        transform.rotation = yaw * transform.rotation;
+    }
+    mark_local_transform_dirty(world, player);
+
+    if let Some(transform) = world.get_local_transform_mut(camera) {
+        let pitch = nalgebra_glm::quat_angle_axis(-mouse_delta.y * sensitivity, &amp;Vec3::x());
+        transform.rotation = transform.rotation * pitch;
+    }
+    mark_local_transform_dirty(world, camera);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="make-a-third-person-orbit-camera"><a class="header" href="#make-a-third-person-orbit-camera">Make a third-person orbit camera</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct OrbitCamera {
@@ -328,15 +352,14 @@ fn follow_camera_system(
     distance: f32,
     yaw: f32,
     pitch: f32,
-    sensitivity: f32,
 }
 
 fn orbit_camera_system(world: &amp;mut World, camera: Entity, orbit: &amp;mut OrbitCamera) {
     let mouse_delta = world.resources.input.mouse.position_delta;
     let scroll = world.resources.input.mouse.wheel_delta;
 
-    orbit.yaw -= mouse_delta.x * orbit.sensitivity;
-    orbit.pitch -= mouse_delta.y * orbit.sensitivity;
+    orbit.yaw -= mouse_delta.x * 0.003;
+    orbit.pitch -= mouse_delta.y * 0.003;
     orbit.pitch = orbit.pitch.clamp(-1.4, 1.4);
     orbit.distance = (orbit.distance - scroll.y * 0.5).clamp(2.0, 20.0);
 
@@ -361,275 +384,289 @@ fn orbit_camera_system(world: &amp;mut World, camera: Entity, orbit: &amp;mut Or
         transform.rotation = nalgebra_glm::quat_angle_axis(yaw, &amp;Vec3::y())
             * nalgebra_glm::quat_angle_axis(pitch, &amp;Vec3::x());
     }
+    mark_local_transform_dirty(world, camera);
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="first-person-camera"><a class="header" href="#first-person-camera">First-Person Camera</a></h3>
+<h3 id="make-a-smooth-follow-camera"><a class="header" href="#make-a-smooth-follow-camera">Make a smooth follow camera</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct FpsCamera {
-    yaw: f32,
-    pitch: f32,
-    sensitivity: f32,
-}
-
-fn fps_camera_system(world: &amp;mut World, camera: Entity, fps: &amp;mut FpsCamera) {
-    let mouse_delta = world.resources.input.mouse.position_delta;
-
-    fps.yaw -= mouse_delta.x * fps.sensitivity;
-    fps.pitch -= mouse_delta.y * fps.sensitivity;
-    fps.pitch = fps.pitch.clamp(-1.5, 1.5);
-
-    if let Some(transform) = world.get_local_transform_mut(camera) {
-        transform.rotation = nalgebra_glm::quat_angle_axis(fps.yaw, &amp;Vec3::y())
-            * nalgebra_glm::quat_angle_axis(fps.pitch, &amp;Vec3::x());
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="combat-systems"><a class="header" href="#combat-systems">Combat Systems</a></h2>
-<h3 id="health-system"><a class="header" href="#health-system">Health System</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct Health {
-    current: f32,
-    maximum: f32,
-    invulnerable_timer: f32,
-}
-
-impl Health {
-    fn take_damage(&amp;mut self, amount: f32, dt: f32) -&gt; bool {
-        if self.invulnerable_timer &gt; 0.0 {
-            return false;
-        }
-
-        self.current = (self.current - amount).max(0.0);
-        self.invulnerable_timer = 0.5;
-
-        self.current &lt;= 0.0
-    }
-
-    fn heal(&amp;mut self, amount: f32) {
-        self.current = (self.current + amount).min(self.maximum);
-    }
-
-    fn update(&amp;mut self, dt: f32) {
-        if self.invulnerable_timer &gt; 0.0 {
-            self.invulnerable_timer -= dt;
-        }
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="melee-attack"><a class="header" href="#melee-attack">Melee Attack</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn melee_attack(
+</span>fn follow_camera(
     world: &amp;mut World,
-    attacker: Entity,
-    damage: f32,
-    range: f32,
-    angle: f32,
-) -&gt; Vec&lt;Entity&gt; {
-    let Some(attacker_transform) = world.get_global_transform(attacker) else {
-        return vec![];
-    };
-
-    let origin = attacker_transform.translation();
-    let forward = attacker_transform.forward_vector();
-
-    let mut hit_entities = vec![];
-
-    for entity in world.query_entities(GLOBAL_TRANSFORM) {
-        if entity == attacker {
-            continue;
-        }
-
-        let Some(target_transform) = world.get_global_transform(entity) else {
-            continue;
-        };
-
-        let to_target = target_transform.translation() - origin;
-        let distance = to_target.magnitude();
-
-        if distance &gt; range {
-            continue;
-        }
-
-        let dot = forward.dot(&amp;to_target.normalize());
-        if dot &lt; angle.cos() {
-            continue;
-        }
-
-        hit_entities.push(entity);
-    }
-
-    hit_entities
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="projectile-system"><a class="header" href="#projectile-system">Projectile System</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct Projectile {
-    velocity: Vec3,
-    damage: f32,
-    lifetime: f32,
-    owner: Entity,
-}
-
-fn spawn_projectile(
-    world: &amp;mut World,
-    position: Vec3,
-    direction: Vec3,
-    speed: f32,
-    damage: f32,
-    owner: Entity,
-) -&gt; Entity {
-    let entity = world.spawn_entities(
-        LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH,
-        1
-    )[0];
-
-    world.set_local_transform(entity, LocalTransform {
-        translation: position,
-        scale: Vec3::new(0.1, 0.1, 0.5),
-        ..Default::default()
-    });
-
-    entity
-}
-
-fn update_projectiles(
-    world: &amp;mut World,
-    projectiles: &amp;mut Vec&lt;(Entity, Projectile)&gt;,
+    target: Entity,
+    camera: Entity,
+    offset: Vec3,
+    smoothness: f32,
 ) {
     let dt = world.resources.window.timing.delta_time;
 
-    projectiles.retain_mut(|(entity, projectile)| {
-        projectile.lifetime -= dt;
+    let Some(target_transform) = world.get_global_transform(target) else { return };
+    let target_pos = target_transform.translation() + offset;
 
-        if projectile.lifetime &lt;= 0.0 {
-            world.despawn_entities(&amp;[*entity]);
-            return false;
+    if let Some(cam_transform) = world.get_local_transform_mut(camera) {
+        cam_transform.translation = nalgebra_glm::lerp(
+            &amp;cam_transform.translation,
+            &amp;target_pos,
+            dt * smoothness,
+        );
+
+        let look_at = target_transform.translation();
+        let direction = (look_at - cam_transform.translation).normalize();
+        let pitch = (-direction.y).asin();
+        let yaw = direction.x.atan2(direction.z);
+
+        cam_transform.rotation = nalgebra_glm::quat_angle_axis(yaw, &amp;Vec3::y())
+            * nalgebra_glm::quat_angle_axis(pitch, &amp;Vec3::x());
+    }
+    mark_local_transform_dirty(world, camera);
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-spawn-objects"><a class="header" href="#i-want-to-spawn-objects">I Want To... Spawn Objects</a></h2>
+<h3 id="spawn-a-colored-cube"><a class="header" href="#spawn-a-colored-cube">Spawn a colored cube</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_colored_cube(world: &amp;mut World, position: Vec3, color: [f32; 4]) -&gt; Entity {
+    let cube = spawn_cube_at(world, position);
+
+    material_registry_insert(
+        &amp;mut world.resources.material_registry,
+        format!("cube_{}", cube.id),
+        Material {
+            base_color: color,
+            ..Default::default()
+        },
+    );
+
+    let material_name = format!("cube_{}", cube.id);
+    if let Some(&amp;index) = world.resources.material_registry.registry.name_to_index.get(&amp;material_name) {
+        world.resources.material_registry.registry.add_reference(index);
+    }
+    world.set_material_ref(cube, MaterialRef::new(material_name));
+
+    cube
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="spawn-objects-at-random-positions"><a class="header" href="#spawn-objects-at-random-positions">Spawn objects at random positions</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn random_position_in_box(center: Vec3, half_extents: Vec3) -&gt; Vec3 {
+    Vec3::new(
+        center.x + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.x,
+        center.y + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.y,
+        center.z + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.z,
+    )
+}
+
+fn random_position_on_circle(center: Vec3, radius: f32) -&gt; Vec3 {
+    let angle = rand::random::&lt;f32&gt;() * std::f32::consts::TAU;
+    Vec3::new(
+        center.x + angle.cos() * radius,
+        center.y,
+        center.z + angle.sin() * radius,
+    )
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="spawn-a-physics-object-that-falls"><a class="header" href="#spawn-a-physics-object-that-falls">Spawn a physics object that falls</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_physics_cube(world: &amp;mut World, position: Vec3) -&gt; Entity {
+    let cube = spawn_cube_at(world, position);
+    add_rigid_body(world, cube, RigidBodyType::Dynamic, 1.0);
+    add_collider(world, cube, ColliderShape::Cuboid {
+        half_extents: Vec3::new(0.5, 0.5, 0.5),
+    });
+    cube
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="spawn-a-wave-of-enemies-at-intervals"><a class="header" href="#spawn-a-wave-of-enemies-at-intervals">Spawn a wave of enemies at intervals</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct WaveSpawner {
+    wave: u32,
+    enemies_remaining: u32,
+    spawn_timer: f32,
+    spawn_interval: f32,
+}
+
+impl WaveSpawner {
+    fn update(&amp;mut self, world: &amp;mut World, dt: f32) {
+        if self.enemies_remaining == 0 {
+            self.wave += 1;
+            self.enemies_remaining = 5 + self.wave * 2;
+            self.spawn_interval = (2.0 - self.wave as f32 * 0.1).max(0.3);
+            return;
         }
 
-        if let Some(transform) = world.get_local_transform_mut(*entity) {
-            transform.translation += projectile.velocity * dt;
+        self.spawn_timer -= dt;
+        if self.spawn_timer &lt;= 0.0 {
+            let position = random_position_on_circle(Vec3::zeros(), 20.0);
+            spawn_cube_at(world, position);
+            self.enemies_remaining -= 1;
+            self.spawn_timer = self.spawn_interval;
         }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="load-a-3d-model"><a class="header" href="#load-a-3d-model">Load a 3D model</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn initialize(&amp;mut self, world: &amp;mut World) {
+    let entities = load_gltf(world, "assets/models/character.glb");
+    let root = entities[0];
 
-        true
+    world.set_local_transform(root, LocalTransform {
+        translation: Vec3::new(0.0, 0.0, 0.0),
+        scale: Vec3::new(1.0, 1.0, 1.0),
+        ..Default::default()
     });
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="object-pooling"><a class="header" href="#object-pooling">Object Pooling</a></h2>
-<h3 id="entity-pool"><a class="header" href="#entity-pool">Entity Pool</a></h3>
+<hr />
+<h2 id="i-want-to-use-physics"><a class="header" href="#i-want-to-use-physics">I Want To... Use Physics</a></h2>
+<h3 id="apply-an-explosion-force"><a class="header" href="#apply-an-explosion-force">Apply an explosion force</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct EntityPool {
-    available: Vec&lt;Entity&gt;,
-    active: Vec&lt;Entity&gt;,
-    prefab_spawn_fn: fn(&amp;mut World) -&gt; Entity,
-}
+</span>fn explosion(world: &amp;mut World, center: Vec3, radius: f32, force: f32) {
+    for entity in world.query_entities(RIGID_BODY | GLOBAL_TRANSFORM) {
+        let Some(transform) = world.get_global_transform(entity) else { continue };
+        let to_entity = transform.translation() - center;
+        let distance = to_entity.magnitude();
 
-impl EntityPool {
-    fn new(world: &amp;mut World, initial_size: usize, spawn_fn: fn(&amp;mut World) -&gt; Entity) -&gt; Self {
-        let mut available = Vec::with_capacity(initial_size);
+        if distance &lt; radius &amp;&amp; distance &gt; 0.1 {
+            let falloff = 1.0 - (distance / radius);
+            let impulse = to_entity.normalize() * force * falloff;
 
-        for _ in 0..initial_size {
-            let entity = spawn_fn(world);
-            set_entity_active(world, entity, false);
-            available.push(entity);
-        }
-
-        Self {
-            available,
-            active: Vec::new(),
-            prefab_spawn_fn: spawn_fn,
-        }
-    }
-
-    fn acquire(&amp;mut self, world: &amp;mut World) -&gt; Entity {
-        let entity = self.available.pop().unwrap_or_else(|| {
-            (self.prefab_spawn_fn)(world)
-        });
-
-        set_entity_active(world, entity, true);
-        self.active.push(entity);
-        entity
-    }
-
-    fn release(&amp;mut self, world: &amp;mut World, entity: Entity) {
-        if let Some(index) = self.active.iter().position(|&amp;e| e == entity) {
-            self.active.swap_remove(index);
-            set_entity_active(world, entity, false);
-            self.available.push(entity);
-        }
-    }
-}
-
-fn set_entity_active(world: &amp;mut World, entity: Entity, active: bool) {
-    world.set_visibility(entity, Visibility { visible: active });
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="state-machines"><a class="header" href="#state-machines">State Machines</a></h2>
-<h3 id="simple-state-machine"><a class="header" href="#simple-state-machine">Simple State Machine</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[derive(Clone, Copy, PartialEq, Eq)]
-enum PlayerState {
-    Idle,
-    Walking,
-    Running,
-    Jumping,
-    Falling,
-    Attacking,
-}
-
-struct StateMachine {
-    current: PlayerState,
-    state_timer: f32,
-}
-
-impl StateMachine {
-    fn transition(&amp;mut self, new_state: PlayerState) {
-        if self.current != new_state {
-            self.current = new_state;
-            self.state_timer = 0.0;
-        }
-    }
-
-    fn update(&amp;mut self, dt: f32) {
-        self.state_timer += dt;
-    }
-
-    fn can_interrupt(&amp;self) -&gt; bool {
-        match self.current {
-            PlayerState::Attacking =&gt; self.state_timer &gt; 0.5,
-            _ =&gt; true,
+            if let Some(body) = world.get_rigid_body_mut(entity) {
+                body.linvel = [
+                    body.linvel[0] + impulse.x,
+                    body.linvel[1] + impulse.y,
+                    body.linvel[2] + impulse.z,
+                ];
+            }
         }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="ui-patterns"><a class="header" href="#ui-patterns">UI Patterns</a></h2>
-<h3 id="health-bar"><a class="header" href="#health-bar">Health Bar</a></h3>
+<h3 id="raycast-from-the-camera"><a class="header" href="#raycast-from-the-camera">Raycast from the camera</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn update_health_bar(world: &amp;mut World, health_text: Entity, current: f32, max: f32) {
-    let percentage = (current / max * 100.0) as u32;
-    let bar_length = 20;
-    let filled = (percentage as usize * bar_length / 100).min(bar_length);
+</span>fn shoot_from_camera(world: &amp;mut World) {
+    let Some(camera) = world.resources.active_camera else { return };
+    let Some(transform) = world.get_global_transform(camera) else { return };
 
-    let bar = format!(
-        "[{}{}] {}/{}",
-        "█".repeat(filled),
-        "░".repeat(bar_length - filled),
-        current as u32,
-        max as u32,
-    );
+    let origin = transform.translation();
+    let direction = transform.forward_vector();
 
-    if let Some(text) = world.get_hud_text_mut(health_text) {
-        text.text = bar;
+    if let Some(hit) = raycast(world, origin, direction, 100.0) {
+        let hit_position = hit.position;
+        let hit_normal = hit.normal;
+        let hit_entity = hit.entity;
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="fps-counter"><a class="header" href="#fps-counter">FPS Counter</a></h3>
+<h3 id="grab-and-throw-objects"><a class="header" href="#grab-and-throw-objects">Grab and throw objects</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct GrabState {
+    entity: Option&lt;Entity&gt;,
+    distance: f32,
+}
+
+fn grab_object(world: &amp;mut World, state: &amp;mut GrabState) {
+    let Some(camera) = world.resources.active_camera else { return };
+    let Some(transform) = world.get_global_transform(camera) else { return };
+
+    if let Some(hit) = raycast(world, transform.translation(), transform.forward_vector(), 20.0) {
+        if world.get_rigid_body(hit.entity).is_some() {
+            state.entity = Some(hit.entity);
+            state.distance = hit.distance;
+
+            if let Some(body) = world.get_rigid_body_mut(hit.entity) {
+                body.linear_damping = 10.0;
+                body.angular_damping = 10.0;
+            }
+        }
+    }
+}
+
+fn update_held_object(world: &amp;mut World, state: &amp;GrabState) {
+    let Some(entity) = state.entity else { return };
+    let Some(camera) = world.resources.active_camera else { return };
+    let Some(camera_transform) = world.get_global_transform(camera) else { return };
+
+    let target = camera_transform.translation() +
+        camera_transform.forward_vector() * state.distance;
+
+    if let Some(transform) = world.get_local_transform(entity) {
+        let to_target = target - transform.translation;
+        if let Some(body) = world.get_rigid_body_mut(entity) {
+            body.linvel = [to_target.x * 20.0, to_target.y * 20.0, to_target.z * 20.0];
+        }
+    }
+}
+
+fn throw_object(world: &amp;mut World, state: &amp;mut GrabState) {
+    if let Some(entity) = state.entity.take() {
+        let Some(camera) = world.resources.active_camera else { return };
+        let Some(transform) = world.get_global_transform(camera) else { return };
+        let direction = transform.forward_vector();
+
+        if let Some(body) = world.get_rigid_body_mut(entity) {
+            body.linear_damping = 0.0;
+            body.angular_damping = 0.0;
+            body.linvel = [direction.x * 20.0, direction.y * 20.0, direction.z * 20.0];
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-create-materials"><a class="header" href="#i-want-to-create-materials">I Want To... Create Materials</a></h2>
+<h3 id="make-a-glowing-emissive-material"><a class="header" href="#make-a-glowing-emissive-material">Make a glowing emissive material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let neon = Material {
+    base_color: [0.2, 0.8, 1.0, 1.0],
+    emissive_factor: [0.2, 0.8, 1.0],
+    emissive_strength: 10.0,
+    roughness: 0.8,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="make-glass"><a class="header" href="#make-glass">Make glass</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let glass = Material {
+    base_color: [0.95, 0.95, 1.0, 1.0],
+    roughness: 0.05,
+    metallic: 0.0,
+    transmission_factor: 0.95,
+    ior: 1.5,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="make-a-metallic-surface"><a class="header" href="#make-a-metallic-surface">Make a metallic surface</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let gold = Material {
+    base_color: [1.0, 0.84, 0.0, 1.0],
+    roughness: 0.3,
+    metallic: 1.0,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="make-a-transparent-ghost-like-material"><a class="header" href="#make-a-transparent-ghost-like-material">Make a transparent ghost-like material</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let ghost = Material {
+    base_color: [0.9, 0.95, 1.0, 0.3],
+    alpha_mode: AlphaMode::Blend,
+    roughness: 0.1,
+    ..Default::default()
+};
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-show-ui"><a class="header" href="#i-want-to-show-ui">I Want To... Show UI</a></h2>
+<h3 id="display-an-fps-counter"><a class="header" href="#display-an-fps-counter">Display an FPS counter</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct FpsCounter {
@@ -654,187 +691,101 @@ impl FpsCounter {
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="spawning-patterns"><a class="header" href="#spawning-patterns">Spawning Patterns</a></h2>
-<h3 id="random-position-in-area"><a class="header" href="#random-position-in-area">Random Position in Area</a></h3>
+<h3 id="display-a-health-bar-as-hud-text"><a class="header" href="#display-a-health-bar-as-hud-text">Display a health bar as HUD text</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn random_position_in_box(center: Vec3, half_extents: Vec3) -&gt; Vec3 {
-    Vec3::new(
-        center.x + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.x,
-        center.y + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.y,
-        center.z + (rand::random::&lt;f32&gt;() - 0.5) * 2.0 * half_extents.z,
-    )
-}
+</span>fn update_health_bar(world: &amp;mut World, text_entity: Entity, current: f32, max: f32) {
+    let bar_length = 20;
+    let filled = ((current / max) * bar_length as f32) as usize;
 
-fn random_position_on_circle(center: Vec3, radius: f32) -&gt; Vec3 {
-    let angle = rand::random::&lt;f32&gt;() * std::f32::consts::TAU;
-    Vec3::new(
-        center.x + angle.cos() * radius,
-        center.y,
-        center.z + angle.sin() * radius,
-    )
-}
-<span class="boring">}</span></code></pre></pre>
-<h3 id="wave-spawner"><a class="header" href="#wave-spawner">Wave Spawner</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>struct WaveSpawner {
-    wave: u32,
-    enemies_remaining: u32,
-    spawn_timer: f32,
-    spawn_interval: f32,
-}
+    let bar = format!(
+        "[{}{}] {}/{}",
+        "|".repeat(filled.min(bar_length)),
+        ".".repeat(bar_length - filled.min(bar_length)),
+        current as u32,
+        max as u32,
+    );
 
-impl WaveSpawner {
-    fn update(&amp;mut self, world: &amp;mut World, dt: f32) {
-        if self.enemies_remaining == 0 {
-            self.start_next_wave();
-            return;
-        }
-
-        self.spawn_timer -= dt;
-
-        if self.spawn_timer &lt;= 0.0 {
-            self.spawn_enemy(world);
-            self.spawn_timer = self.spawn_interval;
-        }
-    }
-
-    fn start_next_wave(&amp;mut self) {
-        self.wave += 1;
-        self.enemies_remaining = 5 + self.wave * 2;
-        self.spawn_interval = (2.0 - self.wave as f32 * 0.1).max(0.3);
-    }
-
-    fn spawn_enemy(&amp;mut self, world: &amp;mut World) {
-        let position = random_position_on_circle(Vec3::zeros(), 20.0);
-        spawn_cube_at(world, position);
-        self.enemies_remaining -= 1;
+    if let Some(text) = world.get_hud_text_mut(text_entity) {
+        text.text = bar;
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="audio-patterns"><a class="header" href="#audio-patterns">Audio Patterns</a></h2>
-<h3 id="footstep-system"><a class="header" href="#footstep-system">Footstep System</a></h3>
+<h3 id="show-a-scoreboard-with-egui"><a class="header" href="#show-a-scoreboard-with-egui">Show a scoreboard with egui</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct FootstepSystem {
-    step_timer: f32,
-    step_interval: f32,
-    sounds: Vec&lt;String&gt;,
-    last_index: usize,
+</span>fn ui(&amp;mut self, _world: &amp;mut World, ctx: &amp;egui::Context) {
+    egui::Window::new("Score")
+        .anchor(egui::Align2::CENTER_TOP, [0.0, 10.0])
+        .resizable(false)
+        .collapsible(false)
+        .title_bar(false)
+        .show(ctx, |ui| {
+            ui.heading(format!("{} - {}", self.left_score, self.right_score));
+        });
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-handle-game-states"><a class="header" href="#i-want-to-handle-game-states">I Want To... Handle Game States</a></h2>
+<h3 id="pause-the-game"><a class="header" href="#pause-the-game">Pause the game</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn on_keyboard_input(&amp;mut self, world: &amp;mut World, key: KeyCode, state: KeyState) {
+    if state == KeyState::Pressed &amp;&amp; key == KeyCode::Escape {
+        self.paused = !self.paused;
+        world.resources.graphics.show_cursor = self.paused;
+    }
 }
 
-impl FootstepSystem {
-    fn update(&amp;mut self, world: &amp;mut World, is_moving: bool, is_running: bool, dt: f32) {
-        if !is_moving {
-            self.step_timer = 0.0;
-            return;
-        }
+fn run_systems(&amp;mut self, world: &amp;mut World) {
+    if self.paused {
+        return;
+    }
 
-        let interval = if is_running {
-            self.step_interval * 0.6
-        } else {
-            self.step_interval
-        };
+    self.update_game_logic(world);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="build-a-state-machine-for-player-actions"><a class="header" href="#build-a-state-machine-for-player-actions">Build a state machine for player actions</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Clone, Copy, PartialEq, Eq)]
+enum PlayerAction {
+    Idle,
+    Walking,
+    Running,
+    Attacking,
+    Dodging,
+}
 
-        self.step_timer += dt;
+struct ActionState {
+    current: PlayerAction,
+    timer: f32,
+}
 
-        if self.step_timer &gt;= interval {
-            self.step_timer = 0.0;
-            self.play_footstep(world);
+impl ActionState {
+    fn transition(&amp;mut self, new_state: PlayerAction) {
+        if self.current != new_state {
+            self.current = new_state;
+            self.timer = 0.0;
         }
     }
 
-    fn play_footstep(&amp;mut self, world: &amp;mut World) {
-        let mut index = rand::random::&lt;usize&gt;() % self.sounds.len();
-        if index == self.last_index &amp;&amp; self.sounds.len() &gt; 1 {
-            index = (index + 1) % self.sounds.len();
-        }
-        self.last_index = index;
+    fn update(&amp;mut self, dt: f32) {
+        self.timer += dt;
+    }
 
-        play_sound(world, &amp;self.sounds[index]);
+    fn can_interrupt(&amp;self) -&gt; bool {
+        match self.current {
+            PlayerAction::Attacking =&gt; self.timer &gt; 0.5,
+            PlayerAction::Dodging =&gt; self.timer &gt; 0.3,
+            _ =&gt; true,
+        }
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="savingloading"><a class="header" href="#savingloading">Saving/Loading</a></h2>
-<h3 id="simple-save-data"><a class="header" href="#simple-save-data">Simple Save Data</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-struct SaveData {
-    player_position: [f32; 3],
-    player_health: f32,
-    score: u32,
-    level: u32,
-}
-
-fn save_game(data: &amp;SaveData, path: &amp;str) -&gt; std::io::Result&lt;()&gt; {
-    let json = serde_json::to_string_pretty(data)?;
-    std::fs::write(path, json)?;
-    Ok(())
-}
-
-fn load_game(path: &amp;str) -&gt; std::io::Result&lt;SaveData&gt; {
-    let json = std::fs::read_to_string(path)?;
-    let data: SaveData = serde_json::from_str(&amp;json)?;
-    Ok(data)
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="debug-visualization"><a class="header" href="#debug-visualization">Debug Visualization</a></h2>
-<h3 id="draw-collision-shapes"><a class="header" href="#draw-collision-shapes">Draw Collision Shapes</a></h3>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn debug_draw_colliders(world: &amp;mut World, lines_entity: Entity) {
-    let mut lines = vec![];
-
-    for entity in world.query_entities(COLLIDER | GLOBAL_TRANSFORM) {
-        let Some(collider) = world.get_collider(entity) else { continue };
-        let Some(transform) = world.get_global_transform(entity) else { continue };
-
-        let pos = transform.translation();
-        let color = Vec4::new(0.0, 1.0, 0.0, 1.0);
-
-        match &amp;collider.shape {
-            ColliderShape::Box { half_extents } =&gt; {
-                draw_wire_box(&amp;mut lines, pos, *half_extents, color);
-            }
-            ColliderShape::Sphere { radius } =&gt; {
-                draw_wire_sphere(&amp;mut lines, pos, *radius, color);
-            }
-            _ =&gt; {}
-        }
-    }
-
-    world.set_lines(lines_entity, Lines { lines, version: 0 });
-}
-
-fn draw_wire_box(lines: &amp;mut Vec&lt;Line&gt;, center: Vec3, half: Vec3, color: Vec4) {
-    let corners = [
-        center + Vec3::new(-half.x, -half.y, -half.z),
-        center + Vec3::new( half.x, -half.y, -half.z),
-        center + Vec3::new( half.x, -half.y,  half.z),
-        center + Vec3::new(-half.x, -half.y,  half.z),
-        center + Vec3::new(-half.x,  half.y, -half.z),
-        center + Vec3::new( half.x,  half.y, -half.z),
-        center + Vec3::new( half.x,  half.y,  half.z),
-        center + Vec3::new(-half.x,  half.y,  half.z),
-    ];
-
-    let edges = [
-        (0,1), (1,2), (2,3), (3,0),
-        (4,5), (5,6), (6,7), (7,4),
-        (0,4), (1,5), (2,6), (3,7),
-    ];
-
-    for (a, b) in edges {
-        lines.push(Line { start: corners[a], end: corners[b], color });
-    }
-}
-<span class="boring">}</span></code></pre></pre>
-<h2 id="timer-utilities"><a class="header" href="#timer-utilities">Timer Utilities</a></h2>
-<h3 id="cooldown-timer"><a class="header" href="#cooldown-timer">Cooldown Timer</a></h3>
+<hr />
+<h2 id="i-want-to-use-timers"><a class="header" href="#i-want-to-use-timers">I Want To... Use Timers</a></h2>
+<h3 id="cooldown-timer"><a class="header" href="#cooldown-timer">Cooldown timer</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct Cooldown {
@@ -864,7 +815,7 @@ impl Cooldown {
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<h3 id="repeating-timer"><a class="header" href="#repeating-timer">Repeating Timer</a></h3>
+<h3 id="repeating-timer"><a class="header" href="#repeating-timer">Repeating timer</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>struct RepeatingTimer {
@@ -887,6 +838,194 @@ impl RepeatingTimer {
             false
         }
     }
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-debug-things"><a class="header" href="#i-want-to-debug-things">I Want To... Debug Things</a></h2>
+<h3 id="draw-wireframe-collision-boxes"><a class="header" href="#draw-wireframe-collision-boxes">Draw wireframe collision boxes</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn debug_draw_boxes(
+    world: &amp;mut World,
+    lines_entity: Entity,
+    entities: &amp;[Entity],
+    half_extents: Vec3,
+) {
+    let mut lines = vec![];
+
+    for &amp;entity in entities {
+        let Some(transform) = world.get_global_transform(entity) else { continue };
+        let pos = transform.translation();
+        let color = Vec4::new(0.0, 1.0, 0.0, 1.0);
+        let half = half_extents;
+
+        let corners = [
+            pos + Vec3::new(-half.x, -half.y, -half.z),
+            pos + Vec3::new( half.x, -half.y, -half.z),
+            pos + Vec3::new( half.x, -half.y,  half.z),
+            pos + Vec3::new(-half.x, -half.y,  half.z),
+            pos + Vec3::new(-half.x,  half.y, -half.z),
+            pos + Vec3::new( half.x,  half.y, -half.z),
+            pos + Vec3::new( half.x,  half.y,  half.z),
+            pos + Vec3::new(-half.x,  half.y,  half.z),
+        ];
+
+        let edges = [
+            (0,1), (1,2), (2,3), (3,0),
+            (4,5), (5,6), (6,7), (7,4),
+            (0,4), (1,5), (2,6), (3,7),
+        ];
+
+        for (a, b) in edges {
+            lines.push(Line { start: corners[a], end: corners[b], color });
+        }
+    }
+
+    world.set_lines(lines_entity, Lines { lines, version: 0 });
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-save-and-load"><a class="header" href="#i-want-to-save-and-load">I Want To... Save and Load</a></h2>
+<h3 id="save-game-state-to-json"><a class="header" href="#save-game-state-to-json">Save game state to JSON</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+struct SaveData {
+    player_position: [f32; 3],
+    player_health: f32,
+    score: u32,
+    level: u32,
+}
+
+fn save_game(data: &amp;SaveData, path: &amp;str) -&gt; std::io::Result&lt;()&gt; {
+    let json = serde_json::to_string_pretty(data)?;
+    std::fs::write(path, json)?;
+    Ok(())
+}
+
+fn load_game(path: &amp;str) -&gt; std::io::Result&lt;SaveData&gt; {
+    let json = std::fs::read_to_string(path)?;
+    let data: SaveData = serde_json::from_str(&amp;json)?;
+    Ok(data)
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-play-audio"><a class="header" href="#i-want-to-play-audio">I Want To... Play Audio</a></h2>
+<h3 id="footstep-sounds-while-moving"><a class="header" href="#footstep-sounds-while-moving">Footstep sounds while moving</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct FootstepSystem {
+    timer: f32,
+    interval: f32,
+    sounds: Vec&lt;String&gt;,
+    last_index: usize,
+}
+
+impl FootstepSystem {
+    fn update(&amp;mut self, world: &amp;mut World, is_moving: bool, is_running: bool, dt: f32) {
+        if !is_moving {
+            self.timer = 0.0;
+            return;
+        }
+
+        let interval = if is_running { self.interval * 0.6 } else { self.interval };
+        self.timer += dt;
+
+        if self.timer &gt;= interval {
+            self.timer = 0.0;
+
+            let mut index = rand::random::&lt;usize&gt;() % self.sounds.len();
+            if index == self.last_index &amp;&amp; self.sounds.len() &gt; 1 {
+                index = (index + 1) % self.sounds.len();
+            }
+            self.last_index = index;
+
+            play_sound(world, &amp;self.sounds[index]);
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-pool-entities"><a class="header" href="#i-want-to-pool-entities">I Want To... Pool Entities</a></h2>
+<h3 id="reuse-entities-instead-of-spawningdespawning"><a class="header" href="#reuse-entities-instead-of-spawningdespawning">Reuse entities instead of spawning/despawning</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct EntityPool {
+    available: Vec&lt;Entity&gt;,
+    active: Vec&lt;Entity&gt;,
+    spawn_fn: fn(&amp;mut World) -&gt; Entity,
+}
+
+impl EntityPool {
+    fn new(world: &amp;mut World, initial_size: usize, spawn_fn: fn(&amp;mut World) -&gt; Entity) -&gt; Self {
+        let mut available = Vec::with_capacity(initial_size);
+
+        for _ in 0..initial_size {
+            let entity = spawn_fn(world);
+            world.set_visibility(entity, Visibility { visible: false });
+            available.push(entity);
+        }
+
+        Self { available, active: Vec::new(), spawn_fn }
+    }
+
+    fn acquire(&amp;mut self, world: &amp;mut World) -&gt; Entity {
+        let entity = self.available.pop().unwrap_or_else(|| (self.spawn_fn)(world));
+        world.set_visibility(entity, Visibility { visible: true });
+        self.active.push(entity);
+        entity
+    }
+
+    fn release(&amp;mut self, world: &amp;mut World, entity: Entity) {
+        if let Some(index) = self.active.iter().position(|&amp;entity_in_pool| entity_in_pool == entity) {
+            self.active.swap_remove(index);
+            world.set_visibility(entity, Visibility { visible: false });
+            self.available.push(entity);
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<hr />
+<h2 id="i-want-to-attach-things-to-other-things"><a class="header" href="#i-want-to-attach-things-to-other-things">I Want To... Attach Things to Other Things</a></h2>
+<h3 id="parent-an-object-to-another-entity"><a class="header" href="#parent-an-object-to-another-entity">Parent an object to another entity</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_parent(child, Parent(Some(parent)));
+<span class="boring">}</span></code></pre></pre>
+<p>The child's <code>LocalTransform</code> becomes relative to the parent. The engine computes the <code>GlobalTransform</code> automatically via the transform hierarchy.</p>
+<h3 id="attach-a-weapon-to-a-camera"><a class="header" href="#attach-a-weapon-to-a-camera">Attach a weapon to a camera</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn attach_weapon_to_camera(world: &amp;mut World, camera: Entity) -&gt; Entity {
+    let weapon = load_gltf(world, "assets/models/pistol.glb")[0];
+
+    world.set_local_transform(weapon, LocalTransform {
+        translation: Vec3::new(0.3, -0.2, -0.5),
+        rotation: nalgebra_glm::quat_angle_axis(std::f32::consts::PI, &amp;Vec3::y()),
+        scale: Vec3::new(0.1, 0.1, 0.1),
+    });
+
+    world.set_parent(weapon, Parent(Some(camera)));
+    weapon
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="add-weapon-sway-from-mouse-movement"><a class="header" href="#add-weapon-sway-from-mouse-movement">Add weapon sway from mouse movement</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn weapon_sway(world: &amp;mut World, weapon: Entity, rest_x: f32, rest_y: f32) {
+    let dt = world.resources.window.timing.delta_time;
+    let mouse_delta = world.resources.input.mouse.position_delta;
+
+    if let Some(transform) = world.get_local_transform_mut(weapon) {
+        let target_x = rest_x - mouse_delta.x * 0.001;
+        let target_y = rest_y - mouse_delta.y * 0.001;
+
+        transform.translation.x += (target_x - transform.translation.x) * dt * 10.0;
+        transform.translation.y += (target_y - transform.translation.y) * dt * 10.0;
+    }
+    mark_local_transform_dirty(world, weapon);
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -919,6 +1058,22 @@ impl RepeatingTimer {
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 

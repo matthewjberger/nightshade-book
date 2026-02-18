@@ -177,55 +177,105 @@
                     <main>
                         <h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
-<p>Before using Nightshade, ensure you have:</p>
 <ul>
 <li><strong>Rust 1.90+</strong> with the 2024 edition</li>
 <li>A graphics driver supporting Vulkan 1.2, Metal, or DirectX 12</li>
 </ul>
-<h2 id="adding-nightshade-to-your-project"><a class="header" href="#adding-nightshade-to-your-project">Adding Nightshade to Your Project</a></h2>
-<p>Add Nightshade to your <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<p>Clone the template repository:</p>
+<pre><code class="language-bash">git clone https://github.com/matthewjberger/nightshade-template my-game
+cd my-game
 </code></pre>
-<h3 id="with-specific-features"><a class="header" href="#with-specific-features">With Specific Features</a></h3>
-<pre><code class="language-toml">[dependencies]
-nightshade = { git = "https://github.com/matthewjberger/nightshade.git", features = ["engine", "physics", "audio"] }
+<p>Run it:</p>
+<pre><code class="language-bash">just run
 </code></pre>
-<h3 id="feature-sets"><a class="header" href="#feature-sets">Feature Sets</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>default</code></td><td>Engine + wgpu backend</td></tr>
-<tr><td><code>engine</code></td><td>Full game engine capabilities</td></tr>
-<tr><td><code>runtime</code></td><td>Minimal rendering without asset loading</td></tr>
-<tr><td><code>full</code></td><td>Everything including niche features</td></tr>
-</tbody></table>
-</div>
-<p>See the <a href="appendix-features.html">Feature Flags</a> appendix for a complete list.</p>
-<h2 id="verifying-installation"><a class="header" href="#verifying-installation">Verifying Installation</a></h2>
-<p>Create a minimal application to verify everything works:</p>
+<p>You should see a 3D scene with a nebula skybox, a grid, and a pan-orbit camera.</p>
+<h2 id="whats-in-the-template"><a class="header" href="#whats-in-the-template">What's in the Template</a></h2>
+<p>The template gives you a working project with:</p>
+<ul>
+<li><code>src/main.rs</code> - A minimal Nightshade application with a camera, sun, and egui UI</li>
+<li><code>Cargo.toml</code> - Nightshade dependency with <code>egui</code> feature enabled</li>
+<li><code>justfile</code> - Build, run, lint, and deploy commands for native, WASM, VR, and Steam Deck</li>
+<li><code>index.html</code> + <code>Trunk.toml</code> - WASM web build configuration</li>
+<li><code>.github/workflows/</code> - CI (clippy, tests, WASM build) and GitHub Pages deployment</li>
+<li><code>rust-toolchain</code> - Pinned Rust version with WASM target</li>
+</ul>
+<h2 id="starter-code"><a class="header" href="#starter-code">Starter Code</a></h2>
+<p>The template's <code>src/main.rs</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 
 fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
-    nightshade::launch(MyGame::default())
+    launch(Template)?;
+    Ok(())
 }
 
 #[derive(Default)]
-struct MyGame;
+struct Template;
 
-impl State for MyGame {
-    fn title(&amp;self) -&gt; &amp;str {
-        "Nightshade Test"
-    }
+impl State for Template {
+    fn title(&amp;self) -&gt; &amp;str { "Template" }
 
     fn initialize(&amp;mut self, world: &amp;mut World) {
-        spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.user_interface.enabled = true;
+        world.resources.graphics.show_grid = true;
+        world.resources.graphics.atmosphere = Atmosphere::Nebula;
+        spawn_sun(world);
+        let camera_entity = spawn_pan_orbit_camera(
+            world,
+            Vec3::new(0.0, 0.0, 0.0),
+            15.0,
+            0.0,
+            std::f32::consts::FRAC_PI_4,
+            "Main Camera".to_string(),
+        );
+        world.resources.active_camera = Some(camera_entity);
     }
 
-    fn run_systems(&amp;mut self, _world: &amp;mut World) {}
+    fn ui(&amp;mut self, _world: &amp;mut World, ui_context: &amp;egui::Context) {
+        egui::Window::new("Template").show(ui_context, |_ui| {});
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        pan_orbit_camera_system(world);
+    }
+
+    fn on_keyboard_input(
+        &amp;mut self,
+        world: &amp;mut World,
+        key_code: KeyCode,
+        key_state: KeyState,
+    ) {
+        if matches!((key_code, key_state), (KeyCode::KeyQ, KeyState::Pressed)) {
+            world.resources.window.should_exit = true;
+        }
+    }
 }</code></pre></pre>
-<p>Run with:</p>
-<pre><code class="language-bash">cargo run
+<h2 id="justfile-commands"><a class="header" href="#justfile-commands">Justfile Commands</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Command</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>just run</code></td><td>Build and run in release mode</td></tr>
+<tr><td><code>just run-wasm</code></td><td>Build for web and open in browser</td></tr>
+<tr><td><code>just lint</code></td><td>Run clippy with warnings as errors</td></tr>
+<tr><td><code>just test</code></td><td>Run the test suite</td></tr>
+<tr><td><code>just build-wasm</code></td><td>Build WASM release only</td></tr>
+<tr><td><code>just run-openxr</code></td><td>Run with VR headset support</td></tr>
+</tbody></table>
+</div>
+<h2 id="feature-flags"><a class="header" href="#feature-flags">Feature Flags</a></h2>
+<p>The template enables <code>egui</code> by default. Add more features in <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+nightshade = { version = "0.6.70", features = ["egui", "physics", "audio"] }
 </code></pre>
-<p>You should see a window with a default sky background.</p>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>egui</code></td><td>Immediate-mode UI</td></tr>
+<tr><td><code>physics</code></td><td>Rapier3D physics simulation</td></tr>
+<tr><td><code>audio</code></td><td>Kira audio playback</td></tr>
+<tr><td><code>gamepad</code></td><td>Gamepad input via gilrs</td></tr>
+<tr><td><code>openxr</code></td><td>VR headset support</td></tr>
+<tr><td><code>steam</code></td><td>Steamworks integration</td></tr>
+<tr><td><code>scripting</code></td><td>WASM plugin system</td></tr>
+</tbody></table>
+</div>
+<p>See the <a href="appendix-features.html">Feature Flags</a> appendix for the complete list.</p>
 <h2 id="platform-specific-notes"><a class="header" href="#platform-specific-notes">Platform-Specific Notes</a></h2>
 <h3 id="windows"><a class="header" href="#windows">Windows</a></h3>
 <p>DirectX 12 is the default backend. Ensure your graphics drivers are up to date.</p>
@@ -243,9 +293,7 @@ sudo dnf install vulkan-tools vulkan-loader-devel
 sudo pacman -S vulkan-tools vulkan-icd-loader
 </code></pre>
 <h3 id="webassembly"><a class="header" href="#webassembly">WebAssembly</a></h3>
-<p>WebGPU support requires a compatible browser (Chrome 113+, Firefox 121+). Build with:</p>
-<pre><code class="language-bash">cargo build --target wasm32-unknown-unknown
-</code></pre>
+<p>WebGPU support requires a compatible browser (Chrome 113+, Firefox 121+). The template includes <code>just run-wasm</code> which uses Trunk to build and serve.</p>
 
                     </main>
 
@@ -276,6 +324,22 @@ sudo pacman -S vulkan-tools vulkan-icd-loader
 
         </div>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
 
