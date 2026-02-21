@@ -550,4 +550,4 @@ The TUI framework supports much more than Snake:
 - **Mouse Input**: Handle clicks and movement with `on_mouse_input` and `on_mouse_move`
 - **Camera Scrolling**: Set `world.resources.camera.offset_column/row` for viewport scrolling
 
-See the 40+ terminal examples in the `nightshade-examples` repository for complete implementations of roguelikes, platformers, puzzle games, strategy games, and more.
+See the 34 terminal examples in the [nightshade-examples](https://github.com/matthewjberger/nightshade-examples) repository for complete implementations of roguelikes, platformers, puzzle games, strategy games, and more.
