@@ -70,7 +70,9 @@ The interface between engine and game code.
 
 **State Trait** is implemented by your game struct. Its methods (`initialize`, `run_systems`, `ui`, `configure_render_graph`, etc.) are called by the engine at specific points in the frame lifecycle.
 
-**Main Loop** drives the frame lifecycle: process events, update input, call `run_systems`, dispatch events, animate, propagate transforms, step physics, render, present.
+**Main Loop** drives the frame lifecycle: process events, update input, call `run_systems`, dispatch events, run the frame schedule (engine systems), render, present.
+
+**Frame Schedule** is a data-driven ordered list of engine system functions stored as a resource (`world.resources.frame_schedule`). It dispatches audio, camera, physics, scripting, animation, transform propagation, and cleanup systems each frame. Users can insert, remove, or reorder systems in `State::initialize()`.
 
 **Event Bus** provides decoupled communication via `world.resources.event_bus`. Supports typed app events and input messages.
 
@@ -105,13 +107,15 @@ Game Logic (State::run_systems)
 ECS Mutations (spawn, despawn, set components)
     |
     v
-Animation (bone transforms written to ECS)
-    |
-    v
-Transform Propagation (LocalTransform -> GlobalTransform)
-    |
-    v
-Physics Step (Rapier simulation, sync back to ECS)
+FrameSchedule Dispatch:
+    |-- Audio initialization and update
+    |-- Camera aspect ratios
+    |-- Physics Step (Rapier simulation, sync back to ECS)
+    |-- Script execution
+    |-- Animation (bone transforms written to ECS)
+    |-- Transform Propagation (LocalTransform -> GlobalTransform)
+    |-- Instanced mesh caches, text sync
+    |-- Input reset, deferred commands, cleanup
     |
     v
 Render Graph Execution

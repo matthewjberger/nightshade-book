@@ -598,6 +598,8 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
     fn update_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, world: &amp;World) {}
     fn pre_render(&amp;mut self, renderer: &amp;mut dyn Render, world: &amp;mut World) {}
     fn next_state(&amp;mut self, world: &amp;mut World) -&gt; Option&lt;Box&lt;dyn State&gt;&gt; { None }
+    fn handle_mcp_command(&amp;mut self, world: &amp;mut World, command: &amp;McpCommand) -&gt; Option&lt;McpResponse&gt; { None }
+    fn after_mcp_command(&amp;mut self, world: &amp;mut World, command: &amp;McpCommand, response: &amp;McpResponse) {}
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio-analyzer-fft-feature"><a class="header" href="#audio-analyzer-fft-feature">Audio Analyzer (fft feature)</a></h2>

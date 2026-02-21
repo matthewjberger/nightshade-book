@@ -207,6 +207,7 @@
     fn on_gamepad_event(&amp;mut self, _world: &amp;mut World, _event: gilrs::Event) {}
     fn on_mouse_input(&amp;mut self, _world: &amp;mut World, _state: ElementState, _button: MouseButton) {}
     fn handle_mcp_command(&amp;mut self, _world: &amp;mut World, _command: &amp;McpCommand) -&gt; Option&lt;McpResponse&gt; { None }
+    fn after_mcp_command(&amp;mut self, _world: &amp;mut World, _command: &amp;McpCommand, _response: &amp;McpResponse) {}
 }
 <span class="boring">}</span></code></pre></pre>
 <p>All methods have default implementations, so you only need to implement the ones relevant to your game.</p>
@@ -428,6 +429,30 @@ fn handle_mcp_command(
 }
 <span class="boring">}</span></code></pre></pre>
 <p>See <a href="ai-integration.html">AI Integration</a> for full details on the MCP system.</p>
+<h3 id="after_mcp_command"><a class="header" href="#after_mcp_command">after_mcp_command()</a></h3>
+<p>Called after an MCP command has been processed (either by the engine or by your <code>handle_mcp_command</code> override). Receives both the command and the response. Useful for recording undo entries, refreshing UI state, or reacting to the outcome of MCP operations:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn after_mcp_command(
+    &amp;mut self,
+    world: &amp;mut World,
+    command: &amp;McpCommand,
+    response: &amp;McpResponse,
+) {
+    if let McpResponse::Success(_) = response {
+        match command {
+            McpCommand::SpawnEntity { name, .. } =&gt; {
+                self.scene_tree_dirty = true;
+            }
+            McpCommand::DespawnEntity { .. } =&gt; {
+                self.scene_tree_dirty = true;
+            }
+            _ =&gt; {}
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
 <h3 id="handle_event"><a class="header" href="#handle_event">handle_event()</a></h3>
 <p>Handle custom EventBus messages:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]

@@ -231,7 +231,7 @@ The MCP server runs on a background thread using tokio and axum. Communication w
 4. Responses are written to the response queue
 5. The server reads the response and returns it to the MCP client
 
-Commands are processed once per frame, after `run_systems()` and before `run_frame_systems()`. This means MCP-driven changes are visible to the same frame's transform, physics, and rendering systems.
+Commands are processed once per frame, after `run_systems()` and before the `FrameSchedule` dispatch. This means MCP-driven changes are visible to the same frame's transform, physics, and rendering systems.
 
 ## Claude Code CLI
 

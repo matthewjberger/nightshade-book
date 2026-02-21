@@ -227,13 +227,7 @@ pub struct ScriptRuntime {
 }
 ```
 
-Run the scripting system each frame:
-
-```rust
-fn run_systems(&mut self, world: &mut World) {
-    run_scripts_system(world, &mut self.script_runtime);
-}
-```
+The engine automatically runs scripts each frame via the `FrameSchedule`. The scripting system is registered as `system_names::RUN_SCRIPTS` and executes after physics but before animation. No manual call is needed — attaching a `Script` component to an entity and setting `enabled = true` is sufficient.
 
 ### Script Compilation
 

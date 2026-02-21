@@ -414,7 +414,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <p>Connect Claude Code to the running engine:</p>
 <pre><code class="language-bash">claude mcp add --transport http nightshade http://127.0.0.1:3333/mcp
 </code></pre>
-<p>Applications can intercept MCP commands before the engine processes them by implementing <code>handle_mcp_command</code> on the <code>State</code> trait. See the <a href="ai-integration.html">AI Integration</a> chapter for details.</p>
+<p>Applications can intercept MCP commands before the engine processes them with <code>handle_mcp_command</code> and react to results with <code>after_mcp_command</code> on the <code>State</code> trait. See the <a href="ai-integration.html">AI Integration</a> chapter for details.</p>
 <p><strong>Additional Dependencies:</strong> axum, rmcp, schemars</p>
 <h3 id="claude"><a class="header" href="#claude"><code>claude</code></a></h3>
 <p>Provides types and a background worker thread for spawning Claude Code CLI as a subprocess and streaming its JSON output. This lets applications embed an AI assistant that can send queries, receive streamed responses (text, thinking, tool use events), and manage sessions.</p>

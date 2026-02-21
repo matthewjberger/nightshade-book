@@ -892,7 +892,8 @@ Foundation Layer:  ECS (freecs), Math (nalgebra_glm), GPU (wgpu)
 <h2 id="application-layer"><a class="header" href="#application-layer">Application Layer</a></h2>
 <p>The interface between engine and game code.</p>
 <p><strong>State Trait</strong> is implemented by your game struct. Its methods (<code>initialize</code>, <code>run_systems</code>, <code>ui</code>, <code>configure_render_graph</code>, etc.) are called by the engine at specific points in the frame lifecycle.</p>
-<p><strong>Main Loop</strong> drives the frame lifecycle: process events, update input, call <code>run_systems</code>, dispatch events, animate, propagate transforms, step physics, render, present.</p>
+<p><strong>Main Loop</strong> drives the frame lifecycle: process events, update input, call <code>run_systems</code>, dispatch events, run the frame schedule (engine systems), render, present.</p>
+<p><strong>Frame Schedule</strong> is a data-driven ordered list of engine system functions stored as a resource (<code>world.resources.frame_schedule</code>). It dispatches audio, camera, physics, scripting, animation, transform propagation, and cleanup systems each frame. Users can insert, remove, or reorder systems in <code>State::initialize()</code>.</p>
 <p><strong>Event Bus</strong> provides decoupled communication via <code>world.resources.event_bus</code>. Supports typed app events and input messages.</p>
 <h2 id="feature-layer"><a class="header" href="#feature-layer">Feature Layer</a></h2>
 <p>High-level gameplay systems built on everything below.</p>
@@ -920,13 +921,15 @@ Game Logic (State::run_systems)
 ECS Mutations (spawn, despawn, set components)
     |
     v
-Animation (bone transforms written to ECS)
-    |
-    v
-Transform Propagation (LocalTransform -&gt; GlobalTransform)
-    |
-    v
-Physics Step (Rapier simulation, sync back to ECS)
+FrameSchedule Dispatch:
+    |-- Audio initialization and update
+    |-- Camera aspect ratios
+    |-- Physics Step (Rapier simulation, sync back to ECS)
+    |-- Script execution
+    |-- Animation (bone transforms written to ECS)
+    |-- Transform Propagation (LocalTransform -&gt; GlobalTransform)
+    |-- Instanced mesh caches, text sync
+    |-- Input reset, deferred commands, cleanup
     |
     v
 Render Graph Execution
@@ -1402,6 +1405,214 @@ world.set_local_transform(child, LocalTransform {
 });
 <span class="boring">}</span></code></pre></pre>
 <p>See <a href="scene-hierarchy.html">Transform Hierarchy</a> for details on parent-child transforms.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="spawning-entities-1"><a class="header" href="#spawning-entities-1">Spawning Entities</a></h1>
+<h2 id="basic-entity-spawning"><a class="header" href="#basic-entity-spawning">Basic Entity Spawning</a></h2>
+<p>Spawn entities with <code>spawn_entities</code>, specifying component flags:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let entity = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH | MATERIAL_REF,
+    1
+)[0];
+<span class="boring">}</span></code></pre></pre>
+<p>Then set component values:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.set_local_transform(entity, LocalTransform {
+    translation: Vec3::new(0.0, 1.0, 0.0),
+    rotation: Quat::identity(),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+});
+
+world.set_render_mesh(entity, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
+
+world.set_material_ref(entity, MaterialRef::new("Default"));
+<span class="boring">}</span></code></pre></pre>
+<h2 id="spawning-multiple-entities"><a class="header" href="#spawning-multiple-entities">Spawning Multiple Entities</a></h2>
+<p>Spawn multiple entities at once:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let entities = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 100);
+
+for (index, entity) in entities.iter().enumerate() {
+    world.set_local_transform(*entity, LocalTransform {
+        translation: Vec3::new(index as f32 * 2.0, 0.0, 0.0),
+        ..Default::default()
+    });
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="helper-functions-1"><a class="header" href="#helper-functions-1">Helper Functions</a></h2>
+<p>Nightshade provides convenience functions for common entities. Primitive spawn helpers and <code>fly_camera_system</code> / <code>escape_key_exit_system</code> are available from the prelude.</p>
+<h3 id="cameras"><a class="header" href="#cameras">Cameras</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Main Camera".to_string());
+world.resources.active_camera = Some(camera);
+
+let orbit_camera = spawn_pan_orbit_camera(
+    world,
+    Vec3::zeros(),
+    10.0,
+    0.5,
+    0.4,
+    "Orbit Camera".to_string(),
+);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="lights"><a class="header" href="#lights">Lights</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let sun = spawn_sun(world);
+<span class="boring">}</span></code></pre></pre>
+<p>To create a point light, manually spawn an entity with the <code>LIGHT</code> flag and set the <code>Light</code> component with <code>LightType::Point</code>:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let light = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LIGHT,
+    1,
+)[0];
+
+world.set_local_transform(light, LocalTransform {
+    translation: Vec3::new(0.0, 3.0, 0.0),
+    ..Default::default()
+});
+
+world.set_light(light, Light {
+    light_type: LightType::Point,
+    color: Vec3::new(1.0, 0.8, 0.6),
+    intensity: 5.0,
+    range: 10.0,
+    cast_shadows: true,
+    shadow_bias: 0.005,
+    inner_cone_angle: 0.0,
+    outer_cone_angle: 0.0,
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="primitives"><a class="header" href="#primitives">Primitives</a></h3>
+<p>All primitive spawn helpers are available from the prelude:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>spawn_cube_at(world, Vec3::new(0.0, 1.0, 0.0));
+spawn_sphere_at(world, Vec3::new(2.0, 1.0, 0.0));
+spawn_plane_at(world, Vec3::zeros());
+spawn_cylinder_at(world, Vec3::new(4.0, 1.0, 0.0));
+spawn_cone_at(world, Vec3::new(6.0, 1.0, 0.0));
+spawn_torus_at(world, Vec3::new(8.0, 1.0, 0.0));
+<span class="boring">}</span></code></pre></pre>
+<h3 id="physics-objects"><a class="header" href="#physics-objects">Physics Objects</a></h3>
+<p>There are no dedicated physics spawn helpers. Create physics entities manually by combining the appropriate component flags:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let dynamic_cube = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY
+    | RENDER_MESH | MATERIAL_REF | RIGID_BODY | COLLIDER,
+    1,
+)[0];
+
+world.set_local_transform(dynamic_cube, LocalTransform {
+    translation: Vec3::new(0.0, 5.0, 0.0),
+    ..Default::default()
+});
+
+world.set_render_mesh(dynamic_cube, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
+
+world.set_material_ref(dynamic_cube, MaterialRef::new("Default"));
+
+world.set_rigid_body(dynamic_cube, RigidBodyComponent {
+    body_type: RigidBodyType::Dynamic,
+    ..Default::default()
+});
+<span class="boring">}</span></code></pre></pre>
+<p>For a static floor:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let floor = world.spawn_entities(
+    LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY
+    | RENDER_MESH | MATERIAL_REF | RIGID_BODY | COLLIDER,
+    1,
+)[0];
+
+world.set_local_transform(floor, LocalTransform {
+    translation: Vec3::new(0.0, -0.5, 0.0),
+    scale: Vec3::new(50.0, 1.0, 50.0),
+    ..Default::default()
+});
+
+world.set_render_mesh(floor, RenderMesh {
+    name: "cube".to_string(),
+    id: None,
+});
+
+world.set_material_ref(floor, MaterialRef::new("Default"));
+
+world.set_rigid_body(floor, RigidBodyComponent {
+    body_type: RigidBodyType::Fixed,
+    ..Default::default()
+});
+<span class="boring">}</span></code></pre></pre>
+<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let (player_entity, camera_entity) = spawn_first_person_player(world, Vec3::new(0.0, 2.0, 0.0));
+<span class="boring">}</span></code></pre></pre>
+<p><code>spawn_first_person_player</code> takes the world and position, and returns a tuple of <code>(Entity, Entity)</code> for the player entity and camera entity.</p>
+<h2 id="loading-models-1"><a class="header" href="#loading-models-1">Loading Models</a></h2>
+<p>Load glTF/GLB models:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::ecs::prefab::*;
+
+let model_bytes = include_bytes!("../assets/character.glb");
+let result = import_gltf_from_bytes(model_bytes)?;
+
+for (name, (rgba_data, width, height)) in result.textures {
+    world.queue_command(WorldCommand::LoadTexture {
+        name,
+        rgba_data,
+        width,
+        height,
+    });
+}
+
+for (name, mesh) in result.meshes {
+    mesh_cache_insert(&amp;mut world.resources.mesh_cache, name, mesh);
+}
+
+for prefab in result.prefabs {
+    let entity = spawn_prefab_with_animations(
+        world,
+        &amp;prefab,
+        &amp;result.animations,
+        Vec3::new(0.0, 0.0, 0.0),
+    );
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="despawning-entities-1"><a class="header" href="#despawning-entities-1">Despawning Entities</a></h2>
+<p>Remove entities from the world:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>world.despawn_entities(&amp;[entity]);
+
+despawn_recursive_immediate(world, entity);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="entity-with-parent"><a class="header" href="#entity-with-parent">Entity with Parent</a></h2>
+<p>Spawn an entity as a child:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let parent = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM, 1)[0];
+let child = world.spawn_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM | PARENT, 1)[0];
+
+world.update_parent(child, Some(Parent(Some(parent))));
+world.set_local_transform(child, LocalTransform {
+    translation: Vec3::new(0.0, 1.0, 0.0),
+    ..Default::default()
+});
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="components-1"><a class="header" href="#components-1">Components</a></h1>
 <p>Nightshade provides 44 built-in components across several categories.</p>
 <h2 id="transform-components"><a class="header" href="#transform-components">Transform Components</a></h2>
@@ -1719,6 +1930,130 @@ for enemy in &amp;enemies {
     // index is the iteration position, not the entity ID
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="querying-entities"><a class="header" href="#querying-entities">Querying Entities</a></h1>
+<h2 id="basic-queries-1"><a class="header" href="#basic-queries-1">Basic Queries</a></h2>
+<p>Query entities with specific components using component flags:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>for entity in world.query_entities(LOCAL_TRANSFORM | GLOBAL_TRANSFORM) {
+    if let Some(transform) = world.get_local_transform(entity) {
+        let position = transform.translation;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="common-query-patterns-1"><a class="header" href="#common-query-patterns-1">Common Query Patterns</a></h2>
+<h3 id="renderable-entities-1"><a class="header" href="#renderable-entities-1">Renderable Entities</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const RENDERABLE: ComponentFlags = LOCAL_TRANSFORM | GLOBAL_TRANSFORM | RENDER_MESH | MATERIAL_REF;
+
+for entity in world.query_entities(RENDERABLE) {
+    let transform = world.get_global_transform(entity).unwrap();
+    let mesh = world.get_render_mesh(entity).unwrap();
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="physics-entities-1"><a class="header" href="#physics-entities-1">Physics Entities</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>for entity in world.query_entities(RIGID_BODY | LOCAL_TRANSFORM) {
+    if let Some(rb) = world.get_rigid_body(entity) {
+        if rb.body_type == RigidBodyType::Dynamic {
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="animated-entities-1"><a class="header" href="#animated-entities-1">Animated Entities</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>for entity in world.query_entities(ANIMATION_PLAYER) {
+    if let Some(player) = world.get_animation_player_mut(entity) {
+        player.speed = 1.0;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="filtering-results"><a class="header" href="#filtering-results">Filtering Results</a></h2>
+<p>Filter query results with additional checks:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>for entity in world.query_entities(LIGHT) {
+    let light = world.get_light(entity).unwrap();
+
+    if light.light_type == LightType::Point {
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="checking-components-1"><a class="header" href="#checking-components-1">Checking Components</a></h2>
+<p>Check if an entity has specific components:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if world.entity_has_components(entity, RENDER_MESH) {
+}
+
+if world.entity_has_components(entity, ANIMATION_PLAYER | SKIN) {
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="getting-single-entities"><a class="header" href="#getting-single-entities">Getting Single Entities</a></h2>
+<p>For singleton-like entities, query and take the first:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let player = world.query_entities(CHARACTER_CONTROLLER).next();
+
+if let Some(player_entity) = player {
+    let controller = world.get_character_controller(player_entity);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="entity-count-1"><a class="header" href="#entity-count-1">Entity Count</a></h2>
+<p>Count entities matching a query:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let renderable_count = world.query_entities(RENDER_MESH).count();
+let light_count = world.query_entities(LIGHT).count();
+<span class="boring">}</span></code></pre></pre>
+<h2 id="named-entity-lookup-1"><a class="header" href="#named-entity-lookup-1">Named Entity Lookup</a></h2>
+<p>If entities have the <code>Name</code> component:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn find_by_name(world: &amp;World, name: &amp;str) -&gt; Option&lt;Entity&gt; {
+    for entity in world.query_entities(NAME) {
+        if let Some(entity_name) = world.get_name(entity) {
+            if entity_name.0 == name {
+                return Some(entity);
+            }
+        }
+    }
+    None
+}
+
+let player = find_by_name(world, "Player");
+<span class="boring">}</span></code></pre></pre>
+<h2 id="children-queries-1"><a class="header" href="#children-queries-1">Children Queries</a></h2>
+<p>Query children of a specific parent:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(children) = world.resources.children_cache.get(&amp;parent_entity) {
+    for child in children {
+        if let Some(transform) = world.get_local_transform(*child) {
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="iteration-with-index-1"><a class="header" href="#iteration-with-index-1">Iteration with Index</a></h2>
+<p>When you need the iteration index:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>for (index, entity) in world.query_entities(RENDER_MESH).enumerate() {
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="collecting-entities"><a class="header" href="#collecting-entities">Collecting Entities</a></h2>
+<p>Collect query results for later processing:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let enemies: Vec&lt;Entity&gt; = world.query_entities(ENEMY_TAG | HEALTH).collect();
+
+for enemy in &amp;enemies {
+    apply_damage(world, *enemy, 10.0);
+}
+<span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="resources-1"><a class="header" href="#resources-1">Resources</a></h1>
 <p>Resources are global singletons stored in <code>world.resources</code>. Unlike components (which are per-entity), each resource type exists exactly once in the world.</p>
 <h2 id="accessing-resources"><a class="header" href="#accessing-resources">Accessing Resources</a></h2>
@@ -1788,6 +2123,7 @@ for enemy in &amp;enemies {
 <div class="table-wrapper"><table><thead><tr><th>Resource</th><th>Type</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>event_bus</code></td><td><code>EventBus</code></td><td>Message passing between systems</td></tr>
 <tr><td><code>command_queue</code></td><td><code>Vec&lt;WorldCommand&gt;</code></td><td>Deferred GPU/scene operations</td></tr>
+<tr><td><code>frame_schedule</code></td><td><code>FrameSchedule</code></td><td>Ordered list of engine systems dispatched each frame</td></tr>
 </tbody></table>
 </div>
 <h3 id="platform-1"><a class="header" href="#platform-1">Platform</a></h3>
@@ -2229,6 +2565,7 @@ let wave = (time * 2.0).sin();
     fn on_gamepad_event(&amp;mut self, _world: &amp;mut World, _event: gilrs::Event) {}
     fn on_mouse_input(&amp;mut self, _world: &amp;mut World, _state: ElementState, _button: MouseButton) {}
     fn handle_mcp_command(&amp;mut self, _world: &amp;mut World, _command: &amp;McpCommand) -&gt; Option&lt;McpResponse&gt; { None }
+    fn after_mcp_command(&amp;mut self, _world: &amp;mut World, _command: &amp;McpCommand, _response: &amp;McpResponse) {}
 }
 <span class="boring">}</span></code></pre></pre>
 <p>All methods have default implementations, so you only need to implement the ones relevant to your game.</p>
@@ -2450,6 +2787,30 @@ fn handle_mcp_command(
 }
 <span class="boring">}</span></code></pre></pre>
 <p>See <a href="ai-integration.html">AI Integration</a> for full details on the MCP system.</p>
+<h3 id="after_mcp_command"><a class="header" href="#after_mcp_command">after_mcp_command()</a></h3>
+<p>Called after an MCP command has been processed (either by the engine or by your <code>handle_mcp_command</code> override). Receives both the command and the response. Useful for recording undo entries, refreshing UI state, or reacting to the outcome of MCP operations:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn after_mcp_command(
+    &amp;mut self,
+    world: &amp;mut World,
+    command: &amp;McpCommand,
+    response: &amp;McpResponse,
+) {
+    if let McpResponse::Success(_) = response {
+        match command {
+            McpCommand::SpawnEntity { name, .. } =&gt; {
+                self.scene_tree_dirty = true;
+            }
+            McpCommand::DespawnEntity { .. } =&gt; {
+                self.scene_tree_dirty = true;
+            }
+            _ =&gt; {}
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
 <h3 id="handle_event"><a class="header" href="#handle_event">handle_event()</a></h3>
 <p>Handle custom EventBus messages:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -2481,18 +2842,43 @@ fn handle_mcp_command(
 2.  Update input state from events
 3.  Calculate delta time
 4.  Begin egui frame (if enabled)
-5.  Call State::run_systems() - Your game logic
+5.  Call State::run_systems() — Your game logic
 6.  Dispatch EventBus messages
-7.  Update animation players
-8.  Apply animations to transforms
-9.  Propagate transform hierarchy
-10. Step physics simulation (fixed timestep)
-11. Sync physics transforms to ECS
-12. Update audio listener positions
-13. Execute render graph passes
-14. End egui frame
-15. Present to swapchain
+7.  Process MCP commands (if mcp feature enabled)
+    - Calls State::handle_mcp_command() (pre-hook)
+    - Executes command
+    - Calls State::after_mcp_command() (post-hook)
+8.  Run FrameSchedule — Engine systems dispatched in order:
+    a. Initialize and update audio (if audio feature)
+    b. Update camera aspect ratios
+    c. Step physics simulation (if physics feature)
+    d. Run scripts (if scripting feature)
+    e. Update animation players
+    f. Apply animations to transforms
+    g. Propagate transform hierarchy
+    h. Update instanced mesh caches
+    i. Sync HUD and immediate UI text
+    j. Reset mouse and touch input state
+    k. Process deferred commands
+    l. Cleanup unused resources
+9.  Execute render graph passes
+10. End egui frame
+11. Present to swapchain
 </code></pre>
+<p>The frame schedule is stored as a resource at <code>world.resources.frame_schedule</code>. You can customize it in <code>State::initialize()</code> to insert your own systems between engine systems, remove systems you don't need, or reorder dispatch:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn initialize(&amp;mut self, world: &amp;mut World) {
+    world.resources.frame_schedule.insert_after(
+        system_names::RUN_PHYSICS,
+        "my_gameplay_system",
+        my_gameplay_system,
+    );
+
+    world.resources.frame_schedule.remove(system_names::SYNC_HUD_TEXT);
+}
+<span class="boring">}</span></code></pre></pre>
+<p>See <code>system_names</code> in the prelude for the full list of engine system name constants.</p>
 <h2 id="timing"><a class="header" href="#timing">Timing</a></h2>
 <p>All timing information is accessed through <code>world.resources.window.timing</code>:</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -4872,7 +5258,7 @@ fn set_quality_high(world: &amp;mut World) {
     world.resources.graphics.bloom_enabled = true;
 }
 <span class="boring">}</span></code></pre></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="cameras"><a class="header" href="#cameras">Cameras</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="cameras-1"><a class="header" href="#cameras-1">Cameras</a></h1>
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/skybox">Skybox</a></p>
 </blockquote>
@@ -6470,7 +6856,7 @@ physics.fixed_timestep = 1.0 / 60.0;
 <li>Triangle mesh, Heightfield</li>
 <li>Compound shapes</li>
 </ul>
-<h3 id="character-controllers"><a class="header" href="#character-controllers">Character Controllers</a></h3>
+<h3 id="character-controllers-1"><a class="header" href="#character-controllers-1">Character Controllers</a></h3>
 <p>Kinematic bodies with special handling for player movement.</p>
 <h2 id="quick-start-1"><a class="header" href="#quick-start-1">Quick Start</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
@@ -6596,7 +6982,7 @@ world.mark_local_transform_dirty(kinematic_entity);
 </span><span class="boring">fn main() {
 </span>world.set_rigid_body(entity, RigidBodyComponent::new_static());
 <span class="boring">}</span></code></pre></pre>
-<h2 id="helper-functions-1"><a class="header" href="#helper-functions-1">Helper Functions</a></h2>
+<h2 id="helper-functions-2"><a class="header" href="#helper-functions-2">Helper Functions</a></h2>
 <h3 id="spawning-physics-cubes"><a class="header" href="#spawning-physics-cubes">Spawning Physics Cubes</a></h3>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -6907,7 +7293,7 @@ let decomposed = SharedShape::convex_decomposition(&amp;vertices, &amp;indices);
 <li>Compound colliders are better than multiple entities</li>
 <li>Simplify collision geometry vs visual geometry</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="character-controllers-1"><a class="header" href="#character-controllers-1">Character Controllers</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="character-controllers-2"><a class="header" href="#character-controllers-2">Character Controllers</a></h1>
 <p>Character controllers provide smooth player movement with collision handling, slopes, and stairs.</p>
 <h2 id="first-person-player"><a class="header" href="#first-person-player">First-Person Player</a></h2>
 <p>The easiest way to get started:</p>
@@ -8123,6 +8509,398 @@ fn play_footstep_at_position(world: &amp;mut World, position: Vec3) {
     );
 }
 <span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="audio-analyzer"><a class="header" href="#audio-analyzer">Audio Analyzer</a></h1>
+<p>The AudioAnalyzer provides real-time FFT-based spectral analysis for music-reactive applications. It extracts frequency bands, detects beats, estimates tempo, and identifies musical structure changes like buildups, drops, and breakdowns.</p>
+<h2 id="enabling-the-feature"><a class="header" href="#enabling-the-feature">Enabling the Feature</a></h2>
+<p>The AudioAnalyzer requires the <code>fft</code> feature flag:</p>
+<pre><code class="language-toml">[dependencies]
+nightshade = { git = "...", features = ["engine", "audio", "fft"] }
+</code></pre>
+<h2 id="creating-an-analyzer"><a class="header" href="#creating-an-analyzer">Creating an Analyzer</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::prelude::*;
+
+let mut analyzer = AudioAnalyzer::new();
+
+// Optional: configure sample rate and FFT size
+let analyzer = AudioAnalyzer::new()
+    .with_sample_rate(44100)
+    .with_fft_size(4096);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="loading-audio-samples"><a class="header" href="#loading-audio-samples">Loading Audio Samples</a></h2>
+<p>Load audio samples before analysis:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// samples: Vec&lt;f32&gt; of audio data (mono, normalized to -1.0..1.0)
+// sample_rate: typically 44100 or 48000
+analyzer.load_samples(samples, sample_rate);
+
+// Check if samples are loaded
+if analyzer.has_samples() {
+    let duration = analyzer.total_duration();
+    let rate = analyzer.sample_rate();
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="analyzing-audio"><a class="header" href="#analyzing-audio">Analyzing Audio</a></h2>
+<p>Call <code>analyze_at_time</code> each frame with the current playback position:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    let current_time = self.playback_time; // seconds
+    self.analyzer.analyze_at_time(current_time);
+
+    // Now use analysis results
+    let bass_level = self.analyzer.smoothed_bass;
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="frequency-bands"><a class="header" href="#frequency-bands">Frequency Bands</a></h2>
+<p>The analyzer splits the spectrum into six frequency bands:</p>
+<div class="table-wrapper"><table><thead><tr><th>Band</th><th>Frequency Range</th><th>Use Cases</th></tr></thead><tbody>
+<tr><td><code>sub_bass</code></td><td>20-60 Hz</td><td>Deep rumble, sub drops</td></tr>
+<tr><td><code>bass</code></td><td>60-250 Hz</td><td>Kick drums, bass lines</td></tr>
+<tr><td><code>low_mids</code></td><td>250-500 Hz</td><td>Guitar body, warmth</td></tr>
+<tr><td><code>mids</code></td><td>500-2000 Hz</td><td>Vocals, melody</td></tr>
+<tr><td><code>high_mids</code></td><td>2000-4000 Hz</td><td>Presence, clarity</td></tr>
+<tr><td><code>highs</code></td><td>4000-12000 Hz</td><td>Hi-hats, cymbals, air</td></tr>
+</tbody></table>
+</div>
+<p>Each band has raw and smoothed variants:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Raw values (instant, can be jumpy)
+analyzer.sub_bass
+analyzer.bass
+analyzer.low_mids
+analyzer.mids
+analyzer.high_mids
+analyzer.highs
+
+// Smoothed values (attack/release filtered)
+analyzer.smoothed_sub_bass
+analyzer.smoothed_bass
+analyzer.smoothed_low_mids
+analyzer.smoothed_mids
+analyzer.smoothed_high_mids
+analyzer.smoothed_highs
+<span class="boring">}</span></code></pre></pre>
+<p>Values are normalized to 0.0-1.0 range using dB scaling.</p>
+<h2 id="beat-detection"><a class="header" href="#beat-detection">Beat Detection</a></h2>
+<p>The analyzer detects different drum elements:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// General onset detection
+if analyzer.onset_detected {
+    // Any significant transient occurred
+}
+analyzer.onset_decay  // 0.0-1.0, decays after onset
+
+// Drum-specific detection
+analyzer.kick_decay   // Triggers on kick drums (low frequency transients)
+analyzer.snare_decay  // Triggers on snares (mid frequency transients)
+analyzer.hat_decay    // Triggers on hi-hats (high frequency transients)
+<span class="boring">}</span></code></pre></pre>
+<p>Decay values start at 1.0 when triggered and decay over time.</p>
+<h3 id="example-reactive-visuals"><a class="header" href="#example-reactive-visuals">Example: Reactive Visuals</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    self.analyzer.analyze_at_time(self.time);
+
+    // Scale objects on kick
+    if let Some(transform) = world.get_local_transform_mut(self.cube) {
+        let scale = 1.0 + self.analyzer.kick_decay * 0.5;
+        transform.scale = Vec3::new(scale, scale, scale);
+    }
+
+    // Flash lights on snare
+    if let Some(light_entity) = self.light {
+        if let Some(light) = world.get_light_mut(light_entity) {
+            light.intensity = 5.0 + self.analyzer.snare_decay * 20.0;
+        }
+    }
+
+    // Particle burst on onset
+    if self.analyzer.onset_detected {
+        self.spawn_burst_particles(world);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="tempo-and-beat-phase"><a class="header" href="#tempo-and-beat-phase">Tempo and Beat Phase</a></h2>
+<p>The analyzer estimates BPM from onset timing patterns:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>analyzer.estimated_bpm    // Estimated beats per minute (60-200 range)
+analyzer.beat_confidence  // 0.0-1.0, confidence in BPM estimate
+analyzer.beat_phase       // 0.0-1.0, position within current beat
+analyzer.time_since_last_beat  // Seconds since last detected kick
+<span class="boring">}</span></code></pre></pre>
+<h3 id="example-beat-synced-animation"><a class="header" href="#example-beat-synced-animation">Example: Beat-Synced Animation</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    self.analyzer.analyze_at_time(self.time);
+
+    // Pulse on beat (phase goes 0-&gt;1 each beat)
+    let phase = self.analyzer.beat_phase;
+    let pulse = 1.0 - phase; // High at beat start, low at end
+
+    // Or use groove_sync for smooth beat alignment
+    let sync = self.analyzer.groove_sync; // 1.0 at beat, 0.0 between
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="spectral-features"><a class="header" href="#spectral-features">Spectral Features</a></h2>
+<p>Advanced spectral descriptors for music analysis:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Spectral centroid: "brightness" of sound (0.0-1.0, normalized)
+analyzer.spectral_centroid
+analyzer.smoothed_centroid
+
+// Spectral flatness: noise vs tonal (0.0=tonal, 1.0=noise)
+analyzer.spectral_flatness
+analyzer.smoothed_flatness
+
+// Spectral rolloff: frequency below which 85% of energy lies
+analyzer.spectral_rolloff
+analyzer.smoothed_rolloff
+
+// Spectral flux: rate of spectral change
+analyzer.spectral_flux
+
+// Brightness change between frames
+analyzer.brightness_delta
+
+// Harmonic content change
+analyzer.harmonic_change
+<span class="boring">}</span></code></pre></pre>
+<h3 id="example-color-based-on-brightness"><a class="header" href="#example-color-based-on-brightness">Example: Color Based on Brightness</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn update_material(&amp;self, world: &amp;mut World) {
+    use nightshade::ecs::generational_registry::registry_entry_by_name_mut;
+
+    let brightness = self.analyzer.smoothed_centroid;
+
+    let color = [
+        1.0 - brightness,
+        0.2,
+        brightness,
+        1.0
+    ];
+
+    if let Some(mat_ref) = world.get_material_ref(self.entity).cloned() {
+        if let Some(material) = registry_entry_by_name_mut(
+            &amp;mut world.resources.material_registry.registry,
+            &amp;mat_ref.name,
+        ) {
+            material.base_color = color;
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="energy-and-intensity"><a class="header" href="#energy-and-intensity">Energy and Intensity</a></h2>
+<p>Track overall loudness and dynamics:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Current energy level
+analyzer.average_energy     // Short-term average
+analyzer.long_term_energy   // Long-term average (for normalization)
+
+// Intensity: current energy relative to long-term (can exceed 1.0)
+analyzer.intensity
+
+// Transient vs sustained balance
+analyzer.transient_energy   // How "punchy" the sound is
+analyzer.sustained_energy   // How "smooth" the sound is
+analyzer.transient_ratio    // transient/sustained (0.0-2.0)
+
+// Per-band transients
+analyzer.low_transient      // Sudden low frequency increase
+analyzer.mid_transient      // Sudden mid frequency increase
+analyzer.high_transient     // Sudden high frequency increase
+<span class="boring">}</span></code></pre></pre>
+<h2 id="music-structure-detection"><a class="header" href="#music-structure-detection">Music Structure Detection</a></h2>
+<p>Detect musical sections automatically:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Building up (energy increasing, pre-drop)
+analyzer.is_building
+analyzer.build_intensity  // 0.0-1.0, increases during buildup
+
+// Drop (sudden energy increase with kick)
+analyzer.is_dropping
+analyzer.drop_intensity   // Starts at 1.0, decays
+
+// Breakdown (low energy section)
+analyzer.is_breakdown
+analyzer.breakdown_intensity
+<span class="boring">}</span></code></pre></pre>
+<h3 id="example-reactive-scene"><a class="header" href="#example-reactive-scene">Example: Reactive Scene</a></h3>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
+    self.analyzer.analyze_at_time(self.time);
+
+    // Dim lights during breakdown
+    if self.analyzer.is_breakdown {
+        let intensity = 0.1 + 0.1 * self.analyzer.breakdown_intensity;
+        world.resources.graphics.ambient_light = [intensity, intensity, intensity, 1.0];
+    }
+
+    // Camera shake on drop
+    if self.analyzer.is_dropping {
+        self.camera_shake = self.analyzer.drop_intensity * 0.5;
+    }
+
+    // Speed up particles during buildup
+    if self.analyzer.is_building {
+        self.particle_speed = 1.0 + self.analyzer.build_intensity * 3.0;
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="groove-analysis"><a class="header" href="#groove-analysis">Groove Analysis</a></h2>
+<p>For tight rhythm synchronization:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// How well current timing aligns with detected beat grid
+analyzer.groove_sync      // 1.0 at beat positions, 0.0 between
+
+// Consistency of beat timing
+analyzer.pocket_tightness // 0.0-1.0, higher = more consistent tempo
+<span class="boring">}</span></code></pre></pre>
+<h2 id="song-progress"><a class="header" href="#song-progress">Song Progress</a></h2>
+<p>Track position within the loaded audio:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let progress = analyzer.song_progress(current_time); // 0.0-1.0
+<span class="boring">}</span></code></pre></pre>
+<h2 id="resetting-state"><a class="header" href="#resetting-state">Resetting State</a></h2>
+<p>Reset all analysis state (useful when seeking or changing songs):</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>analyzer.reset();
+<span class="boring">}</span></code></pre></pre>
+<h2 id="complete-example-1"><a class="header" href="#complete-example-1">Complete Example</a></h2>
+<pre><pre class="playground"><code class="language-rust edition2024">use nightshade::ecs::generational_registry::registry_entry_by_name_mut;
+use nightshade::prelude::*;
+
+struct MusicVisualizer {
+    analyzer: AudioAnalyzer,
+    playback_time: f32,
+    cube: Option&lt;Entity&gt;,
+    light: Option&lt;Entity&gt;,
+}
+
+impl Default for MusicVisualizer {
+    fn default() -&gt; Self {
+        Self {
+            analyzer: AudioAnalyzer::new(),
+            playback_time: 0.0,
+            cube: None,
+            light: None,
+        }
+    }
+}
+
+impl State for MusicVisualizer {
+    fn initialize(&amp;mut self, world: &amp;mut World) {
+        // Load audio samples from a file (implementation depends on audio loading)
+        let (samples, sample_rate) = load_audio_file("assets/audio/track.wav");
+        self.analyzer.load_samples(samples, sample_rate);
+
+        // Create scene
+        self.cube = Some(spawn_cube_at(world, Vec3::zeros()));
+
+        let light_entity = world.spawn_entities(
+            LIGHT | LOCAL_TRANSFORM | GLOBAL_TRANSFORM | LOCAL_TRANSFORM_DIRTY,
+            1
+        )[0];
+        world.set_light(light_entity, Light {
+            light_type: LightType::Point,
+            color: Vec3::new(1.0, 1.0, 1.0),
+            intensity: 10.0,
+            range: 20.0,
+            ..Default::default()
+        });
+        world.set_local_transform(light_entity, LocalTransform {
+            translation: Vec3::new(0.0, 3.0, 0.0),
+            ..Default::default()
+        });
+        self.light = Some(light_entity);
+
+        let camera = spawn_camera(world, Vec3::new(0.0, 5.0, 10.0), "Camera".to_string());
+        world.resources.active_camera = Some(camera);
+        spawn_sun(world);
+    }
+
+    fn run_systems(&amp;mut self, world: &amp;mut World) {
+        let dt = world.resources.window.timing.delta_time;
+        self.playback_time += dt;
+
+        // Analyze current audio position
+        self.analyzer.analyze_at_time(self.playback_time);
+
+        // React to bass
+        if let Some(cube) = self.cube {
+            if let Some(transform) = world.get_local_transform_mut(cube) {
+                let bass_scale = 1.0 + self.analyzer.smoothed_bass * 0.5;
+                transform.scale = Vec3::new(bass_scale, bass_scale, bass_scale);
+            }
+
+            if let Some(mat_ref) = world.get_material_ref(cube).cloned() {
+                if let Some(material) = registry_entry_by_name_mut(
+                    &amp;mut world.resources.material_registry.registry,
+                    &amp;mat_ref.name,
+                ) {
+                    material.emissive_factor = [
+                        self.analyzer.smoothed_bass,
+                        self.analyzer.smoothed_mids,
+                        self.analyzer.smoothed_highs,
+                    ];
+                    material.emissive_strength = self.analyzer.intensity * 2.0;
+                }
+            }
+        }
+
+        // Flash light on kick
+        if let Some(light_entity) = self.light {
+            if let Some(light) = world.get_light_mut(light_entity) {
+                light.intensity = 5.0 + self.analyzer.kick_decay * 30.0;
+            }
+        }
+
+        // Adjust ambient based on structure
+        if self.analyzer.is_breakdown {
+            world.resources.graphics.ambient_light = [0.05, 0.05, 0.05, 1.0];
+        } else if self.analyzer.is_dropping {
+            world.resources.graphics.ambient_light = [0.3, 0.3, 0.3, 1.0];
+        } else {
+            world.resources.graphics.ambient_light = [0.15, 0.15, 0.15, 1.0];
+        }
+    }
+}
+
+fn main() {
+    nightshade::launch(MusicVisualizer::default());
+}</code></pre></pre>
+<h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
+<p>Internal analysis parameters:</p>
+<div class="table-wrapper"><table><thead><tr><th>Constant</th><th>Value</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>FFT_SIZE</code></td><td>4096</td><td>FFT window size</td></tr>
+<tr><td><code>SPECTRUM_BINS</code></td><td>256</td><td>Number of spectrum display bins</td></tr>
+<tr><td><code>ENERGY_HISTORY_SIZE</code></td><td>90</td><td>Frames of energy history</td></tr>
+<tr><td><code>FLUX_HISTORY_SIZE</code></td><td>20</td><td>Frames of spectral flux history</td></tr>
+<tr><td><code>ONSET_HISTORY_SIZE</code></td><td>512</td><td>Onset times stored for tempo estimation</td></tr>
+</tbody></table>
+</div>
+<h2 id="performance-notes"><a class="header" href="#performance-notes">Performance Notes</a></h2>
+<ul>
+<li>FFT analysis runs at most every 8ms to avoid redundant computation</li>
+<li>The analyzer is designed for pre-loaded audio, not real-time microphone input</li>
+<li>For best results, use uncompressed or high-quality audio (WAV, FLAC)</li>
+<li>Tempo estimation improves over time as more onsets are detected</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="egui-integration"><a class="header" href="#egui-integration">egui Integration</a></h1>
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/ui">UI</a></p>
@@ -9060,6 +9838,271 @@ mosaic.set_viewport_textures(textures);    // Set viewport textures for secondar
 }
 <span class="boring">}</span></code></pre></pre>
 <p>Use <code>save_project</code> / <code>load_project</code> to persist all windows together.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="editor-infrastructure"><a class="header" href="#editor-infrastructure">Editor Infrastructure</a></h1>
+<p>The <code>editor</code> feature provides reusable scene-editor infrastructure for building custom editors on top of the Nightshade engine. It powers the official Nightshade Editor and can be used to build specialized tools with the same gizmo, undo, inspector, and picking capabilities.</p>
+<pre><code class="language-toml">nightshade = { git = "...", features = ["editor"] }
+</code></pre>
+<p>The <code>editor</code> feature requires <code>mosaic</code> (which requires <code>egui</code>) and <code>picking</code>.</p>
+<h2 id="architecture-1"><a class="header" href="#architecture-1">Architecture</a></h2>
+<p>The editor module is organized into focused submodules:</p>
+<div class="table-wrapper"><table><thead><tr><th>Module</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>context</code></td><td><code>EditorContext</code> — central state struct holding selection, undo history, gizmo state, snap settings, and transform edit state</td></tr>
+<tr><td><code>undo</code></td><td>Undo/redo system with entity snapshots and hierarchy capture</td></tr>
+<tr><td><code>selection</code></td><td>Entity selection, multi-select, delete, duplicate, copy/paste, select all</td></tr>
+<tr><td><code>clipboard</code></td><td>System clipboard integration via arboard (native only)</td></tr>
+<tr><td><code>gizmo</code></td><td>Transform gizmos (translate, rotate, scale) with drag math and modal operations</td></tr>
+<tr><td><code>input</code></td><td>Keyboard shortcut handler returning <code>InputSignal</code> values for app-level actions (Blender-style G/R/S keys, Delete, Ctrl+Z, etc.)</td></tr>
+<tr><td><code>picking</code></td><td>GPU-based entity picking, marquee selection, context menu trigger</td></tr>
+<tr><td><code>camera_controls</code></td><td>View presets (front, back, left, right, top, bottom), ortho toggle</td></tr>
+<tr><td><code>inspector</code></td><td><code>ComponentInspector</code> trait, <code>InspectorContext</code>, and UI for all built-in component types</td></tr>
+<tr><td><code>tree</code></td><td>Scene tree widget with drag-and-drop reparenting and prefab instantiation</td></tr>
+<tr><td><code>menus</code></td><td>Context menus, add-node modal, add-primitive popup</td></tr>
+<tr><td><code>spawning</code></td><td>Entity spawning helpers (primitives, lines, text)</td></tr>
+<tr><td><code>asset_loading</code></td><td>glTF/FBX loading and viewport spawn</td></tr>
+<tr><td><code>code_editor</code></td><td>Code editor widget with syntax highlighting (syntect, native only)</td></tr>
+<tr><td><code>add_node</code></td><td>Add node modal dialog</td></tr>
+</tbody></table>
+</div>
+<h2 id="editorcontext"><a class="header" href="#editorcontext">EditorContext</a></h2>
+<p><code>EditorContext</code> holds the core editor state that the engine needs:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::EditorContext;
+
+let mut context = EditorContext::default();
+
+// Selection
+context.selection.set_single(entity);
+context.selection.clear();
+
+// Undo
+context.undo_history.push(operation, "description".to_string());
+
+// Gizmo mode
+context.gizmo_interaction.mode = nightshade::ecs::gizmos::GizmoMode::Rotation;
+
+// Snap settings
+context.snap_settings.enabled = true;
+context.snap_settings.translation_snap = 0.5;
+<span class="boring">}</span></code></pre></pre>
+<p>Fields on <code>EditorContext</code>:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>gizmo_interaction</code></td><td><code>GizmoInteraction</code></td><td>Active gizmo state, mode, hover axis, drag state</td></tr>
+<tr><td><code>transform_edit</code></td><td><code>TransformEdit</code></td><td>Pending transform edits and modal transform state</td></tr>
+<tr><td><code>selection</code></td><td><code>EntitySelection</code></td><td>Selected entities</td></tr>
+<tr><td><code>marquee</code></td><td><code>MarqueeState</code></td><td>Marquee (box) selection state</td></tr>
+<tr><td><code>coordinate_space</code></td><td><code>CoordinateSpace</code></td><td>World or Local coordinate space</td></tr>
+<tr><td><code>snap_settings</code></td><td><code>SnapSettings</code></td><td>Translation, rotation, scale snap values</td></tr>
+<tr><td><code>undo_history</code></td><td><code>UndoHistory</code></td><td>Undo/redo stack</td></tr>
+</tbody></table>
+</div>
+<p>Methods on <code>EditorContext</code>:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>context.gizmo_root()                                       // Option&lt;Entity&gt;
+context.capture_selection_transforms(world)                 // HashMap&lt;Entity, LocalTransform&gt;
+context.begin_selection_transform_tracking(world)           // Start tracking single-entity transform
+context.commit_selection_transforms(world, initial, desc)   // Commit transforms to undo history
+<span class="boring">}</span></code></pre></pre>
+<p>App-level concerns like UI visibility, popup state, project state, and notification management are intended to be owned by the application layer (e.g., in your <code>AppContext</code>), not stored in <code>EditorContext</code>.</p>
+<h2 id="input-handling-1"><a class="header" href="#input-handling-1">Input Handling</a></h2>
+<p>The keyboard handler returns an <code>InputResult</code> instead of directly mutating app-level state. This lets the engine handle editor-internal shortcuts (gizmo, undo, selection) while the app decides what to do with signals like quit confirmations and popup triggers:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::{on_keyboard_input_handler, InputResult, InputSignal};
+
+let result = on_keyboard_input_handler(
+    &amp;mut context,
+    world,
+    key_code,
+    key_state,
+);
+
+if result.tree_dirty {
+    // Scene tree needs rebuilding
+}
+
+if result.project_modified {
+    // Project has unsaved changes
+}
+
+match result.signal {
+    Some(InputSignal::QuitRequested) =&gt; {
+        // Show quit confirmation dialog
+    }
+    Some(InputSignal::AddPrimitiveRequested(position)) =&gt; {
+        // Open add-primitive popup at position
+    }
+    None =&gt; {}
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="component-inspectors"><a class="header" href="#component-inspectors">Component Inspectors</a></h2>
+<p>The inspector system uses a trait-based approach. Each component type implements <code>ComponentInspector</code>, which receives an <code>InspectorContext</code> containing only the fields inspectors need:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::{ComponentInspector, InspectorContext};
+
+pub trait ComponentInspector {
+    fn name(&amp;self) -&gt; &amp;str;
+    fn has_component(&amp;self, world: &amp;World, entity: Entity) -&gt; bool;
+    fn add_component(&amp;self, world: &amp;mut World, entity: Entity);
+    fn remove_component(&amp;self, world: &amp;mut World, entity: Entity);
+    fn ui(
+        &amp;mut self,
+        world: &amp;mut World,
+        entity: Entity,
+        ui: &amp;mut egui::Ui,
+        context: &amp;mut InspectorContext,
+    );
+}
+<span class="boring">}</span></code></pre></pre>
+<p><code>InspectorContext</code> provides narrowly-scoped access to the specific editor state that inspectors need:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct InspectorContext&lt;'a&gt; {
+    pub transform_edit_pending: &amp;'a mut Option&lt;(Entity, LocalTransform)&gt;,
+    pub undo_history: &amp;'a mut UndoHistory,
+    pub pending_notifications: &amp;'a mut Vec&lt;(ToastKind, String)&gt;,
+    pub actions: &amp;'a mut Vec&lt;InspectorAction&gt;,
+    pub selection: &amp;'a EntitySelection,
+}
+<span class="boring">}</span></code></pre></pre>
+<p><code>InspectorAction</code> is an enum for deferred inspector side effects:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum InspectorAction {
+    LookupMaterial(String),
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="using-componentinspectorui"><a class="header" href="#using-componentinspectorui">Using ComponentInspectorUi</a></h3>
+<p><code>ComponentInspectorUi</code> renders inspectors for all components on the selected entity:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::ComponentInspectorUi;
+
+let mut inspector_ui = ComponentInspectorUi::default();
+
+// Add custom inspectors
+inspector_ui.add_inspector(Box::new(MyCustomInspector));
+
+// In your right panel (returns true if project was modified):
+let modified = inspector_ui.ui(
+    &amp;mut inspector_context,
+    world,
+    ui,
+);
+<span class="boring">}</span></code></pre></pre>
+<p>Built-in inspectors: transform, material, light, camera, mesh, text, water, animation, lines, render layer, and name.</p>
+<p>Feature-gated inspectors:</p>
+<ul>
+<li>NavMesh inspector requires the <code>navmesh</code> feature</li>
+<li>Script inspector requires the <code>scripting</code> feature</li>
+</ul>
+<h2 id="gizmo-system"><a class="header" href="#gizmo-system">Gizmo System</a></h2>
+<p>The gizmo system supports three interaction modes:</p>
+<ul>
+<li><strong>Direct manipulation</strong>: Click and drag gizmo handles in the viewport</li>
+<li><strong>Modal transform</strong>: Press G (grab/translate), R (rotate), or S (scale) then move the mouse, with optional axis constraints (X, Y, Z)</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::{update_gizmo, recreate_gizmo_for_mode};
+
+// Per-frame gizmo update
+nightshade::editor::gizmo::update::update_gizmo(&amp;mut context, &amp;mut project_state, world);
+
+// Change gizmo mode
+context.gizmo_interaction.mode = nightshade::ecs::gizmos::GizmoMode::Scale;
+recreate_gizmo_for_mode(&amp;mut context, world);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="undoredo"><a class="header" href="#undoredo">Undo/Redo</a></h2>
+<p>The undo system captures entity state as snapshots and supports hierarchy-aware operations:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::{UndoHistory, UndoableOperation, capture_hierarchy};
+
+// Capture state before a destructive operation
+let hierarchy = Box::new(capture_hierarchy(world, entity));
+
+// Push an undoable operation
+context.undo_history.push(
+    UndoableOperation::EntityCreated {
+        hierarchy,
+        current_entity: entity,
+    },
+    "Spawn cube".to_string(),
+);
+
+// Undo/redo
+nightshade::editor::selection::undo_with_selection_update(&amp;mut context, &amp;mut project_state, world);
+nightshade::editor::selection::redo_with_selection_update(&amp;mut context, &amp;mut project_state, world);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="scene-tree"><a class="header" href="#scene-tree">Scene Tree</a></h2>
+<p>The <code>WorldTreeUi</code> renders a hierarchical tree view of all entities in the scene:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::{WorldTreeUi, TreeCache};
+
+let mut tree_cache = TreeCache::default();
+
+let open_modal = WorldTreeUi::ui_with_context(
+    world,
+    &amp;mut context.selection,
+    &amp;mut context.undo_history,
+    &amp;mut project_state,
+    &amp;mut tree_cache,
+    gizmo_root,
+    ui,
+);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="picking"><a class="header" href="#picking">Picking</a></h2>
+<p>GPU-based entity picking with support for single click, marquee selection, and context menu:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::picking;
+
+// Entity picking (click to select)
+picking::update_picking(&amp;mut context, world);
+
+// Marquee selection (drag to box-select)
+picking::update_marquee_selection(&amp;mut context, world);
+
+// Draw the marquee rectangle overlay
+picking::draw_marquee_selection(&amp;context.marquee, ui_context);
+
+// Check for right-click context menu (returns mouse position if triggered)
+if let Some(position) = picking::check_context_menu_trigger(&amp;context, world) {
+    // Open context menu at position
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="add-node-modal"><a class="header" href="#add-node-modal">Add Node Modal</a></h2>
+<p>The add node modal takes individual parameters rather than the full <code>EditorContext</code>. Returns <code>true</code> if an entity was created:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::editor::render_add_node_modal;
+
+let created = render_add_node_modal(
+    &amp;mut selection,
+    &amp;mut undo_history,
+    &amp;mut add_node_open,
+    &amp;mut add_node_search,
+    &amp;mut tree_cache,
+    world,
+    ui_context,
+);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="building-a-custom-editor"><a class="header" href="#building-a-custom-editor">Building a Custom Editor</a></h2>
+<p>To build a custom editor using the infrastructure:</p>
+<ol>
+<li>Enable the <code>editor</code> feature (and <code>mosaic</code> for the multi-pane layout)</li>
+<li>Create your own <code>State</code> implementation</li>
+<li>Instantiate <code>EditorContext</code></li>
+<li>Own app-level state (project state, UI visibility, popup state, notifications) separately from <code>EditorContext</code></li>
+<li>Use the provided widgets (tree, inspector, gizmo, picking) in your layout</li>
+<li>Handle <code>InputSignal</code> values from the keyboard handler in your app</li>
+<li>Define your own <code>Widget</code> enum and panel layout using the Mosaic framework</li>
+</ol>
+<p>The official Nightshade Editor (<code>apps/editor/</code>) serves as a complete reference implementation.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="immediate-mode-ui"><a class="header" href="#immediate-mode-ui">Immediate Mode UI</a></h1>
 <blockquote>
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/menu">Menu</a></p>
@@ -10862,7 +11905,7 @@ world.resources.sdf_world.subtract_sphere(center, 1.5, 0.3);
 </span><span class="boring">fn main() {
 </span>world.resources.sdf_world.remove_edit(index);
 <span class="boring">}</span></code></pre></pre>
-<h2 id="undoredo"><a class="header" href="#undoredo">Undo/Redo</a></h2>
+<h2 id="undoredo-1"><a class="header" href="#undoredo-1">Undo/Redo</a></h2>
 <p>The SDF world maintains undo and redo stacks (default max 100 entries):</p>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -11453,13 +12496,7 @@ if just_pressed_keys.contains("E") {
     pub game_state: HashMap&lt;String, f64&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Run the scripting system each frame:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    run_scripts_system(world, &amp;mut self.script_runtime);
-}
-<span class="boring">}</span></code></pre></pre>
+<p>The engine automatically runs scripts each frame via the <code>FrameSchedule</code>. The scripting system is registered as <code>system_names::RUN_SCRIPTS</code> and executes after physics but before animation. No manual call is needed — attaching a <code>Script</code> component to an entity and setting <code>enabled = true</code> is sufficient.</p>
 <h3 id="script-compilation"><a class="header" href="#script-compilation">Script Compilation</a></h3>
 <p>Scripts are compiled to AST on first execution and cached by a hash of the source code. Recompilation only occurs when the source changes. For file-based scripts, modification times are tracked and the script is automatically recompiled when the file changes (hot-reloading on native only).</p>
 <h3 id="custom-functions"><a class="header" href="#custom-functions">Custom Functions</a></h3>
@@ -11781,7 +12818,7 @@ state.uniforms.wave_distortion = 0.2;
     state.animate_hue = true; // Continuously rotate hue based on time
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="complete-example-1"><a class="header" href="#complete-example-1">Complete Example</a></h2>
+<h2 id="complete-example-2"><a class="header" href="#complete-example-2">Complete Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 use nightshade::render::wgpu::passes::postprocess::effects::*;
 
@@ -12243,14 +13280,46 @@ fn handle_mcp_command(
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Return <code>Some(McpResponse)</code> to fully handle a command yourself (the engine skips its default handler), or <code>None</code> to let the engine process it normally. This is useful for:</p>
-<ul>
-<li>Reacting to MCP-driven changes with application-specific side effects (e.g. updating a scene tree)</li>
-<li>Blocking certain commands in specific contexts</li>
-<li>Implementing custom commands in the future</li>
-</ul>
-<h3 id="architecture-1"><a class="header" href="#architecture-1">Architecture</a></h3>
-<p>The MCP server runs on a background thread using tokio and axum. Communication with the main engine thread happens through lock-free queues:</p>
+<p>Return <code>Some(McpResponse)</code> to fully handle a command yourself (the engine skips its default handler), or <code>None</code> to let the engine process it normally. This is useful for blocking certain commands or implementing custom command handling.</p>
+<h3 id="reacting-to-mcp-results"><a class="header" href="#reacting-to-mcp-results">Reacting to MCP Results</a></h3>
+<p><code>after_mcp_command</code> is called after a command has been processed (by the engine or your pre-hook). It receives both the command and the response, making it the right place to record undo entries, refresh scene trees, or trigger other side effects based on whether the command succeeded:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(feature = "mcp", not(target_arch = "wasm32")))]
+fn after_mcp_command(
+    &amp;mut self,
+    world: &amp;mut World,
+    command: &amp;McpCommand,
+    response: &amp;McpResponse,
+) {
+    let is_success = matches!(response, McpResponse::Success(_));
+
+    match command {
+        McpCommand::SpawnEntity { name, .. } =&gt; {
+            if is_success {
+                if let Some(&amp;entity) = world.resources.entity_names.get(name) {
+                    let hierarchy = capture_hierarchy(world, entity);
+                    self.undo_history.push(
+                        UndoableOperation::EntityCreated {
+                            hierarchy: Box::new(hierarchy),
+                            current_entity: entity,
+                        },
+                        format!("MCP: Spawn {}", name),
+                    );
+                }
+            }
+            self.scene_tree_dirty = true;
+        }
+        McpCommand::DespawnEntity { .. } | McpCommand::ClearScene =&gt; {
+            self.scene_tree_dirty = true;
+        }
+        _ =&gt; {}
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The pre-hook/post-hook pattern works together: use <code>handle_mcp_command</code> to capture before-state (e.g. an entity's transform before it changes), then use <code>after_mcp_command</code> to create undo entries by comparing the before-state with the result.</p>
+<h3 id="architecture-2"><a class="header" href="#architecture-2">Architecture</a></h3>
+<p>The MCP server runs on a background thread using tokio and axum. Communication with the main engine thread happens through synchronized queues:</p>
 <ol>
 <li>MCP client sends a tool call via HTTP</li>
 <li>The server deserializes the request into an <code>McpCommand</code> and pushes it to the command queue</li>
@@ -12258,7 +13327,7 @@ fn handle_mcp_command(
 <li>Responses are written to the response queue</li>
 <li>The server reads the response and returns it to the MCP client</li>
 </ol>
-<p>Commands are processed once per frame, after <code>run_systems()</code> and before <code>run_frame_systems()</code>. This means MCP-driven changes are visible to the same frame's transform, physics, and rendering systems.</p>
+<p>Commands are processed once per frame, after <code>run_systems()</code> and before the <code>FrameSchedule</code> dispatch. This means MCP-driven changes are visible to the same frame's transform, physics, and rendering systems.</p>
 <h2 id="claude-code-cli"><a class="header" href="#claude-code-cli">Claude Code CLI</a></h2>
 <p>The <code>claude</code> feature provides a background worker for spawning Claude Code as a subprocess and streaming its JSON output. This lets applications embed an AI chat interface.</p>
 <h3 id="setup-3"><a class="header" href="#setup-3">Setup</a></h3>
@@ -12344,7 +13413,7 @@ nightshade::claude::spawn_cli_worker(
 nightshade = { version = "...", features = ["webview"] }
 </code></pre>
 <p>This pulls in <code>wry</code> (Tauri's webview library) and <code>tiny_http</code> on desktop, and <code>wasm-bindgen</code>/<code>web-sys</code> on WASM.</p>
-<h2 id="architecture-2"><a class="header" href="#architecture-2">Architecture</a></h2>
+<h2 id="architecture-3"><a class="header" href="#architecture-3">Architecture</a></h2>
 <p>The webview system uses a generic <code>WebviewContext&lt;Cmd, Evt&gt;</code> where:</p>
 <ul>
 <li><code>Cmd</code> — command type sent from the web client to the engine</li>
@@ -12411,7 +13480,182 @@ webview_context.ensure_webview(bounds, window_handle);
 <tr><td>Linux</td><td>WebKitGTK</td></tr>
 <tr><td>WASM</td><td>Browser-native (client only)</td></tr>
 </tbody></table>
-</div><div style="break-before: page; page-break-before: always;"></div><h1 id="wasm-plugins"><a class="header" href="#wasm-plugins">WASM Plugins</a></h1>
+</div><div style="break-before: page; page-break-before: always;"></div><h1 id="file-system"><a class="header" href="#file-system">File System</a></h1>
+<p>The <code>nightshade::filesystem</code> module provides a cross-platform file I/O abstraction. On native platforms it wraps the <a href="https://crates.io/crates/rfd"><code>rfd</code></a> crate for file dialogs and <code>std::fs</code> for reading/writing. On WebAssembly it uses browser download/upload APIs (Blob anchors for save, <code>&lt;input type="file"&gt;</code> for load) behind the same function signatures.</p>
+<h2 id="feature-requirements"><a class="header" href="#feature-requirements">Feature Requirements</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Native</th><th>WASM</th></tr></thead><tbody>
+<tr><td><code>save_file</code></td><td><code>file_dialog</code> feature</td><td>always available</td></tr>
+<tr><td><code>request_file_load</code></td><td><code>file_dialog</code> feature</td><td>always available</td></tr>
+<tr><td><code>pick_file</code></td><td><code>file_dialog</code> feature</td><td>not available</td></tr>
+<tr><td><code>pick_folder</code></td><td><code>file_dialog</code> feature</td><td>not available</td></tr>
+<tr><td><code>save_file_dialog</code></td><td><code>file_dialog</code> feature</td><td>not available</td></tr>
+<tr><td><code>read_file</code></td><td><code>file_dialog</code> feature</td><td>not available</td></tr>
+<tr><td><code>write_file</code></td><td><code>file_dialog</code> feature</td><td>not available</td></tr>
+</tbody></table>
+</div>
+<p>The <code>engine</code> aggregate feature includes <code>file_dialog</code> by default.</p>
+<h2 id="types"><a class="header" href="#types">Types</a></h2>
+<h3 id="filefilter"><a class="header" href="#filefilter"><code>FileFilter</code></a></h3>
+<p>Describes a file type filter for dialog boxes and browser accept strings.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::FileFilter;
+
+let filters = [
+    FileFilter {
+        name: "JSON".to_string(),
+        extensions: vec!["json".to_string()],
+    },
+    FileFilter {
+        name: "Images".to_string(),
+        extensions: vec!["png".to_string(), "jpg".to_string()],
+    },
+];
+<span class="boring">}</span></code></pre></pre>
+<h3 id="fileerror"><a class="header" href="#fileerror"><code>FileError</code></a></h3>
+<p>Error type returned by file operations.</p>
+<ul>
+<li><code>FileError::NotFound(String)</code> — file does not exist at the given path</li>
+<li><code>FileError::ReadError(String)</code> — read operation failed</li>
+<li><code>FileError::WriteError(String)</code> — write operation failed</li>
+</ul>
+<p>Implements <code>Display</code> for convenient error formatting.</p>
+<h3 id="loadedfile"><a class="header" href="#loadedfile"><code>LoadedFile</code></a></h3>
+<p>Represents a file that has been read into memory.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LoadedFile {
+    pub name: String,   // filename
+    pub bytes: Vec&lt;u8&gt;, // raw contents
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="pendingfileload"><a class="header" href="#pendingfileload"><code>PendingFileLoad</code></a></h3>
+<p>A handle for an asynchronous file load operation. On native platforms the load completes synchronously during <code>request_file_load</code>, but on WASM the browser reads the file asynchronously, so you poll for completion each frame.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct PendingFileLoad { /* ... */ }
+
+impl PendingFileLoad {
+    pub fn empty() -&gt; Self;
+    pub fn ready(file: LoadedFile) -&gt; Self;
+    pub fn is_ready(&amp;self) -&gt; bool;
+    pub fn take(&amp;self) -&gt; Option&lt;LoadedFile&gt;;
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="cross-platform-functions"><a class="header" href="#cross-platform-functions">Cross-Platform Functions</a></h2>
+<p>These two functions have implementations on both native and WASM. Use them when you want a single code path with no <code>#[cfg]</code> gates.</p>
+<h3 id="save_file"><a class="header" href="#save_file"><code>save_file</code></a></h3>
+<p>Opens a save dialog (native) or triggers a browser download (WASM).</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::{save_file, FileFilter};
+
+let filters = [FileFilter {
+    name: "JSON".to_string(),
+    extensions: vec!["json".to_string()],
+}];
+
+save_file("my_data.json", &amp;bytes, &amp;filters)?;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="request_file_load"><a class="header" href="#request_file_load"><code>request_file_load</code></a></h3>
+<p>Opens a file picker and returns a <code>PendingFileLoad</code>. On native, the file is read immediately. On WASM, the file is read asynchronously after the user selects it.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::{request_file_load, FileFilter, PendingFileLoad};
+
+let filters = [FileFilter {
+    name: "JSON".to_string(),
+    extensions: vec!["json".to_string()],
+}];
+
+let pending: PendingFileLoad = request_file_load(&amp;filters);
+
+// Poll each frame:
+if let Some(loaded) = pending.take() {
+    println!("Loaded {} ({} bytes)", loaded.name, loaded.bytes.len());
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="native-only-functions"><a class="header" href="#native-only-functions">Native-Only Functions</a></h2>
+<p>These functions are available only on non-WASM targets with the <code>file_dialog</code> feature enabled. They provide <code>PathBuf</code>-based access for workflows that need the filesystem path (e.g., loading assets by path, tracking recent files).</p>
+<h3 id="pick_file"><a class="header" href="#pick_file"><code>pick_file</code></a></h3>
+<p>Opens a file picker dialog. Returns <code>Option&lt;PathBuf&gt;</code>.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::{pick_file, FileFilter};
+
+let filters = [FileFilter {
+    name: "Scene files".to_string(),
+    extensions: vec!["json".to_string(), "bin".to_string()],
+}];
+
+if let Some(path) = pick_file(&amp;filters) {
+    // use path
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="pick_folder"><a class="header" href="#pick_folder"><code>pick_folder</code></a></h3>
+<p>Opens a folder picker dialog. Returns <code>Option&lt;PathBuf&gt;</code>.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::pick_folder;
+
+if let Some(folder) = pick_folder() {
+    // use folder path
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="save_file_dialog"><a class="header" href="#save_file_dialog"><code>save_file_dialog</code></a></h3>
+<p>Opens a save dialog. Returns <code>Option&lt;PathBuf&gt;</code> without writing anything. An optional default filename can be suggested to the user.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::{save_file_dialog, FileFilter};
+
+let filters = [FileFilter {
+    name: "Project".to_string(),
+    extensions: vec!["project.json".to_string()],
+}];
+
+if let Some(path) = save_file_dialog(&amp;filters, Some("my_project.json")) {
+    // write to path yourself
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="read_file"><a class="header" href="#read_file"><code>read_file</code></a></h3>
+<p>Reads a file into a byte vector. Returns <code>Result&lt;Vec&lt;u8&gt;, FileError&gt;</code>.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::read_file;
+
+let bytes = read_file(std::path::Path::new("settings.json"))?;
+let settings: MySettings = serde_json::from_slice(&amp;bytes)?;
+<span class="boring">}</span></code></pre></pre>
+<h3 id="write_file"><a class="header" href="#write_file"><code>write_file</code></a></h3>
+<p>Writes bytes to a file, creating parent directories as needed. Returns <code>Result&lt;(), FileError&gt;</code>.</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nightshade::filesystem::write_file;
+
+let json = serde_json::to_vec_pretty(&amp;settings)?;
+write_file(std::path::Path::new("settings.json"), &amp;json)?;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="polling-pattern"><a class="header" href="#polling-pattern">Polling Pattern</a></h2>
+<p>For cross-platform file loading, store a <code>PendingFileLoad</code> in your application state and poll it each frame:</p>
+<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct MyApp {
+    pending_load: Option&lt;nightshade::filesystem::PendingFileLoad&gt;,
+}
+
+// When the user clicks "Load":
+self.pending_load = Some(nightshade::filesystem::request_file_load(&amp;filters));
+
+// Each frame in ui() or run_systems():
+if let Some(ref pending) = self.pending_load {
+    if let Some(file) = pending.take() {
+        self.pending_load = None;
+        self.process_loaded_file(&amp;file.name, &amp;file.bytes);
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This pattern works identically on native and WASM with no conditional compilation.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="wasm-plugins"><a class="header" href="#wasm-plugins">WASM Plugins</a></h1>
 <blockquote>
 <p>Requires feature: <code>plugin_runtime</code></p>
 </blockquote>
@@ -13685,7 +14929,7 @@ impl State for MinimalGame {
 <p>See the other examples for complete implementations of these features.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="first-person-game"><a class="header" href="#first-person-game">First Person Game</a></h1>
 <p>A complete first-person shooter/exploration template with physics, audio, and weapons.</p>
-<h2 id="complete-example-2"><a class="header" href="#complete-example-2">Complete Example</a></h2>
+<h2 id="complete-example-3"><a class="header" href="#complete-example-3">Complete Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 
 struct FirstPersonGame {
@@ -14128,7 +15372,7 @@ nightshade = { git = "...", features = ["engine", "wgpu", "physics", "audio"] }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="third-person-game"><a class="header" href="#third-person-game">Third Person Game</a></h1>
 <p>A complete third-person action game template with character animation, combat, and camera control.</p>
-<h2 id="complete-example-3"><a class="header" href="#complete-example-3">Complete Example</a></h2>
+<h2 id="complete-example-4"><a class="header" href="#complete-example-4">Complete Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 
 struct ThirdPersonGame {
@@ -14612,7 +15856,7 @@ nightshade = { git = "...", features = ["engine", "wgpu", "physics"] }
 <p><strong>Live Demo:</strong> <a href="https://matthewberger.dev/nightshade/physics">Physics</a></p>
 </blockquote>
 <p>An interactive physics sandbox demonstrating rigid bodies, colliders, joints, and forces.</p>
-<h2 id="complete-example-4"><a class="header" href="#complete-example-4">Complete Example</a></h2>
+<h2 id="complete-example-5"><a class="header" href="#complete-example-5">Complete Example</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024">use nightshade::prelude::*;
 
 struct PhysicsPlayground {
@@ -15191,7 +16435,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <p>Tokio async runtime for non-blocking operations. Requires <code>core</code>.</p>
 <h3 id="screenshot"><a class="header" href="#screenshot"><code>screenshot</code></a></h3>
 <p>PNG screenshot saving using image.</p>
-<h3 id="picking"><a class="header" href="#picking"><code>picking</code></a></h3>
+<h3 id="picking-1"><a class="header" href="#picking-1"><code>picking</code></a></h3>
 <p>Ray-based entity picking with bounding box intersection. Trimesh picking requires <code>physics</code>.</p>
 <h3 id="behaviors"><a class="header" href="#behaviors"><code>behaviors</code></a></h3>
 <p>Built-in behavior components and systems.</p>
@@ -15368,7 +16612,7 @@ nightshade = { git = "https://github.com/matthewjberger/nightshade.git" }
 <p>Connect Claude Code to the running engine:</p>
 <pre><code class="language-bash">claude mcp add --transport http nightshade http://127.0.0.1:3333/mcp
 </code></pre>
-<p>Applications can intercept MCP commands before the engine processes them by implementing <code>handle_mcp_command</code> on the <code>State</code> trait. See the <a href="ai-integration.html">AI Integration</a> chapter for details.</p>
+<p>Applications can intercept MCP commands before the engine processes them with <code>handle_mcp_command</code> and react to results with <code>after_mcp_command</code> on the <code>State</code> trait. See the <a href="ai-integration.html">AI Integration</a> chapter for details.</p>
 <p><strong>Additional Dependencies:</strong> axum, rmcp, schemars</p>
 <h3 id="claude"><a class="header" href="#claude"><code>claude</code></a></h3>
 <p>Provides types and a background worker thread for spawning Claude Code CLI as a subprocess and streaming its JSON output. This lets applications embed an AI assistant that can send queries, receive streamed responses (text, thinking, tool use events), and manage sessions.</p>
@@ -15853,7 +17097,7 @@ spawn_camera(world, position: Vec3, name: String) -&gt; Entity
 spawn_pan_orbit_camera(world, focus: Vec3, radius: f32, yaw: f32, pitch: f32, name: String) -&gt; Entity
 spawn_ortho_camera(world, position: Vec2) -&gt; Entity
 <span class="boring">}</span></code></pre></pre>
-<h2 id="primitives"><a class="header" href="#primitives">Primitives</a></h2>
+<h2 id="primitives-1"><a class="header" href="#primitives-1">Primitives</a></h2>
 <pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>spawn_cube_at(world, position: Vec3) -&gt; Entity
@@ -16132,6 +17376,8 @@ nalgebra_glm::lerp(from: &amp;Vec3, to: &amp;Vec3, t: f32) -&gt; Vec3
     fn update_render_graph(&amp;mut self, graph: &amp;mut RenderGraph&lt;World&gt;, world: &amp;World) {}
     fn pre_render(&amp;mut self, renderer: &amp;mut dyn Render, world: &amp;mut World) {}
     fn next_state(&amp;mut self, world: &amp;mut World) -&gt; Option&lt;Box&lt;dyn State&gt;&gt; { None }
+    fn handle_mcp_command(&amp;mut self, world: &amp;mut World, command: &amp;McpCommand) -&gt; Option&lt;McpResponse&gt; { None }
+    fn after_mcp_command(&amp;mut self, world: &amp;mut World, command: &amp;McpCommand, response: &amp;McpResponse) {}
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="audio-analyzer-fft-feature"><a class="header" href="#audio-analyzer-fft-feature">Audio Analyzer (fft feature)</a></h2>

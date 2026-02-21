@@ -11,22 +11,45 @@ Each frame executes in this order:
 2.  Update input state from events
 3.  Calculate delta time
 4.  Begin egui frame (if enabled)
-5.  Call State::run_systems() - Your game logic
-6.  Process MCP commands (if mcp feature enabled)
+5.  Call State::run_systems() — Your game logic
+6.  Dispatch EventBus messages
+7.  Process MCP commands (if mcp feature enabled)
     - Calls State::handle_mcp_command() (pre-hook)
     - Executes command
     - Calls State::after_mcp_command() (post-hook)
-7.  Dispatch EventBus messages
-8.  Update animation players
-9.  Apply animations to transforms
-10. Propagate transform hierarchy
-11. Step physics simulation (fixed timestep)
-12. Sync physics transforms to ECS
-13. Update audio listener positions
-14. Execute render graph passes
-15. End egui frame
-16. Present to swapchain
+8.  Run FrameSchedule — Engine systems dispatched in order:
+    a. Initialize and update audio (if audio feature)
+    b. Update camera aspect ratios
+    c. Step physics simulation (if physics feature)
+    d. Run scripts (if scripting feature)
+    e. Update animation players
+    f. Apply animations to transforms
+    g. Propagate transform hierarchy
+    h. Update instanced mesh caches
+    i. Sync HUD and immediate UI text
+    j. Reset mouse and touch input state
+    k. Process deferred commands
+    l. Cleanup unused resources
+9.  Execute render graph passes
+10. End egui frame
+11. Present to swapchain
 ```
+
+The frame schedule is stored as a resource at `world.resources.frame_schedule`. You can customize it in `State::initialize()` to insert your own systems between engine systems, remove systems you don't need, or reorder dispatch:
+
+```rust
+fn initialize(&mut self, world: &mut World) {
+    world.resources.frame_schedule.insert_after(
+        system_names::RUN_PHYSICS,
+        "my_gameplay_system",
+        my_gameplay_system,
+    );
+
+    world.resources.frame_schedule.remove(system_names::SYNC_HUD_TEXT);
+}
+```
+
+See `system_names` in the prelude for the full list of engine system name constants.
 
 ## Timing
 

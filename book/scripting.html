@@ -352,13 +352,7 @@ if just_pressed_keys.contains("E") {
     pub game_state: HashMap&lt;String, f64&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Run the scripting system each frame:</p>
-<pre><pre class="playground"><code class="language-rust edition2024"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn run_systems(&amp;mut self, world: &amp;mut World) {
-    run_scripts_system(world, &amp;mut self.script_runtime);
-}
-<span class="boring">}</span></code></pre></pre>
+<p>The engine automatically runs scripts each frame via the <code>FrameSchedule</code>. The scripting system is registered as <code>system_names::RUN_SCRIPTS</code> and executes after physics but before animation. No manual call is needed — attaching a <code>Script</code> component to an entity and setting <code>enabled = true</code> is sufficient.</p>
 <h3 id="script-compilation"><a class="header" href="#script-compilation">Script Compilation</a></h3>
 <p>Scripts are compiled to AST on first execution and cached by a hash of the source code. Recompilation only occurs when the source changes. For file-based scripts, modification times are tracked and the script is automatically recompiled when the file changes (hot-reloading on native only).</p>
 <h3 id="custom-functions"><a class="header" href="#custom-functions">Custom Functions</a></h3>

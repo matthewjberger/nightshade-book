@@ -80,6 +80,7 @@ fn run_systems(&mut self, world: &mut World) {
 |----------|------|-------------|
 | `event_bus` | `EventBus` | Message passing between systems |
 | `command_queue` | `Vec<WorldCommand>` | Deferred GPU/scene operations |
+| `frame_schedule` | `FrameSchedule` | Ordered list of engine systems dispatched each frame |
 
 ### Platform
 
